@@ -1,0 +1,60 @@
+{
+  "description": "dark and atmospheric pad sound for cinematic underscore",
+  "effects": [
+    {
+      "type": "eq",
+      "parameters": {
+        "bands": [
+          {
+            "frequency": 60,
+            "gain": 2.5,
+            "q": 0.9,
+            "note": "Enhance sub-bass for depth and weight"
+          },
+          {
+            "frequency": 250,
+            "gain": 3.0,
+            "q": 0.6,
+            "note": "Boost low-mids for fullness and darkness"
+          },
+          {
+            "frequency": 2500,
+            "gain": -4.0,
+            "q": 1.0,
+            "note": "Reduce upper-mids for darker character"
+          },
+          {
+            "frequency": 8000,
+            "gain": -6.0,
+            "q": 0.5,
+            "note": "Strong high-end roll-off for mystery and mood"
+          }
+        ]
+      }
+    },
+    {
+      "type": "compressor",
+      "parameters": {
+        "threshold": -25.0,
+        "ratio": 2.5,
+        "attack": 30.0,
+        "release": 200.0,
+        "knee": 9.0,
+        "makeup_gain": 4.0,
+        "note": "Gentle, slow compression for smooth sustain"
+      }
+    },
+    {
+      "type": "reverb",
+      "parameters": {
+        "room_size": 0.85,
+        "damping": 0.8,
+        "wet_level": 0.55,
+        "dry_level": 0.7,
+        "width": 0.85,
+        "freeze_mode": false,
+        "note": "Large, dark reverb for atmospheric depth and space"
+      }
+    }
+  ]
+}
