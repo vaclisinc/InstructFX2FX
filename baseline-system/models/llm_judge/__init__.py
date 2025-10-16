@@ -13,7 +13,7 @@ Key Features:
 
 Usage:
     from models.llm_judge import LLMRequest, LLMResponse, LLMProvider
-    from models.llm_judge.claude import ClaudeProvider  # Concrete implementation
+    from models.llm_judge.providers import ClaudeProvider  # Concrete implementation
 
     # Create provider
     provider = ClaudeProvider(config)
@@ -31,9 +31,10 @@ Usage:
 Module Structure:
 - types: Data models (LLMRequest, LLMResponse, RetryConfig, RateLimitConfig)
 - base: Abstract LLMProvider base class with retry and rate limiting
-- claude: ClaudeProvider implementation (to be implemented in Issue #6)
-- openrouter: OpenRouterProvider implementation (to be implemented in Issue #7)
-- factory: Provider factory for instantiation from config (to be implemented)
+- config: Configuration schemas (ProviderConfig, AnthropicConfig, OpenRouterConfig, LLMConfig)
+- factory: Provider factory for instantiation from config
+- providers.claude: ClaudeProvider implementation (Stream C)
+- providers.openrouter: OpenRouterProvider implementation (Stream D)
 """
 
 from .types import (
@@ -48,6 +49,27 @@ from .base import (
     RateLimiter,
 )
 
+from .config import (
+    ProviderConfig,
+    AnthropicConfig,
+    OpenRouterConfig,
+    LLMConfig,
+)
+
+from .factory import (
+    create_provider,
+    create_provider_from_llm_config,
+    validate_provider_config,
+    get_supported_providers,
+    get_provider_info,
+    ProviderNotFoundError,
+    ProviderInstantiationError,
+)
+
+# Provider implementations
+from .providers import ClaudeProvider
+# from .providers import OpenRouterProvider  # To be implemented
+
 
 __version__ = "0.1.0"
 
@@ -60,4 +82,20 @@ __all__ = [
     # Base classes
     "LLMProvider",
     "RateLimiter",
+    # Configuration
+    "ProviderConfig",
+    "AnthropicConfig",
+    "OpenRouterConfig",
+    "LLMConfig",
+    # Factory
+    "create_provider",
+    "create_provider_from_llm_config",
+    "validate_provider_config",
+    "get_supported_providers",
+    "get_provider_info",
+    "ProviderNotFoundError",
+    "ProviderInstantiationError",
+    # Provider implementations
+    "ClaudeProvider",
+    # "OpenRouterProvider",  # To be implemented
 ]
