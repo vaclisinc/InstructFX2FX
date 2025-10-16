@@ -1,0 +1,66 @@
+{
+  "description": "punchy and aggressive drum sound for electronic dance music",
+  "effects": [
+    {
+      "type": "eq",
+      "parameters": {
+        "bands": [
+          {
+            "frequency": 80,
+            "gain": 4.0,
+            "q": 1.2,
+            "note": "Boost kick fundamental for power"
+          },
+          {
+            "frequency": 200,
+            "gain": -3.0,
+            "q": 0.8,
+            "note": "Cut low-mids to prevent muddiness"
+          },
+          {
+            "frequency": 1200,
+            "gain": 5.0,
+            "q": 2.0,
+            "note": "Sharp mid boost for attack and punch"
+          },
+          {
+            "frequency": 5000,
+            "gain": 3.5,
+            "q": 1.5,
+            "note": "Enhance crack and snap for aggression"
+          },
+          {
+            "frequency": 12000,
+            "gain": 2.0,
+            "q": 0.6,
+            "note": "Add high-end sizzle for presence"
+          }
+        ]
+      }
+    },
+    {
+      "type": "compressor",
+      "parameters": {
+        "threshold": -15.0,
+        "ratio": 8.0,
+        "attack": 1.0,
+        "release": 30.0,
+        "knee": 1.0,
+        "makeup_gain": 8.0,
+        "note": "Heavy, fast compression for maximum punch and sustain"
+      }
+    },
+    {
+      "type": "reverb",
+      "parameters": {
+        "room_size": 0.25,
+        "damping": 0.3,
+        "wet_level": 0.15,
+        "dry_level": 1.0,
+        "width": 0.5,
+        "freeze_mode": false,
+        "note": "Minimal reverb to maintain punch and directness"
+      }
+    }
+  ]
+}
