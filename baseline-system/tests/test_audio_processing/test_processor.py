@@ -68,7 +68,7 @@ class TestAudioProcessor:
             wet_level=0.3,
             dry_level=0.7,
             width=1.0,
-            freeze_mode=0.0
+            freeze_mode=False
         )
         return EffectChain(
             description="Simple reverb",
@@ -79,11 +79,12 @@ class TestAudioProcessor:
     @pytest.fixture
     def complex_effect_chain(self):
         """Create a complex effect chain with multiple effects."""
-        # EQ with 2 bands
+        # EQ with 3 bands (minimum required)
         eq = EQParameters(
             eq_type="parametric",
             bands=[
                 EQBand(frequency=200, gain=3.0, q=1.0),
+                EQBand(frequency=1000, gain=1.0, q=1.2),
                 EQBand(frequency=5000, gain=-2.0, q=1.5)
             ]
         )
@@ -93,7 +94,9 @@ class TestAudioProcessor:
             threshold=-20.0,
             ratio=4.0,
             attack=5.0,
-            release=100.0
+            release=100.0,
+            knee=6.0,
+            makeup_gain=3.0
         )
 
         # Reverb
@@ -101,7 +104,9 @@ class TestAudioProcessor:
             room_size=0.7,
             damping=0.4,
             wet_level=0.2,
-            dry_level=0.8
+            dry_level=0.8,
+            width=1.0,
+            freeze_mode=False
         )
 
         return EffectChain(
@@ -284,11 +289,13 @@ class TestAudioProcessor:
 
     def test_process_eq_chain(self, temp_dir, sample_audio_file):
         """Test processing with EQ effect chain."""
-        # Create EQ chain
+        # Create EQ chain (minimum 3 bands required)
         eq = EQParameters(
             eq_type="parametric",
             bands=[
+                EQBand(frequency=500, gain=3.0, q=1.0),
                 EQBand(frequency=1000, gain=6.0, q=1.0),
+                EQBand(frequency=4000, gain=-3.0, q=1.2)
             ]
         )
         eq_chain = EffectChain(
@@ -311,12 +318,14 @@ class TestAudioProcessor:
 
     def test_process_compressor_chain(self, temp_dir, sample_audio_file):
         """Test processing with compressor effect chain."""
-        # Create compressor chain
+        # Create compressor chain with all required fields
         compressor = CompressorParameters(
             threshold=-15.0,
             ratio=3.0,
             attack=10.0,
-            release=100.0
+            release=100.0,
+            knee=4.0,
+            makeup_gain=2.0
         )
         comp_chain = EffectChain(
             description="Compress",
