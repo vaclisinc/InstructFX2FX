@@ -1,0 +1,82 @@
+# Default Configuration for LLM-as-Music-Judge Baseline System
+#
+# This configuration file provides default settings for all components
+# of the baseline system. Values can be overridden by:
+# 1. Creating profile-specific configs (e.g., prod.yaml)
+# 2. Setting environment variables (e.g., AUDIO_SAMPLE_RATE=48000)
+# 3. Passing values at runtime
+
+# Configuration profile (dev, test, prod)
+profile: dev
+
+# Audio Processing Configuration
+audio:
+  # Sample rate for audio processing (Hz)
+  sample_rate: 44100
+
+  # Directory containing audio samples
+  audio_dir: ./audio_samples
+
+  # Maximum audio duration to process (seconds)
+  max_duration: 30.0
+
+# LLM Provider Configuration
+llm:
+  # LLM provider: anthropic, openai, or openrouter
+  provider: anthropic
+
+  # Model name/identifier
+  # For Anthropic: claude-3-5-sonnet-20241022, claude-3-opus-20240229
+  # For OpenAI: gpt-4, gpt-3.5-turbo
+  model: claude-3-5-sonnet-20241022
+
+  # API key (should be overridden by environment variable)
+  # Set ANTHROPIC_API_KEY or OPENROUTER_API_KEY environment variable
+  api_key: null
+
+  # Temperature for generation (0.0-2.0)
+  # Lower = more deterministic, Higher = more creative
+  temperature: 0.7
+
+  # Maximum tokens for response
+  max_tokens: 4096
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+
+  # Output format: json (structured) or console (pretty)
+  format: console
+
+  # Directory for log files
+  output_dir: ./logs
+
+  # Enable console output
+  console_output: true
+
+  # Enable file output (separate files for api, audio, scoring)
+  file_output: true
+
+# Experiment Configuration
+experiment:
+  # Experiment name
+  name: baseline_experiment
+
+  # Experiment description
+  description: "Baseline system for LLM-driven audio parameter generation and scoring"
+
+  # Dataset to use (e.g., CAL500, MusicCaps)
+  dataset: CAL500
+
+  # Batch size for processing
+  batch_size: 8
+
+  # Number of iterations for iterative refinement
+  num_iterations: 5
+
+  # Save experiment results
+  save_results: true
+
+  # Directory for experiment results
+  results_dir: ./results
