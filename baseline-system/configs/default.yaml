@@ -23,7 +23,7 @@ audio:
 # LLM Provider Configuration
 llm:
   # LLM provider: anthropic, openai, or openrouter
-  provider: openrouter
+  provider: anthropic
 
   # Model name/identifier
   # For Anthropic: claude-3-5-sonnet-20241022, claude-3-opus-20240229
