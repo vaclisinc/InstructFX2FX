@@ -1,0 +1,114 @@
+# Experiment Configuration Template
+#
+# This template provides experiment-specific settings that override
+# the default configuration. Use this for running specific experiments
+# with custom parameters.
+#
+# Usage:
+#   export CONFIG_PATH=configs/experiment.yaml
+#   python run_experiment.py
+
+# Configuration profile
+profile: dev
+
+# Audio Processing Configuration
+audio:
+  sample_rate: 44100
+  audio_dir: ./audio_samples/experiment_001
+  max_duration: 30.0
+
+# LLM Provider Configuration
+llm:
+  provider: anthropic
+  model: claude-3-5-sonnet-20241022
+  # API key should be set via environment variable
+  api_key: null
+  temperature: 0.7
+  max_tokens: 4096
+
+# Logging Configuration
+logging:
+  level: DEBUG  # More verbose logging for experiments
+  format: json  # Structured logging for analysis
+  output_dir: ./logs/experiment_001
+  console_output: true
+  file_output: true
+
+# Experiment Configuration
+experiment:
+  # Unique experiment identifier
+  name: baseline_reverb_experiment
+
+  # Detailed experiment description
+  description: |
+    Baseline experiment testing LLM's ability to generate reverb parameters
+    based on natural language descriptions. This experiment focuses on
+    simple, single-effect parameter generation without iterative refinement.
+
+    Evaluation metrics:
+    - CLAP audio-text alignment score
+    - Human preference rating (MOS)
+    - Parameter accuracy vs ground truth
+
+  # Dataset configuration
+  dataset: CAL500
+
+  # Processing batch size
+  # Larger batches = faster processing but more memory
+  batch_size: 4
+
+  # Number of refinement iterations
+  # For baseline: 1 (no refinement)
+  # For iterative: 5-10
+  num_iterations: 1
+
+  # Save detailed results
+  save_results: true
+
+  # Results output directory
+  results_dir: ./results/experiment_001
+
+# Additional experiment-specific settings
+# (These are not validated by the Config model but can be accessed as needed)
+
+# Test prompts for the experiment
+test_prompts:
+  - "after rain campus in October"
+  - "warm and intimate jazz club"
+  - "vast cathedral with stone walls"
+  - "small bedroom studio"
+  - "outdoor concert in open field"
+
+# Effects to test
+effects:
+  - reverb
+  - eq
+  - compression
+
+# Evaluation configuration
+evaluation:
+  # Use CLAP for audio-text similarity
+  use_clap: true
+
+  # Collect human ratings
+  collect_human_ratings: false
+
+  # Save intermediate audio outputs
+  save_intermediate_audio: true
+
+  # Metrics to compute
+  metrics:
+    - clap_similarity
+    - spectral_distance
+    - loudness_difference
+
+# Scoring weights for judge system
+scoring:
+  # Weight for tone judge (semantic match)
+  alpha: 0.4
+
+  # Weight for audio score (fidelity metrics)
+  beta: 0.4
+
+  # Weight for preference alignment
+  gamma: 0.2
