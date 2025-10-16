@@ -5,7 +5,7 @@ openai==1.54.0
 # Audio Processing
 librosa==0.10.2
 soundfile==0.12.1
-pedalboard==0.9.9
+pedalboard==0.9.16
 numpy==1.26.4
 
 # Data Validation & Config
