@@ -220,9 +220,12 @@ class TestEffectChainBuilder:
 
     def test_create_eq_with_many_bands(self, builder):
         """Test creating EQ with maximum number of bands."""
+        # Use logarithmic spacing from 20Hz to 20000Hz for 10 bands
+        # This ensures all frequencies are within audible range
+        frequencies = [100, 200, 400, 800, 1600, 3200, 6400, 10000, 15000, 18000]
         bands = [
-            EQBand(frequency=50.0 * (2 ** i), gain=1.0, q=1.0)
-            for i in range(10)  # Maximum 10 bands
+            EQBand(frequency=freq, gain=1.0, q=1.0)
+            for freq in frequencies
         ]
         params = EQParameters(
             effect_type="eq",
