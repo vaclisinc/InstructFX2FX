@@ -16,7 +16,7 @@ VALID_EQ_MINIMUM_BANDS = {
         {"frequency": 1000.0, "gain": -1.5, "q": 1.2},
         {"frequency": 8000.0, "gain": 3.0, "q": 0.9}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 VALID_EQ_MAXIMUM_BANDS = {
@@ -32,7 +32,7 @@ VALID_EQ_MAXIMUM_BANDS = {
         {"frequency": 12000.0, "gain": -2.5, "q": 0.7},
         {"frequency": 20000.0, "gain": 1.0, "q": 0.5}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 VALID_EQ_EDGE_CASES = {
@@ -41,7 +41,7 @@ VALID_EQ_EDGE_CASES = {
         {"frequency": 20000.0, "gain": 12.0, "q": 10.0},   # Max frequency, max gain, max q
         {"frequency": 1000.0, "gain": 0.0, "q": 1.0}       # Mid values
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 # Invalid EQ Parameters
@@ -50,7 +50,7 @@ INVALID_EQ_TOO_FEW_BANDS = {
         {"frequency": 1000.0, "gain": 3.0, "q": 1.0},
         {"frequency": 2000.0, "gain": -2.0, "q": 0.8}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_TOO_MANY_BANDS = {
@@ -58,7 +58,7 @@ INVALID_EQ_TOO_MANY_BANDS = {
         {"frequency": 20.0 + i*2000, "gain": 1.0, "q": 1.0}
         for i in range(11)  # 11 bands (max is 10)
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_FREQUENCY_TOO_LOW = {
@@ -67,7 +67,7 @@ INVALID_EQ_FREQUENCY_TOO_LOW = {
         {"frequency": 1000.0, "gain": -2.0, "q": 0.8},
         {"frequency": 5000.0, "gain": 2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_FREQUENCY_TOO_HIGH = {
@@ -76,7 +76,7 @@ INVALID_EQ_FREQUENCY_TOO_HIGH = {
         {"frequency": 5000.0, "gain": -2.0, "q": 0.8},
         {"frequency": 25000.0, "gain": 2.0, "q": 1.2}  # Above 20000 Hz
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_GAIN_TOO_LOW = {
@@ -85,7 +85,7 @@ INVALID_EQ_GAIN_TOO_LOW = {
         {"frequency": 2000.0, "gain": 3.0, "q": 0.8},
         {"frequency": 4000.0, "gain": -2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_GAIN_TOO_HIGH = {
@@ -94,7 +94,7 @@ INVALID_EQ_GAIN_TOO_HIGH = {
         {"frequency": 2000.0, "gain": 15.0, "q": 0.8},  # Above 12 dB
         {"frequency": 4000.0, "gain": -2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_Q_TOO_LOW = {
@@ -103,7 +103,7 @@ INVALID_EQ_Q_TOO_LOW = {
         {"frequency": 2000.0, "gain": -2.0, "q": 0.8},
         {"frequency": 4000.0, "gain": 2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_Q_TOO_HIGH = {
@@ -112,7 +112,7 @@ INVALID_EQ_Q_TOO_HIGH = {
         {"frequency": 2000.0, "gain": -2.0, "q": 15.0},  # Above 10
         {"frequency": 4000.0, "gain": 2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_MISSING_REQUIRED_FIELD = {
@@ -121,7 +121,7 @@ INVALID_EQ_MISSING_REQUIRED_FIELD = {
         {"frequency": 2000.0, "gain": -2.0, "q": 0.8},
         {"frequency": 4000.0, "gain": 2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 INVALID_EQ_WRONG_TYPE = {
@@ -130,7 +130,7 @@ INVALID_EQ_WRONG_TYPE = {
         {"frequency": 2000.0, "gain": -2.0, "q": 0.8},
         {"frequency": 4000.0, "gain": 2.0, "q": 1.2}
     ],
-    "type": "parametric"
+    "eq_type": "parametric"
 }
 
 # Valid Reverb Parameters

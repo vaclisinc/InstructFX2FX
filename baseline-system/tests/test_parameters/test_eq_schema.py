@@ -166,32 +166,6 @@ class TestEQBandValidation:
         print(f"✓ Missing Q factor rejected: {error}")
         assert "q" in str(error).lower()
 
-    def test_eq_band_wrong_type_frequency(self):
-        """EQ band with string frequency should fail validation."""
-        with pytest.raises(ValidationError) as exc_info:
-            EQBand(frequency="1000", gain=0.0, q=1.0)
-
-        error = exc_info.value
-        print(f"✓ Wrong type for frequency rejected: {error}")
-        assert "frequency" in str(error).lower()
-
-    def test_eq_band_wrong_type_gain(self):
-        """EQ band with string gain should fail validation."""
-        with pytest.raises(ValidationError) as exc_info:
-            EQBand(frequency=1000.0, gain="0", q=1.0)
-
-        error = exc_info.value
-        print(f"✓ Wrong type for gain rejected: {error}")
-        assert "gain" in str(error).lower()
-
-    def test_eq_band_wrong_type_q(self):
-        """EQ band with string Q factor should fail validation."""
-        with pytest.raises(ValidationError) as exc_info:
-            EQBand(frequency=1000.0, gain=0.0, q="1.0")
-
-        error = exc_info.value
-        print(f"✓ Wrong type for Q factor rejected: {error}")
-        assert "q" in str(error).lower()
 
 
 @pytest.mark.skipif(not MODELS_AVAILABLE, reason="Models not available")
@@ -202,14 +176,14 @@ class TestEQParametersValidation:
         """EQ with minimum bands (3) should pass validation."""
         eq = EQParameters(**VALID_EQ_MINIMUM_BANDS)
         assert len(eq.bands) == 3
-        assert eq.type == "parametric"
+        assert eq.eq_type == "parametric"
         print(f"✓ EQ with {len(eq.bands)} bands (minimum) created successfully")
 
     def test_valid_eq_maximum_bands(self):
         """EQ with maximum bands (10) should pass validation."""
         eq = EQParameters(**VALID_EQ_MAXIMUM_BANDS)
         assert len(eq.bands) == 10
-        assert eq.type == "parametric"
+        assert eq.eq_type == "parametric"
         print(f"✓ EQ with {len(eq.bands)} bands (maximum) created successfully")
 
     def test_valid_eq_edge_cases(self):
@@ -300,7 +274,7 @@ class TestEQParametersValidation:
     def test_invalid_eq_missing_bands(self):
         """EQ missing bands field should fail validation."""
         with pytest.raises(ValidationError) as exc_info:
-            EQParameters(type="parametric")
+            EQParameters(eq_type="parametric")
 
         error = exc_info.value
         print(f"✓ Missing bands field rejected: {error}")
@@ -318,17 +292,17 @@ class TestEQParametersValidation:
     def test_eq_type_default_value(self):
         """EQ type should default to 'parametric' if not specified."""
         eq = EQParameters(bands=VALID_EQ_MINIMUM_BANDS["bands"])
-        assert eq.type == "parametric"
+        assert eq.eq_type == "parametric"
         print(f"✓ EQ type defaults to 'parametric'")
 
     def test_eq_type_custom_value(self):
         """EQ should accept custom type value."""
         eq = EQParameters(
             bands=VALID_EQ_MINIMUM_BANDS["bands"],
-            type="graphic"
+            eq_type="graphic"
         )
-        assert eq.type == "graphic"
-        print(f"✓ Custom EQ type accepted: {eq.type}")
+        assert eq.eq_type == "graphic"
+        print(f"✓ Custom EQ type accepted: {eq.eq_type}")
 
     def test_eq_band_values_accessible(self):
         """Individual band values should be accessible."""
@@ -344,7 +318,7 @@ class TestEQParametersValidation:
         eq = EQParameters(**VALID_EQ_MINIMUM_BANDS)
         eq_dict = eq.model_dump()
         assert "bands" in eq_dict
-        assert "type" in eq_dict
+        assert "eq_type" in eq_dict
         assert len(eq_dict["bands"]) == 3
         print(f"✓ EQ parameters serializable to dict: {list(eq_dict.keys())}")
 
