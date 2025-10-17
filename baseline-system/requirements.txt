@@ -4,6 +4,7 @@ openai==1.54.0
 
 # Audio Processing
 librosa==0.10.2
+numba>=0.61.0  # Required for Python 3.13 support (see librosa issue #1883)
 soundfile==0.12.1
 pedalboard==0.9.16
 numpy==1.26.4
