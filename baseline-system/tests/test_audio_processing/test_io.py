@@ -31,11 +31,9 @@ from src.utils.logging import configure_logging
 configure_logging(level="INFO", format="console", console_output=True, file_output=False)
 
 
-# Skip tests requiring librosa.load on Python 3.13+ due to aifc module removal
-skip_if_python313 = pytest.mark.skipif(
-    sys.version_info >= (3, 13),
-    reason="librosa.load requires aifc module (removed in Python 3.13+)"
-)
+# Note: AudioLoader now uses soundfile + librosa.resample instead of librosa.load
+# This avoids the Python 3.13 audioread/aifc compatibility issue
+# All tests should now work on Python 3.13+
 
 
 class TestAudioLoaderInit:
@@ -124,7 +122,6 @@ class TestAudioLoaderLoad:
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-    @skip_if_python313
     def test_load_mono_audio(self, temp_audio_file):
         """Test loading mono audio file."""
         loader = AudioLoader(sample_rate=44100)
@@ -135,7 +132,6 @@ class TestAudioLoaderLoad:
         assert len(audio) > 0
         assert np.max(np.abs(audio)) <= 1.0
 
-    @skip_if_python313
     def test_load_stereo_audio(self, temp_stereo_audio_file):
         """Test loading stereo audio file."""
         loader = AudioLoader(sample_rate=44100, mono=False)
@@ -146,7 +142,6 @@ class TestAudioLoaderLoad:
         assert audio.shape[0] == 2  # 2 channels
         assert np.max(np.abs(audio)) <= 1.0
 
-    @skip_if_python313
     def test_load_with_resampling(self, temp_audio_file):
         """Test loading with automatic resampling."""
         loader = AudioLoader(sample_rate=22050)
@@ -155,7 +150,6 @@ class TestAudioLoaderLoad:
         assert sr == 22050
         assert len(audio) > 0
 
-    @skip_if_python313
     def test_load_stereo_to_mono(self, temp_stereo_audio_file):
         """Test converting stereo to mono during load."""
         loader = AudioLoader(sample_rate=44100, mono=True)
@@ -518,7 +512,6 @@ class TestConvenienceFunctions:
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-    @skip_if_python313
     def test_load_audio_convenience(self, temp_audio_file):
         """Test load_audio convenience function."""
         audio, sr = load_audio(temp_audio_file, sample_rate=44100)
@@ -526,7 +519,6 @@ class TestConvenienceFunctions:
         assert sr == 44100
         assert len(audio) > 0
 
-    @skip_if_python313
     def test_load_audio_mono_conversion(self, temp_audio_file):
         """Test load_audio with mono conversion."""
         audio, sr = load_audio(temp_audio_file, sample_rate=22050, mono=True)

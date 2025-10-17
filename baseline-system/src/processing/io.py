@@ -8,8 +8,8 @@ This module provides the AudioLoader class for handling audio file operations:
 - Clipping detection and limiting
 - Comprehensive error handling
 
-The module uses librosa for audio loading with automatic resampling and
-soundfile for high-quality audio saving.
+The module uses soundfile for audio I/O and librosa for resampling.
+This approach avoids Python 3.13 compatibility issues with audioread.
 """
 
 import os
@@ -93,8 +93,9 @@ class AudioLoader:
     def load(self, file_path: str) -> Tuple[np.ndarray, int]:
         """Load audio file with automatic resampling and validation.
 
-        Loads an audio file using librosa with automatic resampling to the target
-        sample rate. The audio is validated for quality and format compatibility.
+        Loads an audio file using soundfile with automatic resampling to the target
+        sample rate (via librosa.resample). The audio is validated for quality and
+        format compatibility.
 
         Args:
             file_path: Path to audio file to load
@@ -139,7 +140,7 @@ class AudioLoader:
             )
             raise UnsupportedFormatError(file_ext, list(SUPPORTED_FORMATS))
 
-        # Load audio with librosa
+        # Load audio with soundfile (avoiding librosa.load due to Python 3.13 audioread issue)
         try:
             self.logger.debug(
                 "loading_audio",
@@ -148,11 +149,21 @@ class AudioLoader:
                 mono=self.mono,
             )
 
-            audio, sr = librosa.load(
-                file_path,
-                sr=self.sample_rate,
-                mono=self.mono,
-            )
+            # Load with soundfile
+            audio, sr = sf.read(file_path, always_2d=False)
+
+            # Convert stereo to mono if requested
+            if self.mono and audio.ndim == 2:
+                audio = np.mean(audio, axis=1)
+
+            # Transpose if stereo (soundfile returns (frames, channels), we want (channels, frames))
+            if audio.ndim == 2:
+                audio = audio.T
+
+            # Resample if needed
+            if sr != self.sample_rate:
+                audio = librosa.resample(audio, orig_sr=sr, target_sr=self.sample_rate)
+                sr = self.sample_rate
 
             self.logger.info(
                 "audio_loaded",
