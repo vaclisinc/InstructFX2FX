@@ -32,11 +32,11 @@ SCORING INSTRUCTIONS:
 - Rate your confidence in the evaluation (0.0-1.0)
 
 OUTPUT FORMAT (strict JSON):
-{
+{{
   "dimensions": [
-    {"name": "semantic_match", "score": 85, "reasoning": "Parameters show strong alignment with 'warm' description through appropriate EQ cuts in harsh frequencies and warm mid boost. Reverb settings create appropriate space."},
-    {"name": "technical_quality", "score": 90, "reasoning": "All parameters are within professional ranges. EQ cuts are gentle and musical. Compression ratio is appropriate for the material. No technical red flags."},
-    {"name": "specificity", "score": 75, "reasoning": "Good specificity in EQ and reverb choices, but compressor settings could be more tailored to the 'intimate' aspect. Attack/release times are somewhat generic."}
+    {{"name": "semantic_match", "score": 85, "reasoning": "Parameters show strong alignment with 'warm' description through appropriate EQ cuts in harsh frequencies and warm mid boost. Reverb settings create appropriate space."}},
+    {{"name": "technical_quality", "score": 90, "reasoning": "All parameters are within professional ranges. EQ cuts are gentle and musical. Compression ratio is appropriate for the material. No technical red flags."}},
+    {{"name": "specificity", "score": 75, "reasoning": "Good specificity in EQ and reverb choices, but compressor settings could be more tailored to the 'intimate' aspect. Attack/release times are somewhat generic."}}
   ],
   "overall_score": 83,
   "feedback": "Parameters show strong understanding of the desired sound. The warm EQ curve and subtle reverb effectively create an intimate space. However, the compressor could be fine-tuned with faster attack for more presence and intimacy.",
@@ -46,4 +46,4 @@ OUTPUT FORMAT (strict JSON):
     "Reduce reverb decay time by 10-15% to enhance intimacy"
   ],
   "confidence": 0.85
-}
+}}
