@@ -9,13 +9,8 @@ import pytest
 import asyncio
 from dotenv import load_dotenv
 
-from models.llm_judge import (
-    create_provider,
-    LLMRequest,
-    LLMResponse,
-    ClaudeProvider,
-    OpenRouterProvider
-)
+from models.llm_judge.factory import create_provider
+from models.llm_judge.types import LLMRequest, LLMResponse
 from models.llm_judge.config import AnthropicConfig, OpenRouterConfig
 
 # Load environment variables from .env file if it exists
