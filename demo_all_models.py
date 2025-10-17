@@ -57,7 +57,7 @@ async def main():
         results['Claude'] = await test_model(
             "Claude (Anthropic)",
             "anthropic",
-            "claude-3-5-sonnet-20241022",  # This is the correct name
+            "claude-sonnet-4-20250514",  # This is the correct name
             prompt
         )
         
@@ -71,23 +71,39 @@ async def main():
                 prompt
             )
     
+    # Test GPT directly via OpenAI
+    if os.getenv("OPENAI_API_KEY"):
+        results['GPT-3.5 (Direct)'] = await test_model(
+            "GPT-3.5 Turbo (Direct OpenAI)",
+            "openai",
+            "gpt-3.5-turbo",
+            prompt
+        )
+
+        results['GPT-4o-mini'] = await test_model(
+            "GPT-4o Mini (Direct OpenAI)",
+            "openai",
+            "gpt-4o-mini",
+            prompt
+        )
+
     # Test GPT via OpenRouter
     if os.getenv("OPENROUTER_API_KEY"):
-        results['GPT-3.5'] = await test_model(
+        results['GPT-3.5 (Router)'] = await test_model(
             "GPT-3.5 Turbo (via OpenRouter)",
             "openrouter",
             "openai/gpt-3.5-turbo",
             prompt
         )
-        
+
         # Test GPT-4
-        results['GPT-4'] = await test_model(
+        results['GPT-4 (Router)'] = await test_model(
             "GPT-4 Turbo (via OpenRouter)",
             "openrouter",
             "openai/gpt-4-turbo",
             prompt
         )
-        
+
         # Test free Llama
         results['Llama'] = await test_model(
             "Llama 3.2 Free (via OpenRouter)",
