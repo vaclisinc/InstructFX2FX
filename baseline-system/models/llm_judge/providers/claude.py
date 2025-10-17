@@ -54,7 +54,7 @@ class ClaudeProvider(LLMProvider):
         print(response.content)
     """
 
-    DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+    DEFAULT_MODEL = "claude-4-sonnet-20250514"
     DEFAULT_TIMEOUT = 60.0
 
     def __init__(

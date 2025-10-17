@@ -100,6 +100,16 @@ def create_provider(config: Union[Dict[str, Any], ProviderConfig]) -> LLMProvide
                     f"OpenRouterProvider import failed: {e}"
                 )
 
+        elif provider_type == "openai":
+            # Import OpenAIProvider
+            try:
+                from .providers.openai import OpenAIProvider
+                return OpenAIProvider(config=config_dict)
+            except ImportError as e:
+                raise ProviderInstantiationError(
+                    f"OpenAIProvider import failed: {e}"
+                )
+
         else:
             # This should never happen due to earlier validation
             raise ProviderNotFoundError(
@@ -179,6 +189,9 @@ def validate_provider_config(config: Union[Dict[str, Any], ProviderConfig]) -> b
 
         if provider_type == "anthropic":
             AnthropicConfig(**config)
+        elif provider_type == "openai":
+            # OpenAI uses similar config to OpenRouter
+            pass  # Basic validation, detailed validation in provider
         elif provider_type == "openrouter":
             OpenRouterConfig(**config)
         else:
@@ -202,7 +215,7 @@ def get_supported_providers() -> list[str]:
     Returns:
         List of provider type strings
     """
-    return ["anthropic", "openrouter"]
+    return ["anthropic", "openai", "openrouter"]
 
 
 def get_provider_info(provider_type: str) -> Dict[str, Any]:
@@ -223,7 +236,16 @@ def get_provider_info(provider_type: str) -> Dict[str, Any]:
             "config_class": "AnthropicConfig",
             "provider_class": "ClaudeProvider",
             "module": "models.llm_judge.providers.claude",
-            "default_model": "claude-3-5-sonnet-20241022",
+            "default_model": "claude-4-sonnet",
+            "supports_streaming": True,
+            "supports_vision": True,
+        },
+        "openai": {
+            "name": "OpenAI",
+            "config_class": "OpenAIConfig",
+            "provider_class": "OpenAIProvider",
+            "module": "models.llm_judge.providers.openai",
+            "default_model": "gpt-4o",
             "supports_streaming": True,
             "supports_vision": True,
         },
@@ -231,8 +253,8 @@ def get_provider_info(provider_type: str) -> Dict[str, Any]:
             "name": "OpenRouter",
             "config_class": "OpenRouterConfig",
             "provider_class": "OpenRouterProvider",
-            "module": "models.llm_judge.providers.openrouter_provider",
-            "default_model": None,  # User must specify
+            "module": "models.llm_judge.providers.openrouter",
+            "default_model": "openai/gpt-4o",
             "supports_streaming": True,
             "supports_vision": False,  # Depends on underlying model
         },
