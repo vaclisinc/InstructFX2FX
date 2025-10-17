@@ -32,6 +32,10 @@ from .prompts import (
     format_refinement_prompt,
 )
 
+from .scorer import (
+    ScoringSystem,
+)
+
 __all__ = [
     # Models
     "ScoringRequest",
@@ -57,4 +61,6 @@ __all__ = [
     "get_scoring_system_prompt",
     "format_correction_prompt",
     "format_refinement_prompt",
+    # Scorer
+    "ScoringSystem",
 ]
