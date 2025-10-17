@@ -1,7 +1,7 @@
 """Models module for baseline system.
 
 This module provides data models for the baseline system including
-parameter models for audio effects.
+parameter models for audio effects and refinement system models.
 """
 
 from .parameters import (
@@ -13,6 +13,11 @@ from .parameters import (
     EffectChain,
     EffectParameter,
 )
+from .refinement import (
+    IterationResult,
+    RefinementConfig,
+    RefinementResult,
+)
 
 __all__ = [
     "BaseEffectParameters",
@@ -22,4 +27,7 @@ __all__ = [
     "CompressorParameters",
     "EffectChain",
     "EffectParameter",
+    "IterationResult",
+    "RefinementConfig",
+    "RefinementResult",
 ]
