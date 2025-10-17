@@ -58,32 +58,22 @@ def create_provider(config: Union[Dict[str, Any], ProviderConfig]) -> LLMProvide
         >>> provider = create_provider(config)
         >>> # Use provider for generation
     """
-    # Convert dict to ProviderConfig if needed
+    # Handle dict config
     if isinstance(config, dict):
         provider_type = config.get("provider", "anthropic")
         logger.debug(f"Creating provider from dict config: type={provider_type}")
-
-        try:
-            if provider_type == "anthropic":
-                config = AnthropicConfig(**config)
-            elif provider_type == "openrouter":
-                config = OpenRouterConfig(**config)
-            else:
-                raise ProviderNotFoundError(
-                    f"Unknown provider type: '{provider_type}'. "
-                    f"Supported providers: 'anthropic', 'openrouter'"
-                )
-        except Exception as e:
-            raise ValueError(f"Invalid configuration for {provider_type}: {e}") from e
-    elif not isinstance(config, ProviderConfig):
+        # Keep as dict for OpenRouterProvider compatibility
+        config_dict = config
+    elif isinstance(config, ProviderConfig):
+        provider_type = config.provider
+        config_dict = config.to_dict()
+    else:
         raise TypeError(
             f"Config must be dict or ProviderConfig, got {type(config).__name__}"
         )
 
-    # Get provider type from config
-    provider_type = config.provider
-
-    logger.info(f"Instantiating {provider_type} provider with model={config.model}")
+    model = config_dict.get("model", "unknown")
+    logger.info(f"Instantiating {provider_type} provider with model={model}")
 
     # Import and instantiate the appropriate provider
     # Note: Provider implementations are being developed in parallel streams
@@ -92,12 +82,8 @@ def create_provider(config: Union[Dict[str, Any], ProviderConfig]) -> LLMProvide
         if provider_type == "anthropic":
             # Import ClaudeProvider when available
             try:
-                from .providers.claude_provider import ClaudeProvider
-                return ClaudeProvider(
-                    config=config.to_dict(),
-                    retry_config=config.retry,
-                    rate_limit_config=config.rate_limit,
-                )
+                from .providers.claude import ClaudeProvider
+                return ClaudeProvider(config=config_dict)
             except ImportError:
                 raise ProviderInstantiationError(
                     f"ClaudeProvider not yet implemented. "
@@ -105,18 +91,13 @@ def create_provider(config: Union[Dict[str, Any], ProviderConfig]) -> LLMProvide
                 )
 
         elif provider_type == "openrouter":
-            # Import OpenRouterProvider when available
+            # Import OpenRouterProvider
             try:
-                from .providers.openrouter_provider import OpenRouterProvider
-                return OpenRouterProvider(
-                    config=config.to_dict(),
-                    retry_config=config.retry,
-                    rate_limit_config=config.rate_limit,
-                )
-            except ImportError:
+                from .providers.openrouter import OpenRouterProvider
+                return OpenRouterProvider(config=config_dict)
+            except ImportError as e:
                 raise ProviderInstantiationError(
-                    f"OpenRouterProvider not yet implemented. "
-                    f"Implementation is in Stream D (parallel development)."
+                    f"OpenRouterProvider import failed: {e}"
                 )
 
         else:
@@ -241,7 +222,7 @@ def get_provider_info(provider_type: str) -> Dict[str, Any]:
             "name": "Anthropic Claude",
             "config_class": "AnthropicConfig",
             "provider_class": "ClaudeProvider",
-            "module": "models.llm_judge.providers.claude_provider",
+            "module": "models.llm_judge.providers.claude",
             "default_model": "claude-3-5-sonnet-20241022",
             "supports_streaming": True,
             "supports_vision": True,
