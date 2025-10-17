@@ -50,7 +50,9 @@ class TestBatchProcessor:
             room_size=0.5,
             damping=0.5,
             wet_level=0.3,
-            dry_level=0.7
+            dry_level=0.7,
+            width=1.0,
+            freeze_mode=False
         )
         return EffectChain(
             description="Simple reverb",
