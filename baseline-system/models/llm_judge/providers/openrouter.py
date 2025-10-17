@@ -40,19 +40,21 @@ class OpenRouterProvider(LLMProvider):
                 - site_name: Optional site name for OpenRouter rankings
                 - timeout: Optional timeout in seconds (default: 60)
         """
-        super().__init__(config)
-
-        # Get API key from config or environment
+        # Get API key from config or environment BEFORE calling super().__init__()
+        # because super().__init__() calls validate_config() which needs self.api_key
         self.api_key = config.get("api_key") or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError("OpenRouter API key not found in config or OPENROUTER_API_KEY environment variable")
 
-        # Set default model
+        # Set default model BEFORE super().__init__()
         self.model = config.get("model", "openai/gpt-4o")
 
         # Optional OpenRouter-specific configuration
         self.site_url = config.get("site_url")
         self.site_name = config.get("site_name")
+
+        # Now call super().__init__() which will call validate_config()
+        super().__init__(config)
 
         # Initialize OpenAI client with OpenRouter base URL
         self.client = AsyncOpenAI(
@@ -158,7 +160,7 @@ class OpenRouterProvider(LLMProvider):
             logger.error(f"Unexpected error in OpenRouter generation: {e}")
             raise RuntimeError(f"Unexpected error: {str(e)}") from e
 
-    async def validate_config(self) -> bool:
+    def validate_config(self) -> bool:
         """Validate the provider configuration.
 
         Returns:
