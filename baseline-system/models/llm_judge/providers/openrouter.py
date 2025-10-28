@@ -1,192 +1,234 @@
 """OpenRouter provider implementation using OpenAI-compatible API.
 
-This module provides an implementation of the LLMProvider interface for
-accessing various language models through OpenRouter's unified API.
+This module provides the OpenRouterProvider class that implements the LLMProvider
+interface for accessing models through OpenRouter's unified API.
+
+OpenRouter provides access to hundreds of AI models through a single endpoint
+using the OpenAI-compatible API format.
 """
 
-import os
 import logging
+import os
 from typing import Dict, Any, Optional
+
 from openai import AsyncOpenAI
-import openai
+from openai.types.chat import ChatCompletion
 
 from ..base import LLMProvider
 from ..types import LLMRequest, LLMResponse
+
 
 logger = logging.getLogger(__name__)
 
 
 class OpenRouterProvider(LLMProvider):
-    """Provider implementation for OpenRouter API.
+    """OpenRouter LLM provider using OpenAI-compatible API.
 
-    OpenRouter provides a unified API for accessing multiple language models
-    including GPT-4, Claude, PaLM, and others through an OpenAI-compatible interface.
+    Uses the OpenAI SDK with a custom base_url to access OpenRouter's
+    unified API endpoint. Supports hundreds of models from various providers.
 
-    Attributes:
-        client: AsyncOpenAI client configured for OpenRouter
-        model: Default model to use for generation
-        site_url: Optional URL for OpenRouter rankings
-        site_name: Optional site name for OpenRouter rankings
+    Configuration keys:
+        - api_key: OpenRouter API key (or use OPENROUTER_API_KEY env var)
+        - model: Default model to use (e.g., "openai/gpt-4o")
+        - site_url: Optional site URL for OpenRouter rankings
+        - site_name: Optional site name for OpenRouter rankings
+        - timeout: Request timeout in seconds (default: 60)
+
+    Example:
+        ```python
+        config = {
+            "api_key": "sk-or-v1-...",
+            "model": "openai/gpt-4o",
+            "site_url": "https://myapp.com",
+            "site_name": "My App",
+        }
+        provider = OpenRouterProvider(config)
+        response = await provider.generate(request)
+        ```
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        retry_config: Optional[Any] = None,
+        rate_limit_config: Optional[Any] = None,
+    ):
         """Initialize OpenRouter provider.
 
         Args:
-            config: Configuration dictionary with the following keys:
-                - api_key: OpenRouter API key (or use OPENROUTER_API_KEY env var)
-                - model: Default model name (e.g., "openai/gpt-4")
-                - site_url: Optional URL for OpenRouter rankings
-                - site_name: Optional site name for OpenRouter rankings
-                - timeout: Optional timeout in seconds (default: 60)
-        """
-        # Get API key from config or environment BEFORE calling super().__init__()
-        # because super().__init__() calls validate_config() which needs self.api_key
-        self.api_key = config.get("api_key") or os.getenv("OPENROUTER_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenRouter API key not found in config or OPENROUTER_API_KEY environment variable")
-
-        # Set default model BEFORE super().__init__()
-        self.model = config.get("model", "openai/gpt-4o")
-
-        # Optional OpenRouter-specific configuration
-        self.site_url = config.get("site_url")
-        self.site_name = config.get("site_name")
-
-        # Now call super().__init__() which will call validate_config()
-        super().__init__(config)
-
-        # Initialize OpenAI client with OpenRouter base URL
-        self.client = AsyncOpenAI(
-            api_key=self.api_key,
-            base_url="https://openrouter.ai/api/v1",
-            timeout=config.get("timeout", 60)
-        )
-
-        logger.info(f"Initialized OpenRouterProvider with model: {self.model}")
-
-    async def generate(self, request: LLMRequest) -> LLMResponse:
-        """Generate a response using OpenRouter API.
-
-        Args:
-            request: The LLM request containing prompt and parameters
-
-        Returns:
-            LLMResponse with the generated content
-
-        Raises:
-            openai.AuthenticationError: If API key is invalid
-            openai.RateLimitError: If rate limit is exceeded
-            openai.APIError: For other API errors
-        """
-        try:
-            # Prepare messages
-            messages = []
-
-            # Add system message if provided
-            if request.system_prompt:
-                messages.append({
-                    "role": "system",
-                    "content": request.system_prompt
-                })
-
-            # Add user message
-            messages.append({
-                "role": "user",
-                "content": request.prompt
-            })
-
-            # Prepare extra headers for OpenRouter
-            extra_headers = {}
-            if self.site_url:
-                extra_headers["HTTP-Referer"] = self.site_url
-            if self.site_name:
-                extra_headers["X-Title"] = self.site_name
-
-            # Use model from request or default
-            model = request.model or self.model
-
-            # Make the API call
-            logger.debug(f"Sending request to OpenRouter with model: {model}")
-
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
-                stop=request.stop_sequences,
-                extra_headers=extra_headers if extra_headers else None
-            )
-
-            # Extract response content
-            content = response.choices[0].message.content or ""
-
-            # Extract usage information
-            prompt_tokens = response.usage.prompt_tokens if response.usage else 0
-            completion_tokens = response.usage.completion_tokens if response.usage else 0
-            total_tokens = response.usage.total_tokens if response.usage else (prompt_tokens + completion_tokens)
-
-            # Create response
-            llm_response = LLMResponse(
-                content=content,
-                model=model,
-                tokens_used=total_tokens,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                finish_reason=response.choices[0].finish_reason or "stop",
-                provider="openrouter"
-            )
-
-            logger.info(f"OpenRouter response generated successfully using {model} ({total_tokens} tokens)")
-            return llm_response
-
-        except openai.AuthenticationError as e:
-            logger.error(f"OpenRouter authentication failed: {e}")
-            raise RuntimeError(f"OpenRouter authentication failed. Check your API key.") from e
-        except openai.RateLimitError as e:
-            logger.warning(f"OpenRouter rate limit exceeded: {e}")
-            raise RuntimeError(f"OpenRouter rate limit exceeded. Please try again later.") from e
-        except openai.APIStatusError as e:
-            if e.status_code == 400:
-                logger.error(f"OpenRouter invalid request: {e}")
-                raise RuntimeError(f"OpenRouter invalid request: {e.message}") from e
-            else:
-                logger.error(f"OpenRouter API error (status {e.status_code}): {e}")
-                raise RuntimeError(f"OpenRouter API error: {e.message}") from e
-        except openai.APITimeoutError as e:
-            logger.error(f"OpenRouter request timed out: {e}")
-            raise RuntimeError(f"OpenRouter request timed out") from e
-        except Exception as e:
-            logger.error(f"Unexpected error in OpenRouter generation: {e}")
-            raise RuntimeError(f"Unexpected error: {str(e)}") from e
-
-    def validate_config(self) -> bool:
-        """Validate the provider configuration.
-
-        Returns:
-            True if configuration is valid
+            config: Provider configuration dictionary
+            retry_config: Optional retry configuration
+            rate_limit_config: Optional rate limit configuration
 
         Raises:
             ValueError: If configuration is invalid
         """
-        if not self.api_key:
-            raise ValueError("API key is required")
+        super().__init__(config, retry_config, rate_limit_config)
 
-        if self.config.get("timeout") is not None:
-            timeout = self.config.get("timeout")
-            if not isinstance(timeout, (int, float)) or timeout <= 0:
-                raise ValueError("Timeout must be a positive number")
+        # Get API key from config or environment
+        api_key = config.get("api_key") or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "OpenRouter API key must be provided in config or "
+                "OPENROUTER_API_KEY environment variable"
+            )
 
-        # Warn if no model specified (will use default)
-        if not self.model:
+        # Set up extra headers for OpenRouter
+        extra_headers = {}
+        if "site_url" in config:
+            extra_headers["HTTP-Referer"] = config["site_url"]
+        if "site_name" in config:
+            extra_headers["X-Title"] = config["site_name"]
+
+        # Initialize OpenAI client with OpenRouter endpoint
+        self.client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=config.get("timeout", 60.0),
+            default_headers=extra_headers if extra_headers else None,
+        )
+
+        # Store default model
+        self.default_model = config.get("model", "openai/gpt-4o")
+
+        logger.info(
+            f"Initialized OpenRouterProvider with model={self.default_model}"
+        )
+
+    def validate_config(self) -> bool:
+        """Validate provider configuration.
+
+        Checks that:
+        - API key is present (in config or environment)
+        - Model name is specified
+        - Optional fields are properly formatted
+
+        Returns:
+            True if configuration is valid, False otherwise
+        """
+        # Check API key
+        api_key = self.config.get("api_key") or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            logger.error("OpenRouter API key not found in config or environment")
+            return False
+
+        # Check model
+        if not self.config.get("model"):
             logger.warning("No default model specified, will use 'openai/gpt-4o'")
+
+        # Validate timeout if provided
+        timeout = self.config.get("timeout")
+        if timeout is not None:
+            if not isinstance(timeout, (int, float)) or timeout <= 0:
+                logger.error(f"Invalid timeout value: {timeout}")
+                return False
 
         return True
 
-    def get_provider_name(self) -> str:
-        """Get the provider name.
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        """Generate completion from OpenRouter.
+
+        Converts the LLMRequest to OpenAI message format, makes the API call,
+        and converts the response back to LLMResponse format.
+
+        Args:
+            request: LLM request parameters
 
         Returns:
-            The provider name
+            LLMResponse with generated content and metadata
+
+        Raises:
+            ValueError: If request is invalid
+            RuntimeError: If API call fails
         """
-        return "openrouter"
+        # Determine which model to use
+        model = request.model or self.default_model
+
+        # Build messages array
+        messages = []
+        if request.system_prompt:
+            messages.append({
+                "role": "system",
+                "content": request.system_prompt,
+            })
+        messages.append({
+            "role": "user",
+            "content": request.prompt,
+        })
+
+        # Build API request parameters
+        api_params = {
+            "model": model,
+            "messages": messages,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+
+        # Add stop sequences if provided
+        if request.stop_sequences:
+            api_params["stop"] = request.stop_sequences
+
+        try:
+            logger.debug(f"Calling OpenRouter API with model={model}")
+
+            # Make API call
+            completion: ChatCompletion = await self.client.chat.completions.create(
+                **api_params
+            )
+
+            # Extract response data
+            choice = completion.choices[0]
+            content = choice.message.content or ""
+            finish_reason = choice.finish_reason or "unknown"
+
+            # Extract token usage
+            usage = completion.usage
+            prompt_tokens = usage.prompt_tokens if usage else 0
+            completion_tokens = usage.completion_tokens if usage else 0
+            total_tokens = usage.total_tokens if usage else 0
+
+            # Build LLMResponse
+            response = LLMResponse(
+                content=content,
+                model=completion.model,
+                tokens_used=total_tokens,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                finish_reason=finish_reason,
+                provider=self.get_provider_name(),
+            )
+
+            logger.debug(
+                f"OpenRouter response: {len(content)} chars, "
+                f"{total_tokens} tokens, "
+                f"finish_reason={finish_reason}"
+            )
+
+            return response
+
+        except Exception as e:
+            # Map OpenRouter/OpenAI errors to more descriptive messages
+            error_msg = str(e)
+            if "401" in error_msg or "authentication" in error_msg.lower():
+                raise RuntimeError(
+                    "OpenRouter authentication failed. Check your API key."
+                ) from e
+            elif "429" in error_msg or "rate limit" in error_msg.lower():
+                raise RuntimeError(
+                    "OpenRouter rate limit exceeded. Please try again later."
+                ) from e
+            elif "400" in error_msg or "invalid" in error_msg.lower():
+                raise ValueError(
+                    f"Invalid request to OpenRouter: {error_msg}"
+                ) from e
+            elif "timeout" in error_msg.lower():
+                raise RuntimeError(
+                    "OpenRouter request timed out. Please try again."
+                ) from e
+            else:
+                raise RuntimeError(
+                    f"OpenRouter API error: {error_msg}"
+                ) from e
+
+
+__all__ = ["OpenRouterProvider"]
