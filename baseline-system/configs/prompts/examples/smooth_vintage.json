@@ -1,0 +1,66 @@
+{
+  "description": "smooth and vintage tone with analog warmth for soul music",
+  "effects": [
+    {
+      "type": "eq",
+      "parameters": {
+        "bands": [
+          {
+            "frequency": 150,
+            "gain": 2.0,
+            "q": 0.6,
+            "note": "Gentle low-end warmth for vintage character"
+          },
+          {
+            "frequency": 500,
+            "gain": 1.5,
+            "q": 0.9,
+            "note": "Slight body boost for fullness"
+          },
+          {
+            "frequency": 2000,
+            "gain": -1.0,
+            "q": 1.0,
+            "note": "Minor reduction for smoothness"
+          },
+          {
+            "frequency": 6000,
+            "gain": -2.5,
+            "q": 0.7,
+            "note": "Roll-off highs for analog tape-like sound"
+          },
+          {
+            "frequency": 12000,
+            "gain": -3.5,
+            "q": 0.5,
+            "note": "Further high-end attenuation for vintage vibe"
+          }
+        ]
+      }
+    },
+    {
+      "type": "compressor",
+      "parameters": {
+        "threshold": -22.0,
+        "ratio": 3.5,
+        "attack": 20.0,
+        "release": 150.0,
+        "knee": 8.0,
+        "makeup_gain": 4.5,
+        "note": "Smooth, musical compression with soft knee for vintage glue"
+      }
+    },
+    {
+      "type": "reverb",
+      "parameters": {
+        "room_size": 0.4,
+        "damping": 0.75,
+        "wet_level": 0.28,
+        "dry_level": 0.8,
+        "width": 0.65,
+        "freeze_mode": false,
+        "note": "Medium room with warm damping for vintage studio ambience"
+      }
+    }
+  ]
+}
