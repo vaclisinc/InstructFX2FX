@@ -104,6 +104,10 @@ evaluation:
 
 # Scoring weights for judge system
 scoring:
+  # Scoring method: embedding (CLAP/MERT) or llm_judge
+  method: embedding
+  model: clap-htsat-fused
+
   # Weight for tone judge (semantic match)
   alpha: 0.4
 
@@ -112,3 +116,31 @@ scoring:
 
   # Weight for preference alignment
   gamma: 0.2
+
+# Execution configuration
+execution:
+  # Batch size for parallel processing
+  batch_size: 10
+
+  # Checkpoint interval (save state every N experiments)
+  checkpoint_interval: 5
+
+  # Maximum retries for transient failures
+  max_retries: 3
+
+  # Timeout per experiment (seconds)
+  timeout: 300
+
+# Output configuration
+output:
+  # Base directory for all outputs
+  base_dir: ./outputs
+
+  # Save processed audio files
+  save_audio: true
+
+  # Save generated parameters as JSON
+  save_parameters: true
+
+  # Save detailed logs
+  save_logs: true
