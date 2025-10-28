@@ -1,1 +1,1 @@
-"""Unit tests for judge system modules."""
+"""Unit tests for judge system data loading."""
