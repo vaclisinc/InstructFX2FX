@@ -1,3 +1,1 @@
-"""Judge system for evaluating LLM-generated audio effect parameters."""
-
-__all__ = []
+"""Judge system for evaluating audio against text descriptions."""

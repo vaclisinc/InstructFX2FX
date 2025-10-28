@@ -1,17 +1,15 @@
-"""LLM Provider implementations.
+"""LLM provider implementations.
 
-This package contains concrete provider implementations for different LLM services:
-- ClaudeProvider: Anthropic Claude provider using the anthropic SDK
-- OpenAIProvider: OpenAI GPT provider using the official OpenAI SDK
-- OpenRouterProvider: OpenRouter provider using OpenAI-compatible API
+This package contains concrete implementations of the LLMProvider interface
+for various LLM services.
+
+Available providers:
+    - OpenRouterProvider: Unified API for hundreds of models via OpenRouter
 """
 
-from .claude import ClaudeProvider
-from .openai import OpenAIProvider
 from .openrouter import OpenRouterProvider
 
+
 __all__ = [
-    "ClaudeProvider",
-    "OpenAIProvider",
     "OpenRouterProvider",
 ]
