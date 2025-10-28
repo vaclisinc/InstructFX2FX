@@ -1,0 +1,33 @@
+# Fast Iteration Configuration
+# Use for development and quick testing
+
+llm:
+  provider: anthropic
+  model: claude-3-5-sonnet-20241022  # Fast and good
+  temperature: 0.7
+  max_tokens: 1500
+
+audio:
+  sample_rate: 44100  # Standard quality
+  format: wav
+  effects:
+    - reverb
+    - eq
+
+scoring:
+  method: embedding  # Fast scoring
+  model: clap-htsat-fused
+  threshold: 0.6  # More lenient
+
+execution:
+  batch_size: 20
+  checkpoint_interval: 10
+  max_retries: 2
+  timeout: 120
+  parallel_workers: 4  # Parallel processing
+
+output:
+  base_dir: ./outputs
+  save_audio: true
+  save_parameters: true
+  log_level: INFO

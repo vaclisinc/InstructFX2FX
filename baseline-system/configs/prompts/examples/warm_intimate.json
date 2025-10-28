@@ -1,0 +1,60 @@
+{
+  "description": "warm and intimate vocal sound for a late-night jazz performance",
+  "effects": [
+    {
+      "type": "eq",
+      "parameters": {
+        "bands": [
+          {
+            "frequency": 200,
+            "gain": 3.0,
+            "q": 0.7,
+            "note": "Boost low-mids for warmth and body"
+          },
+          {
+            "frequency": 800,
+            "gain": 1.5,
+            "q": 1.0,
+            "note": "Gentle presence boost for intimacy"
+          },
+          {
+            "frequency": 3000,
+            "gain": -2.0,
+            "q": 1.2,
+            "note": "Reduce harshness for smoothness"
+          },
+          {
+            "frequency": 8000,
+            "gain": -1.0,
+            "q": 0.8,
+            "note": "Slight high-end roll-off for vintage character"
+          }
+        ]
+      }
+    },
+    {
+      "type": "compressor",
+      "parameters": {
+        "threshold": -18.0,
+        "ratio": 3.0,
+        "attack": 15.0,
+        "release": 120.0,
+        "knee": 6.0,
+        "makeup_gain": 3.0,
+        "note": "Gentle compression for consistent intimacy"
+      }
+    },
+    {
+      "type": "reverb",
+      "parameters": {
+        "room_size": 0.3,
+        "damping": 0.7,
+        "wet_level": 0.2,
+        "dry_level": 0.85,
+        "width": 0.6,
+        "freeze_mode": false,
+        "note": "Small room reverb for intimacy without drowning the vocal"
+      }
+    }
+  ]
+}
