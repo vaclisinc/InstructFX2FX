@@ -1,0 +1,71 @@
+# Refinement Loop Configuration
+# Configuration for iterative parameter refinement system
+
+refinement:
+  # Maximum number of refinement iterations to perform
+  max_iterations: 10
+
+  # Minimum score improvement required to continue refinement (0-100 scale)
+  # If the score improvement over the convergence window is less than this,
+  # refinement will stop due to plateau detection
+  min_score_improvement: 2.0
+
+  # Number of recent iterations to check for convergence
+  # Refinement stops if score improvement over this window is below min_score_improvement
+  convergence_window: 3
+
+  # Target score to trigger early stopping (0-100 scale)
+  # Refinement stops immediately if this score is reached
+  # Set to null to disable early stopping
+  early_stop_score: 90.0
+
+  # Refinement mode:
+  # - "parameter_only": Score parameters without audio processing
+  # - "audio_based": Apply effects and score processed audio
+  mode: "parameter_only"
+
+  # Temperature schedule for LLM generation per iteration
+  # Higher temperature = more exploration, lower = more exploitation
+  # If not specified, uses default schedule: starts high (0.9) and decreases
+  temperature_schedule:
+    - 0.9  # Iteration 0: high exploration
+    - 0.7  # Iteration 1: moderate exploration
+    - 0.5  # Iteration 2: balanced
+    - 0.4  # Iteration 3+: low temperature for exploitation
+
+  # Logging configuration
+  logging:
+    # Log every iteration (detailed output)
+    log_every_iteration: true
+
+    # Save iteration history to disk
+    save_history: true
+
+    # Output directory for refinement logs
+    output_dir: "./refinement_logs"
+
+    # Include full parameters in logs (can be verbose)
+    include_parameters: true
+
+    # Include dimension scores in logs
+    include_dimensions: true
+
+# Advanced refinement strategies (optional)
+strategies:
+  # Greedy strategy: always keep best parameters
+  greedy:
+    enabled: true
+    description: "Select parameters with highest score from history"
+
+  # Exploratory strategy: occasionally try diverse parameters
+  exploratory:
+    enabled: false
+    description: "Periodically explore parameter space with higher temperature"
+    exploration_frequency: 3  # Explore every N iterations
+
+  # Adaptive strategy: adjust temperature based on progress
+  adaptive:
+    enabled: false
+    description: "Dynamically adjust temperature based on score improvements"
+    increase_temp_on_plateau: true
+    decrease_temp_on_improvement: true
