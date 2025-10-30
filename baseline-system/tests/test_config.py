@@ -134,6 +134,13 @@ class TestEnvLoading:
         """Test that API keys can be loaded from .env file."""
         from src.config.loader import load_env
 
+        # Save original API keys
+        original_keys = {
+            'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),
+            'ANTHROPIC_API_KEY': os.getenv('ANTHROPIC_API_KEY'),
+            'OPENROUTER_API_KEY': os.getenv('OPENROUTER_API_KEY')
+        }
+
         # Create .env with API keys
         with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
             f.write('OPENAI_API_KEY=sk-test-openai\n')
@@ -150,9 +157,11 @@ class TestEnvLoading:
             assert os.getenv('OPENROUTER_API_KEY') == 'sk-or-test'
         finally:
             os.unlink(env_path)
-            # Cleanup environment
-            for key in ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY']:
-                if key in os.environ:
+            # Restore original API keys (don't delete them!)
+            for key, value in original_keys.items():
+                if value is not None:
+                    os.environ[key] = value
+                elif key in os.environ:
                     del os.environ[key]
 
     def test_load_env_with_default_path(self):
