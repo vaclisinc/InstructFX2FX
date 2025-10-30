@@ -2,10 +2,11 @@ llm:
   provider: openrouter  # Options: openrouter, openai, claude
 
   # OpenRouter models (recommended - unified access to all providers):
-  model: anthropic/claude-sonnet-4-5  # Best for coding/reasoning (2025/9/29)
-  # model: openai/gpt-5                # OpenAI flagship (2025/8)
-  # model: anthropic/claude-opus-4-1   # Best reasoning model
-  # model: google/gemini-2.5-pro       # Google's latest
+  model: anthropic/claude-sonnet-4.5  
+  # model: openai/gpt-5                
+  # model: anthropic/claude-opus-4.1   
+  # model: google/gemini-2.5-pro       
+  # model: anthropic/claude-haiku-4.5
 
   # OpenAI direct API models (provider: openai):
   # model: gpt-5                       # Latest flagship
@@ -14,7 +15,7 @@ llm:
 
   # Anthropic direct API models (provider: claude):
   # model: claude-sonnet-4-5-20250929  # Best coding (Sep 2025)
-  # model: claude-haiku-4-5-20251015   # Fastest, cheapest (Oct 2025)
+  # model: claude-haiku-4-5-20251001   # Fastest, cheapest (Oct 2025)
   # model: claude-opus-4-1-20250805    # Best reasoning (Aug 2025)
 
 prompts:

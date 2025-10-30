@@ -11,6 +11,7 @@ soundfile>=0.12.0
 numpy>=1.24.0
 scipy>=1.10.0
 
-# LLM clients (for future phases)
+# LLM clients
 openai>=1.0.0
 anthropic>=0.21.0
+requests>=2.32.0  # For OpenRouter API
