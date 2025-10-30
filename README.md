@@ -17,8 +17,19 @@ text2preset/                         # project root
 │   ├── src/                         # refine loop, LLM wrappers, scoring logic
 │   └── tests/                       # pytest suites (refine loop, generation, etc.)
 └── ref/                             # research datasets and documentation
-    ├── fx-processor/                # cleaned dataset from Sony 2024 paper
-    └── social-data/                 # raw SocialFX dataset + original paper
+    ├── fx-processor/                # [submodule] cleaned dataset from Sony 2024 paper
+    ├── socialfx_raw/                # raw SocialFX dataset + original paper
+    └── others/                      # related research papers and references
+        ├── MusiLingo/
+        │   ├── repo/                # [submodule] MusiLingo repository
+        │   ├── MusiLingo.pdf        # MusiLingo paper
+        │   └── MusiLingo-system-design.png
+        ├── U-SAM/
+        │   ├── repo/                # [submodule] U-SAM repository
+        │   ├── u-sam.pdf            # U-SAM paper
+        │   └── U-sam-structure.png
+        ├── Deepseek-OCR/            # DeepSeek-OCR references
+        └── our-proposal-structure.png
 ```
 
 ## Current Status
@@ -51,12 +62,20 @@ text2preset/                         # project root
 - `prompts/` holds the three system prompts (generation, judge, refine). If the loop behaves oddly, review these first.
 - `src/` contains the core modules. Look at `tests/test_generation.py` and `tests/test_refine_loop.py` to understand the expected flow.
 
-## Datasets
+## Datasets & References
 
-- `ref/social-data/` contains the raw SocialFX dataset. See `SocialFX_paper.pdf` inside for details.
-- `ref/fx-processor/` provides the cleaned dataset from Sony’s 2024 paper *Can Large Language Models Predict Audio Effects Parameters from Natural Language?*
+- `ref/socialfx_raw/` contains the raw SocialFX dataset. See `SocialFX_paper.pdf` inside for details.
+- `ref/fx-processor/` (submodule) provides the cleaned dataset from Sony's 2024 paper *Can Large Language Models Predict Audio Effects Parameters from Natural Language?*
+- `ref/others/MusiLingo/repo/` (submodule) - MusiLingo implementation for audio-text multimodal learning
+- `ref/others/U-SAM/repo/` (submodule) - Unified Speech/Audio/Music model
+- `ref/others/Deepseek-OCR/` - Reference materials for vision-to-latent compression approach
 
-Neither dataset is wired into the baseline yet, but both are strong references for future expansion.
+To initialize/update all submodules:
+```bash
+git submodule update --init --recursive
+```
+
+The datasets are not wired into the baseline yet, but provide strong references for future expansion.
 
 ## Notes to discuss next week
 
