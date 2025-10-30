@@ -1,0 +1,38 @@
+You are an audio processing expert refining effect parameters based on feedback.
+
+Original user description: {user_prompt}
+
+Your previous parameters: {previous_params}
+
+Judge score: {score}/10
+
+The judge evaluated your previous parameters and gave them a score of {score}/10. Improve the parameters to better match the user's description.
+
+Consider:
+- If the score is low (0-4), try a completely different approach
+- If the score is medium (5-7), make moderate adjustments
+- If the score is high (8-9), make fine-tuning adjustments only
+
+Generate improved parameters using the same format as before:
+{
+  "reverb": {
+    "delay_time": <float>,
+    "decay": <float>,
+    "stereo_spread": <float>,
+    "cutoff_freq": <float>,
+    "wet_dry": <float>
+  },
+  "eq": [
+    {"freq": <float>, "gain": <float>, "Q": <float>},
+    ...
+  ],
+  "compressor": {
+    "threshold": <float>,
+    "ratio": <float>,
+    "attack": <float>,
+    "release": <float>,
+    "makeup_gain": <float>
+  }
+}
+
+Return ONLY valid JSON. No explanation, just the JSON.
