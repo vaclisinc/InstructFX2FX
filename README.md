@@ -1,56 +1,77 @@
 # text2preset
 
-本專案目標是建立一套以文字描述產生音訊效果參數的工作流程，方便音訊後製與創作團隊快速取得合適的 preset。下方整理現況、開發指引與資料集資訊，提供團隊對齊與新加入成員 onboarding。
+text2preset explores a text-to-audio-preset workflow so the team can generate effect chains from natural language. This README keeps the whole team aligned on project status, setup steps, and dataset references. Progress is tracked in issue [#17](https://github.com/vaclisinc/text2preset/issues/17)—check it before starting new work.
 
-## 專案現況
+## Repository Structure
 
-- 進度追蹤集中於 issue [#17](https://github.com/vaclisinc/text2preset/issues/17)，建議開發前先瀏覽。
-- `baseline-system/` 已串起完整 refine loop：LLM 產生參數 → 套用 → CLAP 打分 → 依分數再提示。
-- 目前尚未接上 plugin chain 的實際套用流程，評分直接使用 `audio_samples/` 中尚未處理的音檔。補上該步驟後即完成第一版 baseline。
+```text
+text2preset/                         # project root
+├── README.md                        # high-level status (you are here)
+├── 1016-LLM-as-music-judge (1).pdf  # our latest proposal
+├── baseline-system/                 # baseline pipeline implementation
+│   ├── README.md                    # architecture sketch and legacy notes
+│   ├── audio_samples/               # unprocessed audio currently scored by CLAP
+│   ├── configs/                     # YAML configs (model choice, endpoints, chains)
+│   ├── prompts/                     # system prompts for generation/judge/refine
+│   ├── requirements.txt             # Python dependencies for the baseline
+│   ├── src/                         # refine loop, LLM wrappers, scoring logic
+│   └── tests/                       # pytest suites (refine loop, generation, etc.)
+└── ref/                             # research datasets and documentation
+    ├── fx-processor/                # cleaned dataset from Sony 2024 paper
+    └── social-data/                 # raw SocialFX dataset + original paper
+```
 
-## 快速開始
+## Current Status
 
-1. 建立 Python 虛擬環境（若尚未準備）：
+- Baseline refine loop is wired end-to-end: generate parameters → apply → score with CLAP → reprompt using the score.
+- Plugin chain processing is still missing, so the judge scores the untouched files in `audio_samples/`. Wiring that step finishes the baseline milestone.
+- Tests live in `baseline-system/tests/`; `test_refine_loop.py` is the quickest smoke test.
+
+
+## Quick Start
+
+1. Create a Python virtual environment (if you don’t already have one):
    ```bash
    python -m venv .venv
    source .venv/bin/activate
    ```
-2. 安裝相依套件：
+2. Install dependencies:
    ```bash
    cd baseline-system
    pip install -r requirements.txt
    ```
-3. 進行 smoke test（觀察完整 refine loop 流程）：
+3. Run the refine-loop smoke test:
    ```bash
    pytest tests/test_refine_loop.py -s
    ```
 
-## Baseline System 設定
+## Configuration & Prompts
 
-- `configs/default.yaml`：設定使用的模型、API endpoint、chain 參數等。需要多組設定時可在 `configs/` 下新增 YAML。
-- `prompts/`：包含 generation、judge、refine 三份 system prompt。若 loop 行為異常，先檢查與調整這些 prompt。
-- `src/`：主要程式碼（refine loop、LLM wrapper、評分器、工具函式等）。
-- `tests/`：單元與整合測試。`tests/test_refine_loop.py` 與 `tests/test_generation.py` 是目前最能呈現流程的案例。
-- `audio_samples/`：現階段用於評分的原始音檔。等 plugin chain 套用實作完成後，評分流程會改為處理後音訊。
+- `configs/default.yaml` controls the active model, API endpoint, and chain options. Feel free to add additional YAML configs and select them at runtime.
+- `prompts/` holds the three system prompts (generation, judge, refine). If the loop behaves oddly, review these first.
+- `src/` contains the core modules. Look at `tests/test_generation.py` and `tests/test_refine_loop.py` to understand the expected flow.
 
-## 目錄導覽
+## Datasets
 
-- `baseline-system/`：baseline pipeline 原始碼與測試。
-- `ref/`：研究資料與參考資料集。
-- `CLAUDE.md`：與 Claude 協作的 TDD 流程與注意事項。
-- `1016-LLM-as-music-judge (1).pdf`：相關研究文獻。
+- `ref/social-data/` contains the raw SocialFX dataset. See `SocialFX_paper.pdf` inside for details.
+- `ref/fx-processor/` provides the cleaned dataset from Sony’s 2024 paper *Can Large Language Models Predict Audio Effects Parameters from Natural Language?*
 
-## Dataset 說明
+Neither dataset is wired into the baseline yet, but both are strong references for future expansion.
 
-`ref/` 目錄目前包含兩筆主要資料：
+## Notes to discuss next week
 
-- `ref/social-data/`：SocialFX 的原始資料，細節請參考資料夾內的 `SocialFX_paper.pdf`。
-- `ref/fx-processor/`：Sony 2024 論文 *Can Large Language Models Predict Audio Effects Parameters from Natural Language?* 所使用的處理後乾淨資料。
+### 1) Scoring with CLAP
 
-這些資料尚未整合進 baseline pipeline，但提供了參考案例與後續擴充素材。
+CLAP is a retrieval model, not a generative model. It operates by:
 
-## 後續建議
+1. Encoding the audio clip into an audio embedding.
+2. Encoding a text description into a text embedding.
+3. Measuring similarity between the embeddings to pick the closest description.
 
-1. 補上 plugin chain 套用流程，讓評分來源改為處理後的音訊。
-2. 視需要擴增 `tests/` 下的 integration 測試，確保 chain 執行穩定。
-3. 研究如何將 `ref/` 中的資料集轉換為適合 baseline 系統的訓練或 prompt 素材。
+Because CLAP cannot produce new descriptions, the current MVP keeps a bank of 12 text embeddings and selects the closest match for scoring. This is a stopgap that will need improvement.
+
+> Most CLIP/CLAP pipelines rely on a large, well-crafted bank of text embeddings, run a top-k retrieval, and then ask an LLM to rewrite the shortlisted descriptions. We can generate those banks with an LLM, but we must watch description quality. 
+
+> Another idea is to hand the CLAP audio embedding directly to an LLM, yet current models still struggle to interpret those embeddings.
+
+### 2) Scoring system - our Music DeepEncoder
