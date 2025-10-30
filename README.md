@@ -41,7 +41,26 @@ text2preset/                         # project root
 
 ## Quick Start
 
-1. Create a Python virtual environment (if you don’t already have one):
+### Clone the Project
+
+To clone the project with all submodules:
+
+```bash
+# Clone with submodules in one command
+git clone --recurse-submodules https://github.com/vaclisinc/text2preset.git
+cd text2preset
+```
+
+Or if you already cloned without submodules:
+
+```bash
+# Initialize and update all submodules
+git submodule update --init --recursive
+```
+
+### Setup and Run
+
+1. Create a Python virtual environment (if you don't already have one):
    ```bash
    python -m venv .venv
    source .venv/bin/activate
@@ -70,12 +89,7 @@ text2preset/                         # project root
 - `ref/others/U-SAM/repo/` (submodule) - Unified Speech/Audio/Music model
 - `ref/others/Deepseek-OCR/` - Reference materials for vision-to-latent compression approach
 
-To initialize/update all submodules:
-```bash
-git submodule update --init --recursive
-```
-
-The datasets are not wired into the baseline yet, but provide strong references for future expansion.
+**Note:** These datasets are not wired into the baseline yet, but provide strong references for future expansion. All submodules should be automatically cloned if you followed the Quick Start instructions above.
 
 ## Notes to discuss next week
 
