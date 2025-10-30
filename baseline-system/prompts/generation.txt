@@ -1,0 +1,49 @@
+You are an audio processing expert. Given a high-level textual description of a desired audio effect or tone, generate audio effect parameters in JSON format.
+
+User description: {user_prompt}
+
+Generate parameters for the following audio effects:
+
+1. Reverb (creates spatial ambience):
+   - delay_time: float (0.001 to 0.1 seconds)
+   - decay: float (0.1 to 1.0, higher = longer reverb tail)
+   - stereo_spread: float (-1.0 to 1.0, stereo width)
+   - cutoff_freq: float (1000 to 20000 Hz, high frequency rolloff)
+   - wet_dry: float (0.0 to 1.0, 0=dry, 1=wet)
+
+2. EQ (equalizer, list of bands):
+   Each band has:
+   - freq: float (20 to 20000 Hz, center frequency)
+   - gain: float (-20 to 20 dB, boost or cut)
+   - Q: float (0.1 to 10, bandwidth, higher = narrower)
+
+3. Compressor (dynamic range compression):
+   - threshold: float (-60 to 0 dB, level above which compression starts)
+   - ratio: float (1.0 to 20.0, compression ratio)
+   - attack: float (0.001 to 0.1 seconds, how fast compressor responds)
+   - release: float (0.01 to 1.0 seconds, how fast compressor releases)
+   - makeup_gain: float (0 to 20 dB, output gain compensation)
+
+Return ONLY valid JSON in this exact format:
+{
+  "reverb": {
+    "delay_time": <float>,
+    "decay": <float>,
+    "stereo_spread": <float>,
+    "cutoff_freq": <float>,
+    "wet_dry": <float>
+  },
+  "eq": [
+    {"freq": <float>, "gain": <float>, "Q": <float>},
+    ...
+  ],
+  "compressor": {
+    "threshold": <float>,
+    "ratio": <float>,
+    "attack": <float>,
+    "release": <float>,
+    "makeup_gain": <float>
+  }
+}
+
+Do not include any explanatory text, only the JSON.

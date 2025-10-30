@@ -1,0 +1,16 @@
+# Core dependencies
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.0.0
+
+# Audio processing (for future phases)
+librosa>=0.10.0
+soundfile>=0.12.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# LLM clients (for future phases)
+openai>=1.0.0
+anthropic>=0.21.0
