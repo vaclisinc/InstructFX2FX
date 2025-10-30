@@ -70,8 +70,26 @@ CLAP is a retrieval model, not a generative model. It operates by:
 
 Because CLAP cannot produce new descriptions, the current MVP keeps a bank of 12 text embeddings and selects the closest match for scoring. This is a stopgap that will need improvement.
 
-> Most CLIP/CLAP pipelines rely on a large, well-crafted bank of text embeddings, run a top-k retrieval, and then ask an LLM to rewrite the shortlisted descriptions. We can generate those banks with an LLM, but we must watch description quality. 
-
+> Most CLIP/CLAP pipelines rely on a large, well-crafted bank of text embeddings, run a top-k retrieval, and then ask an LLM to rewrite the shortlisted descriptions. We can generate those banks with an LLM, but we must watch description quality.
+>
 > Another idea is to hand the CLAP audio embedding directly to an LLM, yet current models still struggle to interpret those embeddings.
 
-### 2) Scoring system - our Music DeepEncoder
+### 2) Music DeepEncoder direction
+
+Recent DeepSeek-OCR work highlights a helpful pattern: compress PDF/image inputs into compact visual latents before touching the LLM, preserving fidelity while cutting tokens by roughly 10×. We can mimic that stack for audio so Charlotte’s MERT experiments slot in neatly.
+![](ref/others/deepseek-ocr-system-design.png)
+- First-pass design lives in [`scoring-system/proposal.md`](scoring-system/proposal.md); it mirrors DeepSeek’s stages (local perception → global encoder → bridge → judge).
+![](ref/others/our-proposal-structure.png)
+- Related work to skim:
+  1. **MusiLingo (2023)** – pushes audio through a MERT layer then a multimodal decoder. [Paper](ref/others/MusiLingo.pdf)
+    ![](ref/others/MusiLingo-system-design.png)
+     > Comparable to classic OCR without local chunking; suggests adding CLAP-style retrieval to capture timbre detail.
+  2. **U-SAM (2025)** – unified speech/audio/music model. [Paper](ref/others/u-sam.pdf)
+  ![](ref/others/U-sam-structure.png)
+     > Strong generalist baseline, but does not emphasize latent compression.
+
+
+## Two near-term explorations:
+
+1. Assemble a larger, high-quality text-embedding bank (possibly LLM-generated) and use a DeepSeek-style top-k + rewrite loop.
+2. Prototype audio latents: EnCodec for local tokens → MERT for global semantics → lightweight bridge into the judge LLM. If LLMs still can’t parse raw audio embeddings, expose the latents as structured tokens instead.
