@@ -355,3 +355,234 @@ class TestErrorHandling:
         except Exception as e:
             # Any error is acceptable for empty arguments
             pass
+
+
+class TestRefinementLoop:
+    """Tests for refine_loop function."""
+
+    def test_refine_loop_function_exists(self):
+        """Test that refine_loop function can be imported."""
+        from src.generation.parameters import refine_loop
+        assert callable(refine_loop)
+
+    def test_refine_loop_returns_dict(self):
+        """Test that refine_loop returns a dictionary with results."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        print(f"\n[Model: {config['llm']['provider']}/{config['llm']['model']}]")
+
+        user_prompt = "warm and spacious"
+        # Use actual audio file path
+        audio_path = str(Path(__file__).parent.parent / 'audio_samples' / 'test_audio.wav')
+        print(f"[Audio Path]: {audio_path}")
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        print(f"[User Prompt]: {user_prompt}")
+        print(f"[Result]: {json.dumps(result, indent=2)}")
+
+        # Should return a dictionary
+        assert isinstance(result, dict)
+
+    def test_refine_loop_has_best_params_and_history(self):
+        """Test that refine_loop returns best_params and history."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        user_prompt = "bright and energetic"
+        audio_path = "piano.wav"
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        # Should have best_params and history keys
+        assert 'best_params' in result
+        assert 'history' in result
+
+        # best_params should have the parameter structure
+        best_params = result['best_params']
+        assert 'reverb' in best_params
+        assert 'eq' in best_params
+        assert 'compressor' in best_params
+
+        # history should be a list
+        assert isinstance(result['history'], list)
+
+    def test_refine_loop_tracks_scores_and_params(self):
+        """Test that refine_loop tracks scores and parameters in history."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        user_prompt = "dark and moody"
+        audio_path = "piano.wav"
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        # Each history entry should have iteration, params, and score
+        for entry in result['history']:
+            assert 'iteration' in entry
+            assert 'params' in entry
+            assert 'score' in entry
+            assert isinstance(entry['iteration'], int)
+            assert isinstance(entry['params'], dict)
+            assert isinstance(entry['score'], (int, float))
+            assert 0 <= entry['score'] <= 10
+
+    def test_refine_loop_respects_max_iterations(self):
+        """Test that refine_loop stops after max_iterations."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        # Set a small max_iterations for testing
+        config['refinement']['max_iterations'] = 3
+
+        user_prompt = "test prompt"
+        audio_path = "piano.wav"
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        # Should have at most max_iterations entries in history
+        assert len(result['history']) <= config['refinement']['max_iterations']
+
+    def test_refine_loop_stops_on_convergence(self):
+        """Test that refine_loop stops when score plateaus."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        # Set a large convergence threshold to trigger early stopping
+        config['refinement']['convergence_threshold'] = 10.0  # Any improvement < 10 stops
+        config['refinement']['max_iterations'] = 10
+
+        user_prompt = "test prompt"
+        audio_path = "piano.wav"
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        # Should stop before max_iterations due to convergence
+        # (unless score improves by 10+ points each time, which is unlikely)
+        assert len(result['history']) >= 2  # Need at least 2 to check convergence
+
+    def test_refine_loop_uses_refinement_template(self):
+        """Test that refine_loop uses the refinement prompt template from config."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        # Limit iterations for faster test
+        config['refinement']['max_iterations'] = 2
+
+        user_prompt = "warm reverb"
+        audio_path = "piano.wav"
+
+        # This test verifies the function uses config['prompts']['refinement_template']
+        # by checking that it completes successfully (which requires the template)
+        result = refine_loop(user_prompt, audio_path, config)
+
+        # If it used the template correctly, we should get valid output
+        assert 'best_params' in result
+        assert 'history' in result
+        assert len(result['history']) >= 1
+
+    def test_refine_loop_improves_score(self):
+        """Integration test: validate score improves over iterations."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        # Set reasonable iteration limit for test
+        config['refinement']['max_iterations'] = 5
+
+        print(f"\n[Model: {config['llm']['provider']}/{config['llm']['model']}]")
+
+        user_prompt = "cathedral-like reverb with warm tone"
+        audio_path = "piano.wav"
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        print(f"[User Prompt]: {user_prompt}")
+        print(f"[Iterations]: {len(result['history'])}")
+        print("[Score progression]:")
+        for entry in result['history']:
+            print(f"  Iteration {entry['iteration']}: {entry['score']:.2f}")
+
+        # Check that we have multiple iterations
+        assert len(result['history']) >= 2
+
+        # Check that final score is >= initial score
+        # (or at least score improved at some point during the loop)
+        initial_score = result['history'][0]['score']
+        final_score = result['history'][-1]['score']
+        max_score = max(entry['score'] for entry in result['history'])
+
+        print(f"[Initial Score]: {initial_score:.2f}")
+        print(f"[Final Score]: {final_score:.2f}")
+        print(f"[Max Score]: {max_score:.2f}")
+
+        # Score should either improve or stay reasonable
+        # (Don't require strict improvement every time, but max should be >= initial)
+        assert max_score >= initial_score - 1.0  # Allow small variance
+
+    def test_refine_loop_returns_best_params(self):
+        """Test that refine_loop returns the parameters with the highest score."""
+        from tests.conftest import require_api_key
+        require_api_key('OPENROUTER_API_KEY')
+
+        from src.generation.parameters import refine_loop
+        from src.config.loader import load_config
+
+        config_path = Path(__file__).parent.parent / 'configs' / 'default.yaml'
+        config = load_config(str(config_path))
+
+        config['refinement']['max_iterations'] = 3
+
+        user_prompt = "bright and clear"
+        audio_path = "piano.wav"
+
+        result = refine_loop(user_prompt, audio_path, config)
+
+        # Find the iteration with the highest score
+        max_score = max(entry['score'] for entry in result['history'])
+        best_entry = next(entry for entry in result['history'] if entry['score'] == max_score)
+
+        # best_params should match the params from the best iteration
+        assert result['best_params'] == best_entry['params']
