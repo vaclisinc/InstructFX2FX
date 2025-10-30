@@ -2,11 +2,11 @@ llm:
   provider: openrouter  # Options: openrouter, openai, claude
 
   # OpenRouter models (recommended - unified access to all providers):
-  model: anthropic/claude-sonnet-4.5  
+  # model: anthropic/claude-sonnet-4.5  
   # model: openai/gpt-5                
   # model: anthropic/claude-opus-4.1   
   # model: google/gemini-2.5-pro       
-  # model: anthropic/claude-haiku-4.5
+  model: anthropic/claude-haiku-4.5
 
   # OpenAI direct API models (provider: openai):
   # model: gpt-5                       # Latest flagship
