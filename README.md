@@ -76,16 +76,22 @@ Because CLAP cannot produce new descriptions, the current MVP keeps a bank of 12
 
 ### 2) Music DeepEncoder direction
 
-Recent DeepSeek-OCR work highlights a helpful pattern: compress PDF/image inputs into compact visual latents before touching the LLM, preserving fidelity while cutting tokens by roughly 10×. We can mimic that stack for audio so Charlotte’s MERT experiments slot in neatly.
-![](ref/others/deepseek-ocr-system-design.png)
+Recent DeepSeek-OCR [Paper](ref/others/Deepseek-OCR/deepseek-ocr.pdf) work highlights a helpful pattern: compress PDF/image inputs into compact visual latents before touching the LLM, preserving fidelity while cutting tokens by roughly 10×. We can mimic that stack for audio so Charlotte’s MERT experiments slot in neatly.
+![](ref/others/Deepseek-OCR/deepseek-ocr-system-design.png)
 - First-pass design lives in [`scoring-system/proposal.md`](scoring-system/proposal.md); it mirrors DeepSeek’s stages (local perception → global encoder → bridge → judge).
-![](ref/others/our-proposal-structure.png)
+
+| Role                             | DeepSeek-OCR (vision) | MuDE (audio) suggestion | Rationale |
+|----------------------------------|------------------------|-------------------------|-----------|
+| Local perception / tokenizer     | SAM-base               | EnCodec                 | High-fidelity, locality-aware tokens that preserve timbre and micro-dynamics. |
+| Global semantics / knowledge     | CLIP-large             | MERT                    | Music foundation model for deep structural understanding; outperforms CLAP on music tasks. |
+| Bridge / compressor              | 16× conv compressor    | Q-Former + linear layers| Translate MERT features into compact latent packets with controllable length. |
+| Decoder / judge                  | DeepSeek-3B-MoE        | Frozen LLM (e.g. Llama) | Reads compressed music latents to emit numeric scores or vibe vectors. |
 - Related work to skim:
-  1. **MusiLingo (2023)** – pushes audio through a MERT layer then a multimodal decoder. [Paper](ref/others/MusiLingo.pdf)
-    ![](ref/others/MusiLingo-system-design.png)
+  1. **MusiLingo (2023)** – pushes audio through a MERT layer then a multimodal decoder. [Paper](ref/others/MusiLingo/MusiLingo.pdf)
+    ![](ref/others/MusiLingo/MusiLingo-system-design.png)
      > Comparable to classic OCR without local chunking; suggests adding CLAP-style retrieval to capture timbre detail.
-  2. **U-SAM (2025)** – unified speech/audio/music model. [Paper](ref/others/u-sam.pdf)
-  ![](ref/others/U-sam-structure.png)
+  2. **U-SAM (2025)** – unified speech/audio/music model. [Paper](ref/others/U-SAM/u-sam.pdf)
+  ![](ref/others/U-SAM/U-sam-structure.png)
      > Strong generalist baseline, but does not emphasize latent compression.
 
 
