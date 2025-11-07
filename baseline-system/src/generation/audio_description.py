@@ -5,6 +5,7 @@ Uses LAION CLAP model to generate textual descriptions of audio files.
 """
 
 import os
+import json
 from pathlib import Path
 from typing import Optional
 import numpy as np
@@ -15,6 +16,7 @@ import torch
 # Global model instance (lazy loaded)
 _clap_model = None
 _device = None
+_socialfx_labels = None
 
 
 def _get_clap_model():
@@ -27,45 +29,135 @@ def _get_clap_model():
     global _clap_model, _device
 
     if _clap_model is None:
-        # Determine device
-        _device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # Determine device - prefer MPS (Apple Silicon GPU), then CUDA, then CPU
+        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+            _device = 'mps'
+        elif torch.cuda.is_available():
+            _device = 'cuda'
+        else:
+            _device = 'cpu'
+
         print(f"[CLAP] Initializing model on {_device}...")
+
+        # Set random seeds for deterministic behavior
+        torch.manual_seed(42)
+        if _device == 'cuda':
+            torch.cuda.manual_seed(42)
+        elif _device == 'mps':
+            torch.mps.manual_seed(42)
 
         # Initialize CLAP model
         # Using music_audioset model which is trained on music and general audio
         _clap_model = laion_clap.CLAP_Module(enable_fusion=False, device=_device)
         _clap_model.load_ckpt()  # Load default pretrained checkpoint
 
+        # Set to eval mode to disable dropout and make it deterministic
+        _clap_model.eval()
+
+        # Disable cudnn benchmark for determinism
+        if _device == 'cuda':
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+
         print("[CLAP] Model loaded successfully")
 
     return _clap_model, _device
 
 
-def generate_audio_description_with_clap(
-    audio_path: str,
-    candidate_descriptions: Optional[list[str]] = None
-) -> str:
+def load_socialfx_labels(labels_path: str = None, effect_type: str = None) -> list[str]:
     """
-    Generate a textual description of audio using CLAP model.
+    Load Social FX labels from JSON file (singleton pattern).
 
-    If candidate_descriptions are provided, selects the best matching description.
-    Otherwise, uses CLAP embeddings to generate a description.
+    Args:
+        labels_path: Path to socialfx_labels.json (optional, uses default if not provided)
+        effect_type: Filter by effect type: 'reverb', 'eq', 'compressor', or None for all (default: None)
+
+    Returns:
+        List of Social FX labels (filtered by effect_type if specified)
+    """
+    global _socialfx_labels
+
+    if _socialfx_labels is None:
+        # Determine default path if not provided
+        if labels_path is None:
+            # Try to find the labels file relative to this file
+            current_file = Path(__file__)
+            possible_paths = [
+                current_file.parent.parent.parent / 'data' / 'socialfx_labels.json',
+                Path('baseline-system/data/socialfx_labels.json'),
+                Path('data/socialfx_labels.json'),
+            ]
+
+            for path in possible_paths:
+                if path.exists():
+                    labels_path = str(path)
+                    break
+
+        if labels_path is None or not Path(labels_path).exists():
+            print("[Warning] Social FX labels not found, using fallback")
+            return None
+
+        try:
+            with open(labels_path, 'r', encoding='utf-8') as f:
+                _socialfx_labels = json.load(f)
+
+            total_labels = len(_socialfx_labels.get('all', []))
+            print(f"[Social FX] Loaded {total_labels} labels from {labels_path}")
+            print(f"  Reverb: {len(_socialfx_labels.get('reverb', []))} labels")
+            print(f"  EQ: {len(_socialfx_labels.get('eq', []))} labels")
+            print(f"  Compressor: {len(_socialfx_labels.get('compressor', []))} labels")
+
+        except Exception as e:
+            print(f"[Warning] Failed to load Social FX labels: {e}")
+            return None
+
+    # Filter by effect type if specified
+    if effect_type is not None:
+        if effect_type not in ['reverb', 'eq', 'compressor']:
+            raise ValueError(f"Invalid effect_type: {effect_type}. Must be 'reverb', 'eq', 'compressor', or None")
+
+        filtered_labels = _socialfx_labels.get(effect_type, [])
+        if not filtered_labels:
+            print(f"[Warning] No labels found for effect type: {effect_type}")
+        return filtered_labels
+
+    # Return all labels
+    return _socialfx_labels.get('all', [])
+
+
+def generate_audio_description_with_clap_topk(
+    audio_path: str,
+    candidate_descriptions: list[str],
+    k: int = 5,
+    batch_size: int = 32
+) -> list[tuple[str, float]]:
+    """
+    Generate top-k textual descriptions of audio using CLAP model.
+    Uses batch processing for large candidate sets to avoid memory issues.
 
     Args:
         audio_path: Path to audio file
-        candidate_descriptions: Optional list of candidate descriptions to choose from
+        candidate_descriptions: List of candidate descriptions to rank
+        k: Number of top matches to return (default: 5)
+        batch_size: Batch size for text encoding (default: 512)
 
     Returns:
-        String description of the audio
+        List of (label, score) tuples, sorted by score descending
 
     Raises:
         FileNotFoundError: If audio file doesn't exist
-        Exception: If CLAP model fails
+        ValueError: If k > len(candidate_descriptions)
     """
     # Check if audio file exists
     audio_path_obj = Path(audio_path)
     if not audio_path_obj.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    # Validate k
+    if k > len(candidate_descriptions):
+        raise ValueError(
+            f"k ({k}) cannot be greater than number of candidates ({len(candidate_descriptions)})"
+        )
 
     try:
         # Get CLAP model
@@ -73,43 +165,129 @@ def generate_audio_description_with_clap(
 
         # Load and encode audio
         audio_file = str(audio_path_obj.absolute())
+        print(f"[CLAP] Encoding audio...")
         audio_embeddings = model.get_audio_embedding_from_filelist(x=[audio_file], use_tensor=True)
 
-        if candidate_descriptions:
-            # Encode candidate descriptions
-            text_embeddings = model.get_text_embedding(candidate_descriptions, use_tensor=True)
+        # For large candidate sets, process in batches to avoid memory issues
+        num_candidates = len(candidate_descriptions)
+        all_similarities = []
 
-            # Compute similarities
-            similarities = audio_embeddings @ text_embeddings.T
-            best_idx = similarities.argmax().item()
+        if num_candidates > batch_size:
+            print(f"[CLAP] Encoding {num_candidates} text labels in batches of {batch_size}...")
+            num_batches = (num_candidates + batch_size - 1) // batch_size
 
-            return candidate_descriptions[best_idx]
+            for batch_idx in range(num_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, num_candidates)
+                batch_texts = candidate_descriptions[start_idx:end_idx]
+
+                # Encode batch
+                text_embeddings = model.get_text_embedding(batch_texts, use_tensor=True)
+
+                # Compute similarities for this batch and immediately move to CPU
+                batch_similarities = audio_embeddings @ text_embeddings.T
+                batch_similarities_cpu = batch_similarities.detach().cpu()
+                all_similarities.append(batch_similarities_cpu)
+
+                print(f"  Batch {batch_idx + 1}/{num_batches} done")
+
+                # Clear GPU memory aggressively
+                if device in ['cuda', 'mps']:
+                    del text_embeddings, batch_similarities, batch_similarities_cpu
+                    if device == 'cuda':
+                        torch.cuda.empty_cache()
+                    elif device == 'mps':
+                        torch.mps.empty_cache()
+
+            # Concatenate all batch similarities
+            similarities = torch.cat(all_similarities, dim=1)
+
         else:
-            # Generate generic description based on audio characteristics
-            # Use a set of candidate descriptions covering common audio characteristics
-            default_candidates = [
-                "The audio has a bright, high-frequency tone with clear articulation",
-                "The audio has a warm, rich tone with pronounced low frequencies",
-                "The audio has a balanced frequency response with moderate dynamics",
-                "The audio has heavy reverberation creating a spacious atmosphere",
-                "The audio has tight, dry sound with minimal reverb",
-                "The audio has moderate reverb with a natural room sound",
-                "The audio has heavy compression with controlled dynamics",
-                "The audio has natural dynamics with light compression",
-                "The audio has a dark, mellow tone with soft high frequencies",
-                "The audio has enhanced mid-range frequencies with presence",
-                "The audio has a sharp, aggressive tone with boosted highs",
-                "The audio has a smooth, polished sound with subtle effects"
+            # Small candidate set - process all at once
+            print(f"[CLAP] Encoding {num_candidates} text labels...")
+            text_embeddings = model.get_text_embedding(candidate_descriptions, use_tensor=True)
+            similarities = audio_embeddings @ text_embeddings.T
+
+        # Get top-k indices (detach from computation graph first)
+        similarities_np = similarities.detach().cpu().numpy().flatten()
+        top_k_indices = np.argsort(similarities_np)[-k:][::-1]
+
+        # Build result list
+        results = []
+        for idx in top_k_indices:
+            label = candidate_descriptions[idx]
+            score = float(similarities_np[idx])
+            results.append((label, score))
+
+        print(f"[CLAP] Top-{k} matching complete")
+        return results
+
+    except Exception as e:
+        raise Exception(f"CLAP top-k description failed: {str(e)}")
+
+
+def generate_audio_description_with_clap(
+    audio_path: str,
+    candidate_descriptions: Optional[list[str]] = None,
+    k: int = 5,
+    effect_type: Optional[str] = None
+) -> str:
+    """
+    Generate a textual description of audio using CLAP model with top-k matching.
+
+    If candidate_descriptions are provided, uses them. Otherwise, loads Social FX labels.
+    Can optionally filter by effect type (reverb, eq, compressor).
+    Returns a formatted string with top-k best matching labels.
+
+    Args:
+        audio_path: Path to audio file
+        candidate_descriptions: Optional list of candidate descriptions to choose from
+        k: Number of top labels to return (default: 5)
+        effect_type: Filter labels by effect type: 'reverb', 'eq', 'compressor', or None (default: None)
+
+    Returns:
+        String description of the audio (e.g., "The audio is: spacious, warm, echo, deep, hollow")
+
+    Raises:
+        FileNotFoundError: If audio file doesn't exist
+        ValueError: If invalid effect_type specified
+        Exception: If CLAP model fails
+    """
+    # Check if audio file exists
+    audio_path_obj = Path(audio_path)
+    if not audio_path_obj.exists():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    # Determine which candidates to use
+    if candidate_descriptions is None:
+        # Load Social FX labels (optionally filtered by effect type)
+        socialfx_labels = load_socialfx_labels(effect_type=effect_type)
+
+        if socialfx_labels:
+            candidate_descriptions = socialfx_labels
+            if effect_type:
+                print(f"[Info] Using {len(candidate_descriptions)} {effect_type} labels")
+        else:
+            # Fallback to hardcoded candidates if Social FX labels not available
+            print("[Warning] Using fallback hardcoded candidates")
+            candidate_descriptions = [
+                "bright", "warm", "balanced", "spacious", "dry", "natural",
+                "compressed", "dynamic", "dark", "present", "aggressive", "smooth"
             ]
 
-            # Encode candidate descriptions
-            text_embeddings = model.get_text_embedding(default_candidates, use_tensor=True)
+    try:
+        # Use top-k matching
+        top_k_results = generate_audio_description_with_clap_topk(
+            audio_path,
+            candidate_descriptions,
+            k=min(k, len(candidate_descriptions))
+        )
 
-            # Compute similarities
-            similarities = audio_embeddings @ text_embeddings.T
-            best_idx = similarities.argmax().item()
+        # Format as simple comma-separated list
+        labels = [label for label, score in top_k_results]
+        description = f"The audio is: {', '.join(labels)}"
 
-            return default_candidates[best_idx]
+        return description
 
     except Exception as e:
         raise Exception(f"CLAP audio description failed: {str(e)}")
