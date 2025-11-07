@@ -11,6 +11,12 @@ soundfile>=0.12.0
 numpy>=1.24.0
 scipy>=1.10.0
 
+# CLAP for audio description
+laion-clap>=1.1.0
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
 # LLM clients
 openai>=1.0.0
 anthropic>=0.21.0

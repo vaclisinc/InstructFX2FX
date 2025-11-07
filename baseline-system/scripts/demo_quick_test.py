@@ -24,7 +24,7 @@ def main():
     print(f"    Sample: {', '.join(reverb_labels[:10])}...")
 
     # test audio
-    test_audio = Path(__file__).parent.parent / 'audio_samples' / 'reverb' /  'spacious.wav'
+    test_audio = Path(__file__).parent.parent / 'audio_samples' / 'piano' / 'reverb' /  'spacious.wav'
     if not test_audio.exists():
         print(f"\n✗ Audio file not found: {test_audio}")
         return
@@ -39,7 +39,8 @@ def main():
         results = generate_audio_description_with_clap_topk(
             str(test_audio),
             reverb_labels,
-            k=10  # Top-10 labels
+            k=10,  # Top-10 labels
+            device='cuda:2'  # Use GPU 2
         )
 
         print("\n" + "=" * 70)
