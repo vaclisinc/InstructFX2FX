@@ -19,9 +19,13 @@ _device = None
 _socialfx_labels = None
 
 
-def _get_clap_model():
+def _get_clap_model(device: str = 'cuda:0'):
     """
     Get or initialize the CLAP model (singleton pattern).
+
+    Args:
+        device: Device to use (e.g., 'cuda:0', 'cuda:1', 'mps', 'cpu')
+                If 'cuda:X' is specified but CUDA is not available, falls back to MPS if available, else CPU.
 
     Returns:
         tuple: (model, device)
@@ -29,22 +33,39 @@ def _get_clap_model():
     global _clap_model, _device
 
     if _clap_model is None:
-        # Determine device - prefer MPS (Apple Silicon GPU), then CUDA, then CPU
-        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-            _device = 'mps'
-        elif torch.cuda.is_available():
-            _device = 'cuda'
+        # Determine the actual device to use
+        if device.startswith('cuda'):
+            if torch.cuda.is_available():
+                _device = device
+                # Extract GPU index if specified (e.g., 'cuda:1' -> 1)
+                if ':' in device:
+                    gpu_index = int(device.split(':')[1])
+                    torch.cuda.set_device(gpu_index)
+            elif torch.backends.mps.is_available():
+                print(f"[CLAP] CUDA not available, falling back to MPS")
+                _device = 'mps'
+            else:
+                print(f"[CLAP] CUDA not available, falling back to CPU")
+                _device = 'cpu'
+        elif device == 'mps':
+            if torch.backends.mps.is_available():
+                _device = 'mps'
+            else:
+                print(f"[CLAP] MPS not available, falling back to CPU")
+                _device = 'cpu'
         else:
-            _device = 'cpu'
+            _device = device
 
         print(f"[CLAP] Initializing model on {_device}...")
 
+        # Clean up any existing GPU memory
+        if _device.startswith('cuda'):
+            torch.cuda.empty_cache()
+
         # Set random seeds for deterministic behavior
         torch.manual_seed(42)
-        if _device == 'cuda':
+        if _device.startswith('cuda'):
             torch.cuda.manual_seed(42)
-        elif _device == 'mps':
-            torch.mps.manual_seed(42)
 
         # Initialize CLAP model
         # Using music_audioset model which is trained on music and general audio
@@ -54,12 +75,12 @@ def _get_clap_model():
         # Set to eval mode to disable dropout and make it deterministic
         _clap_model.eval()
 
-        # Disable cudnn benchmark for determinism
-        if _device == 'cuda':
+        # Disable cudnn benchmark for determinism (CUDA only)
+        if _device.startswith('cuda'):
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-        print("[CLAP] Model loaded successfully")
+        print(f"[CLAP] Model loaded successfully on {_device}")
 
     return _clap_model, _device
 
@@ -129,17 +150,19 @@ def generate_audio_description_with_clap_topk(
     audio_path: str,
     candidate_descriptions: list[str],
     k: int = 5,
-    batch_size: int = 32
+    batch_size: int = 128,
+    device: str = 'cuda:0'
 ) -> list[tuple[str, float]]:
     """
     Generate top-k textual descriptions of audio using CLAP model.
-    Uses batch processing for large candidate sets to avoid memory issues.
+    Uses batch processing to manage GPU memory efficiently.
 
     Args:
         audio_path: Path to audio file
         candidate_descriptions: List of candidate descriptions to rank
         k: Number of top matches to return (default: 5)
-        batch_size: Batch size for text encoding (default: 512)
+        batch_size: Batch size for text encoding (default: 128)
+        device: Device to use (e.g., 'cuda:0', 'cuda:1', 'mps', 'cpu'). Default: 'cuda:0'
 
     Returns:
         List of (label, score) tuples, sorted by score descending
@@ -161,55 +184,48 @@ def generate_audio_description_with_clap_topk(
 
     try:
         # Get CLAP model
-        model, device = _get_clap_model()
+        model, active_device = _get_clap_model(device)
 
         # Load and encode audio
         audio_file = str(audio_path_obj.absolute())
-        print(f"[CLAP] Encoding audio...")
+        print(f"[CLAP] Encoding audio on {active_device}...")
         audio_embeddings = model.get_audio_embedding_from_filelist(x=[audio_file], use_tensor=True)
 
-        # For large candidate sets, process in batches to avoid memory issues
+        # Process text in batches to avoid OOM
         num_candidates = len(candidate_descriptions)
         all_similarities = []
 
-        if num_candidates > batch_size:
-            print(f"[CLAP] Encoding {num_candidates} text labels in batches of {batch_size}...")
-            num_batches = (num_candidates + batch_size - 1) // batch_size
+        print(f"[CLAP] Encoding {num_candidates} text labels in batches of {batch_size}...")
+        num_batches = (num_candidates + batch_size - 1) // batch_size
 
-            for batch_idx in range(num_batches):
-                start_idx = batch_idx * batch_size
-                end_idx = min(start_idx + batch_size, num_candidates)
-                batch_texts = candidate_descriptions[start_idx:end_idx]
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, num_candidates)
+            batch_texts = candidate_descriptions[start_idx:end_idx]
 
-                # Encode batch
+            # Encode batch
+            with torch.no_grad():  # Don't track gradients to save memory
                 text_embeddings = model.get_text_embedding(batch_texts, use_tensor=True)
 
-                # Compute similarities for this batch and immediately move to CPU
+                # Compute similarities for this batch
                 batch_similarities = audio_embeddings @ text_embeddings.T
-                batch_similarities_cpu = batch_similarities.detach().cpu()
-                all_similarities.append(batch_similarities_cpu)
 
-                print(f"  Batch {batch_idx + 1}/{num_batches} done")
+                # Move to CPU immediately to free memory
+                all_similarities.append(batch_similarities.cpu())
 
-                # Clear GPU memory aggressively
-                if device in ['cuda', 'mps']:
-                    del text_embeddings, batch_similarities, batch_similarities_cpu
-                    if device == 'cuda':
-                        torch.cuda.empty_cache()
-                    elif device == 'mps':
-                        torch.mps.empty_cache()
+                # Clean up
+                del text_embeddings, batch_similarities
+                if active_device.startswith('cuda'):
+                    torch.cuda.empty_cache()
 
-            # Concatenate all batch similarities
-            similarities = torch.cat(all_similarities, dim=1)
+            if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == num_batches:
+                print(f"  Processed {batch_idx + 1}/{num_batches} batches")
 
-        else:
-            # Small candidate set - process all at once
-            print(f"[CLAP] Encoding {num_candidates} text labels...")
-            text_embeddings = model.get_text_embedding(candidate_descriptions, use_tensor=True)
-            similarities = audio_embeddings @ text_embeddings.T
+        # Concatenate all similarities on CPU
+        similarities = torch.cat(all_similarities, dim=1)
+        similarities_np = similarities.numpy().flatten()
 
-        # Get top-k indices (detach from computation graph first)
-        similarities_np = similarities.detach().cpu().numpy().flatten()
+        # Get top-k indices
         top_k_indices = np.argsort(similarities_np)[-k:][::-1]
 
         # Build result list
@@ -230,7 +246,8 @@ def generate_audio_description_with_clap(
     audio_path: str,
     candidate_descriptions: Optional[list[str]] = None,
     k: int = 5,
-    effect_type: Optional[str] = None
+    effect_type: Optional[str] = None,
+    device: str = 'cuda:0'
 ) -> str:
     """
     Generate a textual description of audio using CLAP model with top-k matching.
@@ -244,6 +261,7 @@ def generate_audio_description_with_clap(
         candidate_descriptions: Optional list of candidate descriptions to choose from
         k: Number of top labels to return (default: 5)
         effect_type: Filter labels by effect type: 'reverb', 'eq', 'compressor', or None (default: None)
+        device: Device to use (e.g., 'cuda:0', 'cuda:1', 'mps', 'cpu'). Default: 'cuda:0'
 
     Returns:
         String description of the audio (e.g., "The audio is: spacious, warm, echo, deep, hollow")
@@ -280,7 +298,8 @@ def generate_audio_description_with_clap(
         top_k_results = generate_audio_description_with_clap_topk(
             audio_path,
             candidate_descriptions,
-            k=min(k, len(candidate_descriptions))
+            k=min(k, len(candidate_descriptions)),
+            device=device
         )
 
         # Format as simple comma-separated list
