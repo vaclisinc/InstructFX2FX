@@ -25,5 +25,3 @@ htmlcov/
 .idea/
 
 output/
-*.wav
-*.mp3
