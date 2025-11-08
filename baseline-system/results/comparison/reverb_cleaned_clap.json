@@ -1,0 +1,412 @@
+{
+  "config": {
+    "effect_type": "reverb",
+    "label_type": "cleaned",
+    "mode": "clap",
+    "num_labels": 837,
+    "num_samples": 11,
+    "timestamp": "2025-11-08T07:10:29.156125"
+  },
+  "metrics": {
+    "hit@1": 0.0,
+    "hit@5": 0.0,
+    "hit@10": 0.0,
+    "mrr": 0.0,
+    "mean_score_top1": 0.42375037886879663
+  },
+  "per_sample": [
+    {
+      "audio": "muffled.wav",
+      "ground_truth": [
+        "muffle",
+        "muffled",
+        "dull"
+      ],
+      "predictions": [
+        "lovely-echoes",
+        "meditative",
+        "jazzy",
+        "melody",
+        "gothic",
+        "mystery",
+        "introspective",
+        "reflections",
+        "melodious",
+        "old-timely"
+      ],
+      "scores": [
+        0.44155558943748474,
+        0.44099777936935425,
+        0.40840643644332886,
+        0.38704532384872437,
+        0.3846527934074402,
+        0.367708295583725,
+        0.36623865365982056,
+        0.3650915324687958,
+        0.3611467182636261,
+        0.35879093408584595
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "low.wav",
+      "ground_truth": [
+        "low",
+        "deep",
+        "bass"
+      ],
+      "predictions": [
+        "old-timely",
+        "jazzy",
+        "guitar",
+        "melodious",
+        "lovely-echoes",
+        "majestic",
+        "instrumental",
+        "acoustic",
+        "vintage",
+        "sorrow"
+      ],
+      "scores": [
+        0.42807117104530334,
+        0.3900791108608246,
+        0.3757212162017822,
+        0.37034571170806885,
+        0.36251306533813477,
+        0.3567635416984558,
+        0.35288411378860474,
+        0.3373332917690277,
+        0.326925128698349,
+        0.32321715354919434
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "echo.wav",
+      "ground_truth": [
+        "echo"
+      ],
+      "predictions": [
+        "old-timely",
+        "chaotic",
+        "old-organ",
+        "cathedral-like",
+        "melodious",
+        "glorious",
+        "mystery",
+        "gloomy",
+        "church-bell",
+        "tunnel-like"
+      ],
+      "scores": [
+        0.4194056987762451,
+        0.4004687964916229,
+        0.3902430534362793,
+        0.388261079788208,
+        0.38767892122268677,
+        0.3871604800224304,
+        0.38707414269447327,
+        0.3732113540172577,
+        0.3636209964752197,
+        0.36223554611206055
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "deep.wav",
+      "ground_truth": [
+        "deep",
+        "bass"
+      ],
+      "predictions": [
+        "lovely-echoes",
+        "reflections",
+        "introspective",
+        "mystery",
+        "nostalgic",
+        "gothic",
+        "majestic",
+        "meditative",
+        "chambers",
+        "moody"
+      ],
+      "scores": [
+        0.4654671549797058,
+        0.43151289224624634,
+        0.42015066742897034,
+        0.41584816575050354,
+        0.4007709324359894,
+        0.39301180839538574,
+        0.3837099075317383,
+        0.3804222345352173,
+        0.3741549253463745,
+        0.3726089894771576
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "church.wav",
+      "ground_truth": [
+        "church",
+        "spacious",
+        "large"
+      ],
+      "predictions": [
+        "jazzy",
+        "musical-improvisation",
+        "old-timely",
+        "introspective",
+        "slow-sad",
+        "majestic",
+        "classical",
+        "chaotic",
+        "melodious",
+        "slow-decay"
+      ],
+      "scores": [
+        0.39618006348609924,
+        0.35964134335517883,
+        0.3394423723220825,
+        0.32699042558670044,
+        0.3161666989326477,
+        0.3139594793319702,
+        0.30921876430511475,
+        0.30660581588745117,
+        0.29937294125556946,
+        0.29753434658050537
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "sharp.wav",
+      "ground_truth": [
+        "sharp",
+        "bright",
+        "clear"
+      ],
+      "predictions": [
+        "lovely-echoes",
+        "old-timely",
+        "melodious",
+        "jazzy",
+        "meditative",
+        "glorious",
+        "majestic",
+        "introspective",
+        "mystery",
+        "gong-like"
+      ],
+      "scores": [
+        0.4395934045314789,
+        0.38698601722717285,
+        0.37341490387916565,
+        0.372005432844162,
+        0.37159085273742676,
+        0.36565911769866943,
+        0.36214306950569153,
+        0.35814714431762695,
+        0.34752121567726135,
+        0.336972177028656
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "soft.wav",
+      "ground_truth": [
+        "soft",
+        "gentle",
+        "quiet"
+      ],
+      "predictions": [
+        "lovely-echoes",
+        "gong-like",
+        "old-timely",
+        "glorious",
+        "chimer",
+        "meditative",
+        "mystical",
+        "mystery",
+        "gloomy",
+        "gothic"
+      ],
+      "scores": [
+        0.38926470279693604,
+        0.3585250675678253,
+        0.35268938541412354,
+        0.3512096107006073,
+        0.3426286280155182,
+        0.34261560440063477,
+        0.32189568877220154,
+        0.3152667284011841,
+        0.3136323392391205,
+        0.3090044856071472
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "sad.wav",
+      "ground_truth": [
+        "sad",
+        "dark"
+      ],
+      "predictions": [
+        "chaotic",
+        "huge-trumpets",
+        "cathedral",
+        "glorious",
+        "tunnel-like",
+        "strings-instruments",
+        "longer-notes",
+        "cathedral-like",
+        "ominous",
+        "melodious"
+      ],
+      "scores": [
+        0.37381139397621155,
+        0.36349692940711975,
+        0.36101585626602173,
+        0.3596000671386719,
+        0.35917091369628906,
+        0.3569510579109192,
+        0.3519284427165985,
+        0.34521356225013733,
+        0.33940404653549194,
+        0.3356271982192993
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "clear.wav",
+      "ground_truth": [
+        "clear",
+        "bright",
+        "sharp"
+      ],
+      "predictions": [
+        "lovely-echoes",
+        "old-timely",
+        "mystery",
+        "glorious",
+        "gloomy",
+        "gothic",
+        "soothing",
+        "meditative",
+        "layers",
+        "vintage"
+      ],
+      "scores": [
+        0.4561053514480591,
+        0.4406045377254486,
+        0.437660276889801,
+        0.40069204568862915,
+        0.39180925488471985,
+        0.3816296458244324,
+        0.373594731092453,
+        0.3730451762676239,
+        0.37270963191986084,
+        0.3682864308357239
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "warm.wav",
+      "ground_truth": [
+        "warm",
+        "soft"
+      ],
+      "predictions": [
+        "church-bell",
+        "big-church",
+        "cathedral",
+        "cathedral-like",
+        "church-like",
+        "tunnel-like",
+        "chaotic",
+        "old-church",
+        "ominous",
+        "mystery"
+      ],
+      "scores": [
+        0.4719865322113037,
+        0.43303182721138,
+        0.41575944423675537,
+        0.4072166979312897,
+        0.401248961687088,
+        0.3858911991119385,
+        0.36249077320098877,
+        0.3575233519077301,
+        0.357200026512146,
+        0.356906533241272
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    },
+    {
+      "audio": "spacious.wav",
+      "ground_truth": [
+        "spacious",
+        "wide",
+        "open",
+        "large",
+        "big"
+      ],
+      "predictions": [
+        "huge-trumpets",
+        "chaotic",
+        "cathedral",
+        "church-bell",
+        "big-church",
+        "cathedral-like",
+        "tunnel-like",
+        "glorious",
+        "ominous",
+        "old-organ"
+      ],
+      "scores": [
+        0.3798131048679352,
+        0.37285545468330383,
+        0.36311453580856323,
+        0.35326242446899414,
+        0.3527536392211914,
+        0.3505012094974518,
+        0.3383595943450928,
+        0.331991583108902,
+        0.3235830068588257,
+        0.3215367794036865
+      ],
+      "hit@1": 0,
+      "hit@5": 0,
+      "hit@10": 0,
+      "reciprocal_rank": 0.0
+    }
+  ]
+}
