@@ -1,22 +1,92 @@
 """
-Audio description generation using CLAP (Contrastive Language-Audio Pretraining).
+Audio description generation using CLAP (Contrastive Language-Audio Pretraining) and MERT.
 
-Uses LAION CLAP model to generate textual descriptions of audio files.
+Uses LAION CLAP model and optionally MERT (Music Enhanced Representation Transformer)
+to generate textual descriptions of audio files.
+
+Supported retrieval modes:
+- 'clap': Pure CLAP audio-text matching (default)
+- 'mert': MERT audio embeddings with CLAP text embeddings
+- 'hybrid': Weighted combination of CLAP and MERT scores
 """
 
 import os
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
 import numpy as np
 import laion_clap
 import torch
+import soundfile as sf
+from transformers import Wav2Vec2FeatureExtractor, AutoModel
 
 
-# Global model instance (lazy loaded)
+# Global model instances (lazy loaded)
 _clap_model = None
+_mert_model = None
+_mert_processor = None
 _device = None
 _socialfx_labels = None
+
+
+def _determine_device(device: str, model_name: str = "Model") -> str:
+    """
+    Determine the actual device to use with fallback logic.
+
+    Args:
+        device: Requested device (e.g., 'cuda:0', 'cuda:1', 'mps', 'cpu')
+        model_name: Name of the model for logging purposes
+
+    Returns:
+        Actual device string to use
+    """
+    if device.startswith('cuda'):
+        if torch.cuda.is_available():
+            # Extract GPU index if specified (e.g., 'cuda:1' -> 1)
+            if ':' in device:
+                gpu_index = int(device.split(':')[1])
+                torch.cuda.set_device(gpu_index)
+            return device
+        elif torch.backends.mps.is_available():
+            print(f"[{model_name}] CUDA not available, falling back to MPS")
+            return 'mps'
+        else:
+            print(f"[{model_name}] CUDA not available, falling back to CPU")
+            return 'cpu'
+    elif device == 'mps':
+        if torch.backends.mps.is_available():
+            return 'mps'
+        else:
+            print(f"[{model_name}] MPS not available, falling back to CPU")
+            return 'cpu'
+    else:
+        return device
+
+
+def _setup_deterministic_behavior(device: str):
+    """
+    Setup deterministic behavior for reproducible results.
+
+    Args:
+        device: Device string (e.g., 'cuda:0', 'mps', 'cpu')
+    """
+    # Set random seeds
+    torch.manual_seed(42)
+    if device.startswith('cuda'):
+        torch.cuda.manual_seed(42)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
+def _cleanup_gpu_memory(device: str):
+    """
+    Clean up GPU memory if using CUDA.
+
+    Args:
+        device: Device string (e.g., 'cuda:0', 'mps', 'cpu')
+    """
+    if device.startswith('cuda'):
+        torch.cuda.empty_cache()
 
 
 def _get_clap_model(device: str = 'cuda:0'):
@@ -33,39 +103,11 @@ def _get_clap_model(device: str = 'cuda:0'):
     global _clap_model, _device
 
     if _clap_model is None:
-        # Determine the actual device to use
-        if device.startswith('cuda'):
-            if torch.cuda.is_available():
-                _device = device
-                # Extract GPU index if specified (e.g., 'cuda:1' -> 1)
-                if ':' in device:
-                    gpu_index = int(device.split(':')[1])
-                    torch.cuda.set_device(gpu_index)
-            elif torch.backends.mps.is_available():
-                print(f"[CLAP] CUDA not available, falling back to MPS")
-                _device = 'mps'
-            else:
-                print(f"[CLAP] CUDA not available, falling back to CPU")
-                _device = 'cpu'
-        elif device == 'mps':
-            if torch.backends.mps.is_available():
-                _device = 'mps'
-            else:
-                print(f"[CLAP] MPS not available, falling back to CPU")
-                _device = 'cpu'
-        else:
-            _device = device
-
+        _device = _determine_device(device, "CLAP")
         print(f"[CLAP] Initializing model on {_device}...")
 
-        # Clean up any existing GPU memory
-        if _device.startswith('cuda'):
-            torch.cuda.empty_cache()
-
-        # Set random seeds for deterministic behavior
-        torch.manual_seed(42)
-        if _device.startswith('cuda'):
-            torch.cuda.manual_seed(42)
+        _cleanup_gpu_memory(_device)
+        _setup_deterministic_behavior(_device)
 
         # Initialize CLAP model
         # Using music_audioset model which is trained on music and general audio
@@ -75,14 +117,105 @@ def _get_clap_model(device: str = 'cuda:0'):
         # Set to eval mode to disable dropout and make it deterministic
         _clap_model.eval()
 
-        # Disable cudnn benchmark for determinism (CUDA only)
-        if _device.startswith('cuda'):
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
-
         print(f"[CLAP] Model loaded successfully on {_device}")
 
     return _clap_model, _device
+
+
+def _get_mert_model(device: str = 'cuda:0'):
+    """
+    Get or initialize the MERT model (singleton pattern).
+
+    Args:
+        device: Device to use (e.g., 'cuda:0', 'cuda:1', 'mps', 'cpu')
+                If 'cuda:X' is specified but CUDA is not available, falls back to MPS if available, else CPU.
+
+    Returns:
+        tuple: (model, processor, device)
+    """
+    global _mert_model, _mert_processor, _device
+
+    if _mert_model is None:
+        _device = _determine_device(device, "MERT")
+        print(f"[MERT] Initializing model on {_device}...")
+
+        _cleanup_gpu_memory(_device)
+        _setup_deterministic_behavior(_device)
+
+        # Initialize MERT model (using 95M parameter version for efficiency)
+        # Available models: m-a-p/MERT-v1-95M, m-a-p/MERT-v1-330M
+        model_name = "m-a-p/MERT-v1-95M"
+
+        print(f"[MERT] Loading {model_name}...")
+        _mert_processor = Wav2Vec2FeatureExtractor.from_pretrained(model_name, trust_remote_code=True)
+        _mert_model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        _mert_model.to(_device)
+
+        # Set to eval mode
+        _mert_model.eval()
+
+        print(f"[MERT] Model loaded successfully on {_device}")
+
+    return _mert_model, _mert_processor, _device
+
+
+def get_mert_embeddings(audio_path: str, device: str = 'cuda:0', layer: int = -1) -> np.ndarray:
+    """
+    Extract MERT embeddings from audio file.
+
+    Args:
+        audio_path: Path to audio file
+        device: Device to use
+        layer: Which layer to extract embeddings from (-1 for last layer)
+
+    Returns:
+        numpy array of shape (embedding_dim,) - mean-pooled across time
+    """
+    model, processor, active_device = _get_mert_model(device)
+
+    # Load audio
+    audio_path_obj = Path(audio_path)
+    if not audio_path_obj.exists():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    # Load audio using soundfile (more reliable than torchaudio)
+    waveform, sample_rate = sf.read(str(audio_path_obj))
+
+    # Convert to numpy array and handle channels
+    if len(waveform.shape) > 1:
+        # Convert stereo to mono by averaging channels
+        waveform = waveform.mean(axis=1)
+
+    # Resample if needed using scipy
+    if sample_rate != processor.sampling_rate:
+        from scipy import signal
+        # Calculate resampling ratio
+        num_samples = int(len(waveform) * processor.sampling_rate / sample_rate)
+        waveform = signal.resample(waveform, num_samples)
+        sample_rate = processor.sampling_rate
+
+    # Process audio
+    inputs = processor(waveform, sampling_rate=processor.sampling_rate, return_tensors="pt")
+    inputs = {k: v.to(active_device) for k, v in inputs.items()}
+
+    # Get embeddings
+    with torch.no_grad():
+        outputs = model(**inputs, output_hidden_states=True)
+
+        # Get hidden states from specified layer
+        if layer == -1:
+            hidden_states = outputs.last_hidden_state  # (batch, time, hidden_dim)
+        else:
+            hidden_states = outputs.hidden_states[layer]
+
+        # Mean pool across time dimension
+        embeddings = hidden_states.mean(dim=1)  # (batch, hidden_dim)
+        embeddings = embeddings.cpu().numpy().squeeze()  # (hidden_dim,)
+
+    # Normalize
+    embeddings = embeddings / np.linalg.norm(embeddings)
+
+    return embeddings
 
 
 def load_socialfx_labels(labels_path: str = None, effect_type: str = None) -> list[str]:
@@ -146,6 +279,95 @@ def load_socialfx_labels(labels_path: str = None, effect_type: str = None) -> li
     return _socialfx_labels.get('all', [])
 
 
+def _project_embedding(source_emb: np.ndarray, target_dim: int) -> np.ndarray:
+    """
+    Project embedding to target dimension using truncate/pad strategy.
+
+    Args:
+        source_emb: Source embedding (normalized)
+        target_dim: Target dimension size
+
+    Returns:
+        Projected embedding (normalized)
+    """
+    source_dim = source_emb.shape[0]
+
+    if source_dim > target_dim:
+        # Truncate (simple approach - could use PCA for better projection)
+        projected = source_emb[:target_dim]
+    elif source_dim < target_dim:
+        # Pad with zeros
+        padding = np.zeros(target_dim - source_dim)
+        projected = np.concatenate([source_emb, padding])
+    else:
+        projected = source_emb
+
+    # Renormalize after projection
+    return projected / np.linalg.norm(projected)
+
+
+def _normalize_scores(scores: np.ndarray) -> np.ndarray:
+    """
+    Normalize scores to [0, 1] range using min-max normalization.
+
+    Args:
+        scores: Array of scores
+
+    Returns:
+        Normalized scores in [0, 1] range
+    """
+    score_min, score_max = scores.min(), scores.max()
+
+    if score_max > score_min:
+        return (scores - score_min) / (score_max - score_min)
+    else:
+        # All scores are the same - return uniform distribution
+        return np.ones_like(scores)
+
+
+def _encode_text_in_batches(
+    clap_model,
+    candidate_descriptions: list[str],
+    batch_size: int,
+    device: str
+) -> np.ndarray:
+    """
+    Encode text descriptions in batches to avoid OOM.
+
+    Args:
+        clap_model: CLAP model instance
+        candidate_descriptions: List of text descriptions
+        batch_size: Batch size for encoding
+        device: Device string for GPU cleanup
+
+    Returns:
+        numpy array of text embeddings (num_candidates, embedding_dim)
+    """
+    num_candidates = len(candidate_descriptions)
+    all_text_embeddings = []
+
+    print(f"[CLAP] Encoding {num_candidates} text labels in batches of {batch_size}...")
+    num_batches = (num_candidates + batch_size - 1) // batch_size
+
+    for batch_idx in range(num_batches):
+        start_idx = batch_idx * batch_size
+        end_idx = min(start_idx + batch_size, num_candidates)
+        batch_texts = candidate_descriptions[start_idx:end_idx]
+
+        with torch.no_grad():
+            text_embeddings = clap_model.get_text_embedding(batch_texts, use_tensor=True)
+            all_text_embeddings.append(text_embeddings.cpu())
+
+            del text_embeddings
+            _cleanup_gpu_memory(device)
+
+        if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == num_batches:
+            print(f"  Processed {batch_idx + 1}/{num_batches} batches")
+
+    # Concatenate all batches
+    return torch.cat(all_text_embeddings, dim=0)
+
+
 def generate_audio_description_with_clap_topk(
     audio_path: str,
     candidate_descriptions: list[str],
@@ -191,39 +413,13 @@ def generate_audio_description_with_clap_topk(
         print(f"[CLAP] Encoding audio on {active_device}...")
         audio_embeddings = model.get_audio_embedding_from_filelist(x=[audio_file], use_tensor=True)
 
-        # Process text in batches to avoid OOM
-        num_candidates = len(candidate_descriptions)
-        all_similarities = []
+        # Encode text in batches
+        text_embeddings = _encode_text_in_batches(model, candidate_descriptions, batch_size, active_device)
 
-        print(f"[CLAP] Encoding {num_candidates} text labels in batches of {batch_size}...")
-        num_batches = (num_candidates + batch_size - 1) // batch_size
-
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * batch_size
-            end_idx = min(start_idx + batch_size, num_candidates)
-            batch_texts = candidate_descriptions[start_idx:end_idx]
-
-            # Encode batch
-            with torch.no_grad():  # Don't track gradients to save memory
-                text_embeddings = model.get_text_embedding(batch_texts, use_tensor=True)
-
-                # Compute similarities for this batch
-                batch_similarities = audio_embeddings @ text_embeddings.T
-
-                # Move to CPU immediately to free memory
-                all_similarities.append(batch_similarities.cpu())
-
-                # Clean up
-                del text_embeddings, batch_similarities
-                if active_device.startswith('cuda'):
-                    torch.cuda.empty_cache()
-
-            if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == num_batches:
-                print(f"  Processed {batch_idx + 1}/{num_batches} batches")
-
-        # Concatenate all similarities on CPU
-        similarities = torch.cat(all_similarities, dim=1)
-        similarities_np = similarities.numpy().flatten()
+        # Compute all similarities at once
+        with torch.no_grad():
+            similarities = audio_embeddings @ text_embeddings.T
+            similarities_np = similarities.cpu().numpy().flatten()
 
         # Get top-k indices
         top_k_indices = np.argsort(similarities_np)[-k:][::-1]
@@ -240,6 +436,145 @@ def generate_audio_description_with_clap_topk(
 
     except Exception as e:
         raise Exception(f"CLAP top-k description failed: {str(e)}")
+
+
+def generate_audio_description_hybrid(
+    audio_path: str,
+    candidate_descriptions: list[str],
+    k: int = 5,
+    mode: Literal['clap', 'mert', 'hybrid'] = 'clap',
+    mert_weight: float = 0.5,
+    batch_size: int = 128,
+    device: str = 'cuda:0'
+) -> list[tuple[str, float]]:
+    """
+    Generate top-k textual descriptions using CLAP, MERT, or hybrid approach.
+
+    Retrieval modes:
+    - 'clap': Standard CLAP audio-text matching (default)
+    - 'mert': MERT audio embeddings vs CLAP text embeddings
+    - 'hybrid': Weighted combination of CLAP and MERT scores
+
+    Args:
+        audio_path: Path to audio file
+        candidate_descriptions: List of candidate descriptions to rank
+        k: Number of top matches to return
+        mode: Retrieval mode ('clap', 'mert', 'hybrid')
+        mert_weight: Weight for MERT scores in hybrid mode (0-1), CLAP gets (1-mert_weight)
+        batch_size: Batch size for text encoding
+        device: Device to use
+
+    Returns:
+        List of (label, score) tuples, sorted by score descending
+
+    Raises:
+        FileNotFoundError: If audio file doesn't exist
+        ValueError: If invalid parameters
+    """
+    # Validate inputs
+    audio_path_obj = Path(audio_path)
+    if not audio_path_obj.exists():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    if k > len(candidate_descriptions):
+        raise ValueError(f"k ({k}) cannot be greater than number of candidates ({len(candidate_descriptions)})")
+
+    if not 0 <= mert_weight <= 1:
+        raise ValueError(f"mert_weight must be between 0 and 1, got {mert_weight}")
+
+    try:
+        if mode == 'clap':
+            # Standard CLAP retrieval
+            return generate_audio_description_with_clap_topk(
+                audio_path, candidate_descriptions, k, batch_size, device
+            )
+
+        elif mode == 'mert':
+            # MERT mode: MERT audio embeddings → project to CLAP audio space → match with CLAP text
+            print(f"[MERT] Extracting MERT audio embeddings...")
+            mert_audio_emb = get_mert_embeddings(audio_path, device)  # (mert_dim,)
+
+            # Get CLAP model
+            clap_model, active_device = _get_clap_model(device)
+
+            # Get CLAP audio embedding for the same audio (as reference/target space)
+            audio_file = str(audio_path_obj.absolute())
+            print(f"[CLAP] Getting CLAP audio embedding (target space)...")
+            clap_audio_emb = clap_model.get_audio_embedding_from_filelist(x=[audio_file], use_tensor=False)
+            clap_audio_emb = clap_audio_emb.flatten()  # (clap_audio_dim,)
+
+            # Project MERT embedding to CLAP audio space
+            # TODO: Train a proper projection layer with paired MERT-CLAP embeddings
+            mert_dim = mert_audio_emb.shape[0]
+            clap_dim = clap_audio_emb.shape[0]
+            print(f"[MERT] Projecting MERT embedding ({mert_dim}D) to CLAP audio space ({clap_dim}D)...")
+            projected_audio_emb = _project_embedding(mert_audio_emb, clap_dim)
+
+            # Encode text in batches
+            text_embeddings = _encode_text_in_batches(clap_model, candidate_descriptions, batch_size, active_device)
+
+            # Compute similarities using projected MERT audio embedding
+            with torch.no_grad():
+                projected_audio_tensor = torch.from_numpy(projected_audio_emb).unsqueeze(0).to(text_embeddings.device)
+                similarities = (projected_audio_tensor @ text_embeddings.T).cpu().numpy().flatten()
+
+            # Get top-k
+            top_k_indices = np.argsort(similarities)[-k:][::-1]
+
+            results = [(candidate_descriptions[idx], float(similarities[idx])) for idx in top_k_indices]
+            print(f"[MERT->CLAP] Top-{k} matching complete")
+            return results
+
+        elif mode == 'hybrid':
+            # Combine CLAP and MERT scores
+            print(f"[Hybrid] Computing combined CLAP + MERT scores (MERT weight={mert_weight})...")
+
+            # Get CLAP model and audio embedding
+            clap_model, active_device = _get_clap_model(device)
+            audio_file = str(audio_path_obj.absolute())
+
+            print(f"[CLAP] Encoding audio...")
+            clap_audio_emb = clap_model.get_audio_embedding_from_filelist(x=[audio_file], use_tensor=True)
+
+            # Get MERT audio embedding
+            print(f"[MERT] Extracting audio embeddings...")
+            mert_audio_emb = get_mert_embeddings(audio_path, device)
+
+            # Encode text in batches
+            text_embeddings = _encode_text_in_batches(clap_model, candidate_descriptions, batch_size, active_device)
+
+            # Compute CLAP similarities
+            with torch.no_grad():
+                clap_similarities = (clap_audio_emb @ text_embeddings.T).cpu().numpy().flatten()
+
+            # Compute MERT similarities (project to text embedding space)
+            text_emb_np = text_embeddings.cpu().numpy()
+            text_emb_norm = text_emb_np / np.linalg.norm(text_emb_np, axis=1, keepdims=True)
+
+            # Project MERT to text embedding dimension
+            text_dim = text_emb_norm.shape[1]
+            mert_audio_projected = _project_embedding(mert_audio_emb, text_dim)
+            mert_similarities = text_emb_norm @ mert_audio_projected
+
+            # Normalize scores to [0, 1] for fair combination
+            clap_normalized = _normalize_scores(clap_similarities)
+            mert_normalized = _normalize_scores(mert_similarities)
+
+            # Weighted combination
+            combined_scores = (1 - mert_weight) * clap_normalized + mert_weight * mert_normalized
+
+            # Get top-k
+            top_k_indices = np.argsort(combined_scores)[-k:][::-1]
+
+            results = [(candidate_descriptions[idx], float(combined_scores[idx])) for idx in top_k_indices]
+            print(f"[Hybrid] Top-{k} matching complete")
+            return results
+
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Must be 'clap', 'mert', or 'hybrid'")
+
+    except Exception as e:
+        raise Exception(f"Hybrid audio description failed: {str(e)}")
 
 
 def generate_audio_description_with_clap(

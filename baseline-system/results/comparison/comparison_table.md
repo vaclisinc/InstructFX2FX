@@ -1,0 +1,18 @@
+| Effect Type | Label Type | Mode | Num Labels | Hit@1 | Hit@5 | Hit@10 | MRR | Top-1 Score |
+|---|---|---|---|---|---|---|---|---|
+| reverb | cleaned | clap | 837 | 0.000 | 0.000 | 0.000 | 0.000 | 0.424 |
+| reverb | original | clap | 1890 | 0.000 | 0.000 | 0.000 | 0.000 | 0.436 |
+| reverb | cleaned | mert | 837 | 0.000 | 0.091 | 0.091 | 0.018 | 0.064 |
+| reverb | original | mert | 1890 | 0.000 | 0.000 | 0.091 | 0.013 | 0.072 |
+| reverb | cleaned | hybrid | 837 | 0.000 | 0.000 | 0.000 | 0.000 | 0.831 |
+| reverb | original | hybrid | 1890 | 0.000 | 0.000 | 0.000 | 0.000 | 0.842 |
+
+## Summary
+
+### REVERB
+
+**Best configuration:** cleaned labels + mert mode
+
+- Hit@5: 0.091
+- MRR: 0.018
+
