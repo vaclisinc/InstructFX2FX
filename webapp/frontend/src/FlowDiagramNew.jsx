@@ -10,7 +10,7 @@ const layout = {
   parameters: { col: 3, row: 2 },
   system: { col: 4, row: 2 },
   result: { col: 5, row: 2 },
-  audio: { col: 5, row: 1 },
+  audio: { col: 4, row: 1 },
   judge: { col: 3, row: 3 },
   refine: { col: 4, row: 3 }
 }
@@ -34,11 +34,11 @@ const getStageClass = (stage, target) => {
 
 const getCoords = (key) => {
   const { col, row } = layout[key]
-  const xStep = 1000 / GRID_COLS
-  const yStep = 500 / GRID_ROWS
+  const xStep = 1000 / (GRID_COLS + 1)
+  const yStep = 500 / (GRID_ROWS + 1)
   return {
-    x: (col - 0.5) * xStep,
-    y: (row - 0.5) * yStep
+    x: col * xStep,
+    y: row * yStep
   }
 }
 
@@ -158,45 +158,45 @@ function FlowDiagramNew({
         <div className="board-header">
           <div>
             <p className="micro-label">CNMAT · Research Group 2</p>
-            <h2>Experimental Architecture</h2>
           </div>
-          <span className="micro-label">2025/10/16</span>
         </div>
 
         <div className="board-body">
           <div className="board-inner">
             <svg className="flow-connectors" viewBox="0 0 1000 500" preserveAspectRatio="none">
-            <defs>
-              <marker id="arrow-active" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
-                <path d="M0,0 L8,4 L0,8 Z" fill="#5b21b6" />
-              </marker>
-              <marker id="arrow-idle" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
-                <path d="M0,0 L8,4 L0,8 Z" fill="#c7cedd" />
-              </marker>
-              <marker id="arrow-disabled" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
-                <path d="M0,0 L8,4 L0,8 Z" fill="#d4d4d8" />
-              </marker>
-            </defs>
             {connectors.map(({ id, from, to, stage: arrowStage, dashed, disabled }) => {
               const start = getCoords(from)
               const end = getCoords(to)
               const isActive = arrowStage ? stage >= arrowStage : false
-              const marker = disabled ? 'url(#arrow-disabled)' : isActive ? 'url(#arrow-active)' : 'url(#arrow-idle)'
+              const midX = (start.x + end.x) / 2
+              const midY = (start.y + end.y) / 2
+              const color = disabled ? '#d1d5db' : isActive ? '#3b82f6' : '#9ca3af'
               return (
-                <line
-                  key={id}
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  markerEnd={marker}
-                  className={[
-                    'connector-line',
-                    isActive ? 'is-active' : '',
-                    dashed ? 'is-dashed' : '',
-                    disabled ? 'is-disabled' : ''
-                  ].join(' ')}
-                />
+                <g key={id}>
+                  <line
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className={[
+                      'connector-line',
+                      isActive ? 'is-active' : '',
+                      dashed ? 'is-dashed' : '',
+                      disabled ? 'is-disabled' : ''
+                    ].join(' ')}
+                  />
+                  <text
+                    x={midX}
+                    y={midY}
+                    fill={color}
+                    fontSize="20"
+                    fontWeight="normal"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    &gt;
+                  </text>
+                </g>
               )
             })}
             </svg>
@@ -205,7 +205,7 @@ function FlowDiagramNew({
             <div className={`flow-node node-input ${getStageClass(stage, 1)}`} style={{ gridColumn: '1 / span 1', gridRow: '2' }}>
               <header>
                 <p className="micro-label">Input</p>
-                <h3>User Prompt + System Context</h3>
+                <h3>User + System Prompt</h3>
               </header>
               <p className="system-context">
                 <strong>You are an audio processing expert.</strong> Given a high-level textual description of a desired audio effect or tone,
@@ -219,7 +219,7 @@ function FlowDiagramNew({
                 rows={3}
               />
               <details className="prompt-toggle">
-                <summary>Show system prompt template</summary>
+                <summary>Show all</summary>
                 <pre>{systemPrompt || PROMPT_TEMPLATE}</pre>
               </details>
               <button
@@ -343,7 +343,7 @@ function FlowDiagramNew({
               )}
             </div>
 
-            <div className="flow-node node-audio" style={{ gridColumn: '5', gridRow: '1' }}>
+            <div className="flow-node node-audio" style={{ gridColumn: '4', gridRow: '1' }}>
               <header>
                 <p className="micro-label">Input Audio Sample</p>
                 <h3>Optional Reference</h3>
