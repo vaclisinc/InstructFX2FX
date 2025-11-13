@@ -17,6 +17,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('reverb')
   const [showSystemPrompt, setShowSystemPrompt] = useState(false)
   const [systemPrompt, setSystemPrompt] = useState(null)
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState(null)
 
   // Load available models on mount
   useEffect(() => {
@@ -94,6 +95,16 @@ function App() {
       setError(null)
     }
   }
+
+  useEffect(() => {
+    if (!audioFile) {
+      setAudioPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(audioFile)
+    setAudioPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [audioFile])
 
   const handleProcess = async () => {
     if (!audioFile) {
@@ -457,6 +468,7 @@ function App() {
         isProcessing={isProcessing}
         audioFileName={audioFile?.name}
         systemPrompt={systemPrompt}
+        audioPreviewUrl={audioPreviewUrl}
         models={models}
         selectedModel={selectedModel}
         onModelChange={setSelectedModel}
