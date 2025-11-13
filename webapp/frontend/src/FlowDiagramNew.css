@@ -1,9 +1,13 @@
 .flow-diagram-new {
   width: 100%;
+  display: flex;
+  justify-content: center;
   margin-bottom: 2.5rem;
 }
 
 .flow-board {
+  width: min(90vw, 1400px);
+  margin: 0 auto;
   background: #fdfcf7;
   border-radius: 18px;
   border: 1px solid #e5e7eb;
@@ -36,13 +40,18 @@
 
 .board-body {
   position: relative;
+  background-color: #fdfcf7;
+}
+
+.board-inner {
+  position: relative;
   padding: 2.5rem;
+  min-height: 460px;
   background-image:
     linear-gradient(#edeff5 1px, transparent 1px),
     linear-gradient(90deg, #edeff5 1px, transparent 1px);
   background-size: 28px 28px;
   background-color: #fdfcf7;
-  min-height: 460px;
 }
 
 .flow-connectors {
@@ -82,6 +91,7 @@
   grid-template-columns: repeat(5, minmax(150px, 1fr));
   grid-auto-rows: minmax(150px, auto);
   gap: 1.25rem;
+  justify-items: stretch;
   position: relative;
   z-index: 1;
 }
@@ -95,6 +105,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-height: 220px;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
@@ -110,8 +121,9 @@
   padding: 0.75rem;
   font-family: inherit;
   resize: vertical;
-  min-height: 110px;
+  min-height: 90px;
   background: #f9fafb;
+  color: #0f172a;
 }
 
 .flow-node textarea:focus {
@@ -121,6 +133,10 @@
   background: white;
 }
 
+.flow-node textarea::placeholder {
+  color: #9ca3af;
+}
+
 .flow-node select {
   width: 100%;
   border-radius: 10px;
@@ -128,6 +144,7 @@
   padding: 0.6rem 0.75rem;
   font-size: 0.92rem;
   background: #f9fafb;
+  color: #0f172a;
 }
 
 .flow-node select:focus {
@@ -157,6 +174,42 @@
   font-size: 0.9rem;
   color: #7c7f91;
   line-height: 1.4;
+}
+
+.system-context {
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.system-context strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.prompt-toggle {
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  max-height: 220px;
+  overflow: hidden;
+}
+
+.prompt-toggle summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #4338ca;
+}
+
+.prompt-toggle pre {
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  white-space: pre-wrap;
+  font-size: 0.8rem;
+  margin: 0;
+  color: #0f172a;
 }
 
 .status-chip {
@@ -217,6 +270,49 @@
   color: #111827;
 }
 
+.param-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.param-tab {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  color: #57534e;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.param-tab.active {
+  background: #ede9fe;
+  border-color: #a78bfa;
+  color: #4c1d95;
+}
+
+.eq-scroll {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.eq-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  color: #0f172a;
+}
+
 .node-audio input {
   display: none;
 }
@@ -245,30 +341,40 @@
   font-size: 0.9rem;
 }
 
-.system-prompt-card {
-  margin-top: 1.25rem;
-  background: #0f172a;
-  border-radius: 16px;
-  padding: 1rem 1.2rem;
-  color: #e2e8f0;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-}
-
-.system-prompt-card summary {
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.system-prompt-card pre {
+.audio-compare {
+  display: grid;
+  gap: 0.75rem;
   margin-top: 0.75rem;
-  white-space: pre-wrap;
-  font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.85rem;
-  line-height: 1.5;
+}
+
+.audio-compare label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.audio-compare audio {
+  width: 100%;
+}
+
+.download-link {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  color: #4c1d95;
+  text-decoration: none;
+}
+
+.download-link:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 1100px) {
-  .board-body {
+  .board-inner {
     padding: 1.5rem;
   }
 

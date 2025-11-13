@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './FlowDiagramNew.css'
 
 const GRID_COLS = 5
@@ -41,6 +42,52 @@ const getCoords = (key) => {
   }
 }
 
+const PROMPT_TEMPLATE = `Generate parameters for the following audio effects:
+
+1. Reverb (creates spatial ambience):
+   - delay_time: float (0.001 to 0.1 seconds)
+   - decay: float (0.1 to 1.0, higher = longer reverb tail)
+   - stereo_spread: float (-1.0 to 1.0, stereo width)
+   - cutoff_freq: float (1000 to 20000 Hz, high frequency rolloff)
+   - wet_dry: float (0.0 to 1.0, 0=dry, 1=wet)
+
+2. EQ (equalizer, list of bands):
+   Each band has:
+   - freq: float (20 to 20000 Hz, center frequency)
+   - gain: float (-20 to 20 dB, boost or cut)
+   - Q: float (0.1 to 10, bandwidth, higher = narrower)
+
+3. Compressor (dynamic range compression):
+   - threshold: float (-60 to 0 dB, level above which compression starts)
+   - ratio: float (1.0 to 20.0, compression ratio)
+   - attack: float (0.001 to 0.1 seconds, how fast compressor responds)
+   - release: float (0.01 to 1.0 seconds, how fast compressor releases)
+   - makeup_gain: float (0 to 20 dB, output gain compensation)
+
+Return ONLY valid JSON in this exact format:
+{
+  "reverb": {
+    "delay_time": <float>,
+    "decay": <float>,
+    "stereo_spread": <float>,
+    "cutoff_freq": <float>,
+    "wet_dry": <float>
+  },
+  "eq": [
+    {"freq": <float>, "gain": <float>, "Q": <float>},
+    ...
+  ],
+  "compressor": {
+    "threshold": <float>,
+    "ratio": <float>,
+    "attack": <float>,
+    "release": <float>,
+    "makeup_gain": <float>
+  }
+}
+
+Do not include any explanatory text, only the JSON.`
+
 function FlowDiagramNew({
   stage,
   userInput,
@@ -55,11 +102,55 @@ function FlowDiagramNew({
   isProcessing,
   audioFileName,
   systemPrompt,
+  audioPreviewUrl,
   models,
   selectedModel,
   onModelChange
 }) {
-  const reverbPreview = parameters?.reverb
+  const [paramTab, setParamTab] = useState('reverb')
+
+  const renderParameters = () => {
+    if (!parameters) {
+      return <p className="placeholder">Parameters will land here.</p>
+    }
+
+    if (paramTab === 'reverb') {
+      return (
+        <ul className="parameter-preview">
+          <li>Delay: <strong>{parameters.reverb.delay_time.toFixed(3)}s</strong></li>
+          <li>Decay: <strong>{parameters.reverb.decay.toFixed(2)}</strong></li>
+          <li>Stereo: <strong>{parameters.reverb.stereo_spread.toFixed(2)}</strong></li>
+          <li>Cutoff: <strong>{Math.round(parameters.reverb.cutoff_freq)} Hz</strong></li>
+          <li>Wet/Dry: <strong>{parameters.reverb.wet_dry.toFixed(2)}</strong></li>
+        </ul>
+      )
+    }
+
+    if (paramTab === 'eq') {
+      return (
+        <div className="eq-scroll">
+          {parameters.eq.map((band, idx) => (
+            <div key={`${band.freq}-${idx}`} className="eq-row">
+              <span>Band {idx + 1}</span>
+              <span>{Math.round(band.freq)} Hz</span>
+              <span>{band.gain.toFixed(2)} dB</span>
+              <span>Q {band.Q.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    return (
+      <ul className="parameter-preview">
+        <li>Threshold: <strong>{parameters.compressor.threshold} dB</strong></li>
+        <li>Ratio: <strong>{parameters.compressor.ratio}:1</strong></li>
+        <li>Attack: <strong>{parameters.compressor.attack.toFixed(3)}s</strong></li>
+        <li>Release: <strong>{parameters.compressor.release.toFixed(3)}s</strong></li>
+        <li>Makeup: <strong>{parameters.compressor.makeup_gain} dB</strong></li>
+      </ul>
+    )
+  }
 
   return (
     <section className="flow-diagram-new">
@@ -73,7 +164,8 @@ function FlowDiagramNew({
         </div>
 
         <div className="board-body">
-          <svg className="flow-connectors" viewBox="0 0 1000 500" preserveAspectRatio="none">
+          <div className="board-inner">
+            <svg className="flow-connectors" viewBox="0 0 1000 500" preserveAspectRatio="none">
             <defs>
               <marker id="arrow-active" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
                 <path d="M0,0 L8,4 L0,8 Z" fill="#5b21b6" />
@@ -107,20 +199,29 @@ function FlowDiagramNew({
                 />
               )
             })}
-          </svg>
+            </svg>
 
-          <div className="node-grid">
+            <div className="node-grid">
             <div className={`flow-node node-input ${getStageClass(stage, 1)}`} style={{ gridColumn: '1 / span 1', gridRow: '2' }}>
               <header>
                 <p className="micro-label">Input</p>
                 <h3>User Prompt + System Context</h3>
               </header>
+              <p className="system-context">
+                <strong>You are an audio processing expert.</strong> Given a high-level textual description of a desired audio effect or tone,
+                generate audio effect parameters in JSON format.
+              </p>
+              <p className="micro-label">User description:</p>
               <textarea
                 value={userInput}
                 onChange={(e) => onTextChange(e.target.value)}
                 placeholder="e.g. warm cathedral reverb with shimmering highs"
-                rows={4}
+                rows={3}
               />
+              <details className="prompt-toggle">
+                <summary>Show system prompt template</summary>
+                <pre>{systemPrompt || PROMPT_TEMPLATE}</pre>
+              </details>
               <button
                 onClick={onGenerate}
                 disabled={!userInput.trim() || isGenerating}
@@ -168,16 +269,21 @@ function FlowDiagramNew({
                 <p className="micro-label">Output</p>
                 <h3>Parameters (JSON)</h3>
               </header>
-              {reverbPreview ? (
-                <ul className="parameter-preview">
-                  <li>Delay: <strong>{reverbPreview.delay_time.toFixed(3)}s</strong></li>
-                  <li>Decay: <strong>{reverbPreview.decay.toFixed(2)}</strong></li>
-                  <li>Stereo: <strong>{reverbPreview.stereo_spread.toFixed(2)}</strong></li>
-                  <li>Cutoff: <strong>{Math.round(reverbPreview.cutoff_freq)} Hz</strong></li>
-                </ul>
-              ) : (
-                <p className="placeholder">Parameters will land here.</p>
-              )}
+              <div className="param-tabs">
+                {['reverb', 'eq', 'compressor'].map((tab) => (
+                  <button
+                    key={tab}
+                    className={`param-tab ${paramTab === tab ? 'active' : ''}`}
+                    onClick={() => setParamTab(tab)}
+                    type="button"
+                  >
+                    {tab === 'reverb' && 'Reverb'}
+                    {tab === 'eq' && 'EQ'}
+                    {tab === 'compressor' && 'Compressor'}
+                  </button>
+                ))}
+              </div>
+              {renderParameters()}
             </div>
 
             <div className={`flow-node node-system ${getStageClass(stage, 4)}`} style={{ gridColumn: '4', gridRow: '2' }}>
@@ -206,9 +312,34 @@ function FlowDiagramNew({
                 <div className="result-summary">
                   <p>Ready for listening.</p>
                   <span>{processedAudio.processed_file}</span>
+                  <div className="audio-compare">
+                    {audioPreviewUrl && (
+                      <div>
+                        <label>Original Audio</label>
+                        <audio controls src={audioPreviewUrl}>
+                          Original preview unavailable.
+                        </audio>
+                      </div>
+                    )}
+                    <div>
+                      <label>Processed Audio</label>
+                      <audio controls src={processedAudio.download_url}>
+                        Processed preview unavailable.
+                      </audio>
+                    </div>
+                  </div>
+                  <a
+                    className="download-link"
+                    href={processedAudio.download_url}
+                    download={processedAudio.processed_file}
+                  >
+                    ⬇️ Download processed audio
+                  </a>
                 </div>
               ) : (
-                <p className="placeholder">Render audio to preview the effect chain.</p>
+                <div className="placeholder">
+                  Provide dry audio and generate parameters to compare original vs processed output here.
+                </div>
               )}
             </div>
 
@@ -255,14 +386,9 @@ function FlowDiagramNew({
             </div>
           </div>
         </div>
+        </div>
       </div>
 
-      {systemPrompt && (
-        <details className="system-prompt-card" open>
-          <summary>System prompt used for this run</summary>
-          <pre>{systemPrompt}</pre>
-        </details>
-      )}
     </section>
   )
 }
