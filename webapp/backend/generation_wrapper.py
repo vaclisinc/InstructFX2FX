@@ -39,7 +39,7 @@ def _load_prompt_template(template_path_str: str) -> str:
         return f.read()
 
 
-def generate_parameters(user_prompt: str, config: dict) -> dict:
+def generate_parameters(user_prompt: str, config: dict) -> tuple[dict, str]:
     """
     Generate audio effect parameters from user's text description.
 
@@ -50,7 +50,7 @@ def generate_parameters(user_prompt: str, config: dict) -> dict:
         config: Configuration dictionary
 
     Returns:
-        Dictionary with reverb, EQ, and compressor parameters
+        Tuple of (parameters dict, system_prompt string)
     """
     # Load generation prompt template
     template = _load_prompt_template(config['prompts']['generation_template'])
@@ -79,7 +79,7 @@ def generate_parameters(user_prompt: str, config: dict) -> dict:
         if not all(key in params for key in required_keys):
             raise ValueError(f"Missing required keys. Got: {params.keys()}")
 
-        return params
+        return params, prompt  # Return both parameters and the system prompt
 
     except json.JSONDecodeError as e:
         raise Exception(f"Failed to parse LLM JSON response: {e}")
