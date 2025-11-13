@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import FlowDiagramNew from './FlowDiagramNew'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -14,6 +15,8 @@ function App() {
   const [error, setError] = useState(null)
   const [models, setModels] = useState(null)
   const [activeTab, setActiveTab] = useState('reverb')
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false)
+  const [systemPrompt, setSystemPrompt] = useState(null)
 
   // Load available models on mount
   useEffect(() => {
@@ -69,6 +72,7 @@ function App() {
 
       const data = await generateRes.json()
       setResult(data)
+      setSystemPrompt(data.system_prompt) // Store system prompt if returned
       setActiveTab('reverb') // Reset to first tab
     } catch (err) {
       setError(err.message)
@@ -393,6 +397,26 @@ function App() {
           </div>
         )}
 
+        {/* System Prompt Display */}
+        {systemPrompt && (
+          <div className="system-prompt-section">
+            <div
+              className="system-prompt-header"
+              onClick={() => setShowSystemPrompt(!showSystemPrompt)}
+            >
+              <h3>System Prompt Used</h3>
+              <span className="system-prompt-toggle">
+                {showSystemPrompt ? '▼ Hide' : '▶ Show'}
+              </span>
+            </div>
+            {showSystemPrompt && (
+              <div className="system-prompt-content">
+                {systemPrompt}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* JSON Export */}
         <details className="json-export">
           <summary>View Full JSON</summary>
@@ -402,6 +426,16 @@ function App() {
     )
   }
 
+  // Calculate flow diagram stage
+  const getFlowStage = () => {
+    if (processedAudio) return 5
+    if (audioFile && result) return 4
+    if (result) return 3
+    if (isGenerating) return 2
+    if (text) return 1
+    return 0
+  }
+
   return (
     <div className="app">
       <header>
@@ -409,8 +443,27 @@ function App() {
         <p>LLM-powered audio effect parameter generation</p>
       </header>
 
+      {/* Flow Diagram with all controls integrated */}
+      <FlowDiagramNew
+        stage={getFlowStage()}
+        userInput={text}
+        hasAudio={!!audioFile}
+        parameters={result?.parameters}
+        processedAudio={processedAudio}
+        onTextChange={setText}
+        onAudioChange={handleFileChange}
+        onGenerate={handleGenerate}
+        onProcess={handleProcess}
+        isGenerating={isGenerating}
+        isProcessing={isProcessing}
+        audioFileName={audioFile?.name}
+        systemPrompt={systemPrompt}
+      />
+
+      {/* Results and Audio Playback */}
       <main>
-        <div className="input-section">
+        {/* Hide input section, only show results */}
+        <div className="input-section" style={{ display: 'none' }}>
           {/* Text Input */}
           <div className="input-group">
             <label htmlFor="text-input">

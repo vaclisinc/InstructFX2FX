@@ -157,7 +157,7 @@ async def generate_audio_parameters(
         config["llm"]["model"] = model_name
 
         # Generate parameters
-        params = generate_parameters(text.strip(), config)
+        params, system_prompt = generate_parameters(text.strip(), config)
 
         return {
             "success": True,
@@ -166,7 +166,8 @@ async def generate_audio_parameters(
                 "provider": model_provider,
                 "name": model_name
             },
-            "parameters": params
+            "parameters": params,
+            "system_prompt": system_prompt
         }
 
     except Exception as e:
