@@ -20,7 +20,6 @@ function FlowDiagram({
 
   return (
     <div className="flow-diagram">
-      <div className="flow-title">Experimental Architecture</div>
 
       {/* Main Flow */}
       <div className="flow-main">
