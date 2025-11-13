@@ -6,6 +6,7 @@ COMMANDS.md
 .claude-trace
 .ipynb_checkpoints
 
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,15 +17,25 @@ venv/
 env/
 ENV/
 
+# Environment variables
 .env
 
+# Testing
 .coverage
 htmlcov/
 .pytest_cache/
 
+# IDEs
 .vscode/
 .idea/
 
+# Output
 output/
 
+# Webapp frontend
+webapp/frontend/node_modules/
+webapp/frontend/dist/
+webapp/frontend/.vite/
+
+# Misc
 =1.1.0
