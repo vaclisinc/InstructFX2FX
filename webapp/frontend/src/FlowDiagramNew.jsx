@@ -1,14 +1,45 @@
-import { useCallback } from 'react'
-import {
-  ReactFlow,
-  Controls,
-  Background,
-  BackgroundVariant,
-  useNodesState,
-  useEdgesState,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import './FlowDiagramNew.css'
+
+const GRID_COLS = 5
+const GRID_ROWS = 3
+
+const layout = {
+  input: { col: 1, row: 2 },
+  llm: { col: 2, row: 2 },
+  parameters: { col: 3, row: 2 },
+  system: { col: 4, row: 2 },
+  result: { col: 5, row: 2 },
+  audio: { col: 5, row: 1 },
+  judge: { col: 3, row: 3 },
+  refine: { col: 4, row: 3 }
+}
+
+const connectors = [
+  { id: 'input-llm', from: 'input', to: 'llm', stage: 2 },
+  { id: 'llm-parameters', from: 'llm', to: 'parameters', stage: 3 },
+  { id: 'parameters-system', from: 'parameters', to: 'system', stage: 4 },
+  { id: 'system-result', from: 'system', to: 'result', stage: 5 },
+  { id: 'audio-system', from: 'audio', to: 'system', stage: 4, dashed: true },
+  { id: 'result-judge', from: 'result', to: 'judge', dashed: true, disabled: true },
+  { id: 'judge-refine', from: 'judge', to: 'refine', dashed: true, disabled: true },
+  { id: 'refine-llm', from: 'refine', to: 'llm', dashed: true, disabled: true }
+]
+
+const getStageClass = (stage, target) => {
+  if (stage > target) return 'complete'
+  if (stage === target) return 'active'
+  return ''
+}
+
+const getCoords = (key) => {
+  const { col, row } = layout[key]
+  const xStep = 1000 / GRID_COLS
+  const yStep = 500 / GRID_ROWS
+  return {
+    x: (col - 0.5) * xStep,
+    y: (row - 0.5) * yStep
+  }
+}
 
 function FlowDiagramNew({
   stage,
@@ -23,258 +54,216 @@ function FlowDiagramNew({
   isGenerating,
   isProcessing,
   audioFileName,
-  systemPrompt
+  systemPrompt,
+  models,
+  selectedModel,
+  onModelChange
 }) {
-  const initialNodes = [
-    // Audio Upload (top right)
-    {
-      id: 'audio-upload',
-      type: 'default',
-      position: { x: 550, y: 20 },
-      data: { label: hasAudio ? `🎵 ${audioFileName}` : '📁 Click to Upload Audio' },
-      style: {
-        background: 'white',
-        border: '2px solid #d1d5db',
-        borderRadius: '10px',
-        padding: '12px 20px',
-        cursor: 'pointer',
-        fontSize: '13px',
-        fontWeight: '500',
-        minWidth: '200px',
-        textAlign: 'center',
-      },
-    },
-    // Main flow
-    {
-      id: 'input',
-      type: 'default',
-      position: { x: 30, y: 120 },
-      data: { label: '📝 Input\nuser input + system prompt' },
-      style: {
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '12px',
-        padding: '20px',
-        minWidth: '160px',
-        minHeight: '80px',
-        fontSize: '13px',
-        fontWeight: '600',
-        textAlign: 'center',
-        opacity: stage >= 1 ? 1 : 0.5,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        whiteSpace: 'pre-line',
-      },
-    },
-    {
-      id: 'llm',
-      type: 'default',
-      position: { x: 230, y: 120 },
-      data: { label: stage >= 2 ? '⚙️ LLM\nProcessing' : '🤖 LLM' },
-      style: {
-        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '12px',
-        padding: '20px',
-        minWidth: '140px',
-        minHeight: '80px',
-        fontSize: '13px',
-        fontWeight: '600',
-        textAlign: 'center',
-        opacity: stage >= 2 ? 1 : 0.5,
-        whiteSpace: 'pre-line',
-      },
-    },
-    {
-      id: 'parameters',
-      type: 'default',
-      position: { x: 410, y: 120 },
-      data: { label: '📊 Parameters\nJSON format' },
-      style: {
-        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '12px',
-        padding: '20px',
-        minWidth: '160px',
-        minHeight: '80px',
-        fontSize: '13px',
-        fontWeight: '600',
-        textAlign: 'center',
-        opacity: stage >= 3 ? 1 : 0.5,
-        whiteSpace: 'pre-line',
-      },
-    },
-    {
-      id: 'system',
-      type: 'default',
-      position: { x: 610, y: 120 },
-      data: { label: '⚡ System\nApply Effects' },
-      style: {
-        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '12px',
-        padding: '20px',
-        minWidth: '150px',
-        minHeight: '80px',
-        fontSize: '13px',
-        fontWeight: '600',
-        textAlign: 'center',
-        opacity: stage >= 4 ? 1 : 0.5,
-        whiteSpace: 'pre-line',
-      },
-    },
-    {
-      id: 'result',
-      type: 'default',
-      position: { x: 800, y: 120 },
-      data: { label: processedAudio ? '🎧 Result\nProcessed Audio' : '🎵 Result\nAudio Output' },
-      style: {
-        background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '12px',
-        padding: '20px',
-        minWidth: '160px',
-        minHeight: '80px',
-        fontSize: '13px',
-        fontWeight: '600',
-        textAlign: 'center',
-        opacity: stage >= 5 ? 1 : 0.5,
-        whiteSpace: 'pre-line',
-      },
-    },
-    // Judge system (bottom, disabled)
-    {
-      id: 'judge',
-      type: 'default',
-      position: { x: 300, y: 300 },
-      data: { label: '👨‍⚖️ Judge System\n(Coming Soon)' },
-      style: {
-        background: '#fef3c7',
-        color: '#92400e',
-        border: '2px dashed #d97706',
-        borderRadius: '12px',
-        padding: '16px',
-        minWidth: '140px',
-        fontSize: '12px',
-        textAlign: 'center',
-        opacity: 0.4,
-        whiteSpace: 'pre-line',
-      },
-    },
-    {
-      id: 'refine',
-      type: 'default',
-      position: { x: 480, y: 300 },
-      data: { label: '🔄 Refine\n(Coming Soon)' },
-      style: {
-        background: '#f3f4f6',
-        color: '#6b7280',
-        border: '2px dashed #9ca3af',
-        borderRadius: '12px',
-        padding: '16px',
-        minWidth: '140px',
-        fontSize: '12px',
-        textAlign: 'center',
-        opacity: 0.4,
-        whiteSpace: 'pre-line',
-      },
-    },
-  ]
-
-  const initialEdges = [
-    { id: 'e1', source: 'input', target: 'llm', animated: stage >= 2 },
-    { id: 'e2', source: 'llm', target: 'parameters', animated: stage >= 3 },
-    { id: 'e3', source: 'parameters', target: 'system', animated: stage >= 4 },
-    { id: 'e4', source: 'system', target: 'result', animated: stage >= 5 },
-    { id: 'e5', source: 'audio-upload', target: 'system', type: 'step', style: { strokeDasharray: '5,5' } },
-    // Judge loop (disabled)
-    { id: 'e6', source: 'result', target: 'judge', style: { strokeDasharray: '5,5', opacity: 0.3 } },
-    { id: 'e7', source: 'judge', target: 'refine', style: { strokeDasharray: '5,5', opacity: 0.3 } },
-    { id: 'e8', source: 'refine', target: 'llm', style: { strokeDasharray: '5,5', opacity: 0.3 } },
-  ]
-
-  const [nodes] = useNodesState(initialNodes)
-  const [edges] = useEdgesState(initialEdges)
+  const reverbPreview = parameters?.reverb
 
   return (
-    <div className="flow-diagram-new">
-      <div className="flow-header">
-        <h2>Experimental Architecture</h2>
-        <span className="flow-date">2025/10/16</span>
-      </div>
-
-      <div className="flow-container">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          fitView
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </div>
-
-      {/* Input controls panel */}
-      <div className="controls-panel">
-        <div className="control-section">
-          <label>Text Description</label>
-          <textarea
-            value={userInput}
-            onChange={(e) => onTextChange(e.target.value)}
-            placeholder="e.g., after rain campus in October"
-            rows={3}
-          />
+    <section className="flow-diagram-new">
+      <div className="flow-board">
+        <div className="board-header">
+          <div>
+            <p className="micro-label">CNMAT · Research Group 2</p>
+            <h2>Experimental Architecture</h2>
+          </div>
+          <span className="micro-label">2025/10/16</span>
         </div>
 
-        <div className="control-section">
-          <label>Audio Sample</label>
-          <input
-            type="file"
-            id="audio-upload-input"
-            accept="audio/*"
-            onChange={onAudioChange}
-            style={{ display: 'none' }}
-          />
-          <label htmlFor="audio-upload-input" className="file-upload-btn">
-            {hasAudio ? `🎵 ${audioFileName}` : '📁 Upload Audio'}
-          </label>
-        </div>
+        <div className="board-body">
+          <svg className="flow-connectors" viewBox="0 0 1000 500" preserveAspectRatio="none">
+            <defs>
+              <marker id="arrow-active" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#5b21b6" />
+              </marker>
+              <marker id="arrow-idle" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#c7cedd" />
+              </marker>
+              <marker id="arrow-disabled" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#d4d4d8" />
+              </marker>
+            </defs>
+            {connectors.map(({ id, from, to, stage: arrowStage, dashed, disabled }) => {
+              const start = getCoords(from)
+              const end = getCoords(to)
+              const isActive = arrowStage ? stage >= arrowStage : false
+              const marker = disabled ? 'url(#arrow-disabled)' : isActive ? 'url(#arrow-active)' : 'url(#arrow-idle)'
+              return (
+                <line
+                  key={id}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  markerEnd={marker}
+                  className={[
+                    'connector-line',
+                    isActive ? 'is-active' : '',
+                    dashed ? 'is-dashed' : '',
+                    disabled ? 'is-disabled' : ''
+                  ].join(' ')}
+                />
+              )
+            })}
+          </svg>
 
-        {systemPrompt && (
-          <details className="control-section">
-            <summary>System Prompt</summary>
-            <pre className="system-prompt-display">{systemPrompt}</pre>
-          </details>
-        )}
+          <div className="node-grid">
+            <div className={`flow-node node-input ${getStageClass(stage, 1)}`} style={{ gridColumn: '1 / span 1', gridRow: '2' }}>
+              <header>
+                <p className="micro-label">Input</p>
+                <h3>User Prompt + System Context</h3>
+              </header>
+              <textarea
+                value={userInput}
+                onChange={(e) => onTextChange(e.target.value)}
+                placeholder="e.g. warm cathedral reverb with shimmering highs"
+                rows={4}
+              />
+              <button
+                onClick={onGenerate}
+                disabled={!userInput.trim() || isGenerating}
+                className="primary-btn"
+              >
+                {isGenerating ? 'Generating...' : 'Generate Parameters'}
+              </button>
+            </div>
 
-        <div className="control-buttons">
-          <button
-            onClick={onGenerate}
-            disabled={!userInput || isGenerating}
-            className="btn-generate"
-          >
-            {isGenerating ? '⚙️ Generating...' : '→ Generate Parameters'}
-          </button>
+            <div className={`flow-node node-llm ${getStageClass(stage, 2)}`} style={{ gridColumn: '2', gridRow: '2' }}>
+              <header>
+                <p className="micro-label">LLM</p>
+                <h3>Inference Engine</h3>
+              </header>
+              {models ? (
+                <select
+                  value={selectedModel ? `${selectedModel.provider}:${selectedModel.model}` : ''}
+                  onChange={(e) => {
+                    if (!onModelChange) return
+                    const [provider, ...modelParts] = e.target.value.split(':')
+                    onModelChange({
+                      provider,
+                      model: modelParts.join(':')
+                    })
+                  }}
+                >
+                  {Object.entries(models).map(([provider, list]) => (
+                    Object.entries(list).map(([key, info]) => (
+                      <option key={`${provider}-${key}`} value={`${provider}:${info.model}`}>
+                        {info.name} · {info.speed} · {info.cost}
+                      </option>
+                    ))
+                  ))}
+                </select>
+              ) : (
+                <p className="placeholder">Waiting for available models…</p>
+              )}
+              <p className="status-chip">
+                {stage >= 3 ? 'Completed' : stage === 2 ? 'Running' : 'Idle'}
+              </p>
+            </div>
 
-          <button
-            onClick={onProcess}
-            disabled={!hasAudio || !parameters || isProcessing}
-            className="btn-process"
-          >
-            {isProcessing ? '⚙️ Processing...' : '🎵 Apply Effects'}
-          </button>
+            <div className={`flow-node node-parameters ${getStageClass(stage, 3)}`} style={{ gridColumn: '3', gridRow: '2' }}>
+              <header>
+                <p className="micro-label">Output</p>
+                <h3>Parameters (JSON)</h3>
+              </header>
+              {reverbPreview ? (
+                <ul className="parameter-preview">
+                  <li>Delay: <strong>{reverbPreview.delay_time.toFixed(3)}s</strong></li>
+                  <li>Decay: <strong>{reverbPreview.decay.toFixed(2)}</strong></li>
+                  <li>Stereo: <strong>{reverbPreview.stereo_spread.toFixed(2)}</strong></li>
+                  <li>Cutoff: <strong>{Math.round(reverbPreview.cutoff_freq)} Hz</strong></li>
+                </ul>
+              ) : (
+                <p className="placeholder">Parameters will land here.</p>
+              )}
+            </div>
+
+            <div className={`flow-node node-system ${getStageClass(stage, 4)}`} style={{ gridColumn: '4', gridRow: '2' }}>
+              <header>
+                <p className="micro-label">System</p>
+                <h3>Apply Effects</h3>
+              </header>
+              <p className="placeholder">
+                Upload an audio sample to apply the generated chain directly in the browser.
+              </p>
+              <button
+                onClick={onProcess}
+                disabled={!hasAudio || !parameters || isProcessing}
+                className="secondary-btn"
+              >
+                {isProcessing ? 'Processing…' : 'Apply Effects'}
+              </button>
+            </div>
+
+            <div className={`flow-node node-result ${getStageClass(stage, 5)}`} style={{ gridColumn: '5', gridRow: '2' }}>
+              <header>
+                <p className="micro-label">Result</p>
+                <h3>Processed Audio</h3>
+              </header>
+              {processedAudio ? (
+                <div className="result-summary">
+                  <p>Ready for listening.</p>
+                  <span>{processedAudio.processed_file}</span>
+                </div>
+              ) : (
+                <p className="placeholder">Render audio to preview the effect chain.</p>
+              )}
+            </div>
+
+            <div className="flow-node node-audio" style={{ gridColumn: '5', gridRow: '1' }}>
+              <header>
+                <p className="micro-label">Input Audio Sample</p>
+                <h3>Optional Reference</h3>
+              </header>
+              <input
+                id="audio-upload-input"
+                type="file"
+                accept="audio/*"
+                onChange={onAudioChange}
+              />
+              <label htmlFor="audio-upload-input" className="upload-tile">
+                {hasAudio ? (
+                  <>
+                    <span className="emoji">🎵</span>
+                    <span>{audioFileName}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="emoji">📁</span>
+                    <span>Upload audio</span>
+                  </>
+                )}
+              </label>
+            </div>
+
+            <div className="flow-node node-judge disabled" style={{ gridColumn: '3', gridRow: '3' }}>
+              <header>
+                <p className="micro-label">Judge System</p>
+                <h3>Coming Soon</h3>
+              </header>
+              <p className="placeholder">Automated scoring &amp; critique lives here.</p>
+            </div>
+
+            <div className="flow-node node-refine disabled" style={{ gridColumn: '4', gridRow: '3' }}>
+              <header>
+                <p className="micro-label">Refine Loop</p>
+                <h3>Coming Soon</h3>
+              </header>
+              <p className="placeholder">Iterative reprompting after evaluation.</p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {systemPrompt && (
+        <details className="system-prompt-card" open>
+          <summary>System prompt used for this run</summary>
+          <pre>{systemPrompt}</pre>
+        </details>
+      )}
+    </section>
   )
 }
 
