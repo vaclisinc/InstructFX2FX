@@ -443,7 +443,6 @@ function App() {
         <p>LLM-powered audio effect parameter generation</p>
       </header>
 
-      {/* Flow Diagram with all controls integrated */}
       <FlowDiagramNew
         stage={getFlowStage()}
         userInput={text}
@@ -458,88 +457,18 @@ function App() {
         isProcessing={isProcessing}
         audioFileName={audioFile?.name}
         systemPrompt={systemPrompt}
+        models={models}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
       />
 
-      {/* Results and Audio Playback */}
-      <main>
-        {/* Hide input section, only show results */}
-        <div className="input-section" style={{ display: 'none' }}>
-          {/* Text Input */}
-          <div className="input-group">
-            <label htmlFor="text-input">
-              Describe the audio effect you want:
-            </label>
-            <textarea
-              id="text-input"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="e.g., warm cathedral reverb with bright EQ..."
-              rows={4}
-            />
-          </div>
-
-          {/* Model Selection */}
-          {models && (
-            <div className="input-group">
-              <label htmlFor="model-select">LLM Model:</label>
-              <select
-                id="model-select"
-                value={selectedModel ? `${selectedModel.provider}:${selectedModel.model}` : ''}
-                onChange={(e) => {
-                  const [provider, ...modelParts] = e.target.value.split(':')
-                  const model = modelParts.join(':')
-                  setSelectedModel({ provider, model })
-                }}
-              >
-                {Object.entries(models).map(([provider, providerModels]) => (
-                  <optgroup key={provider} label={provider.toUpperCase()}>
-                    {Object.entries(providerModels).map(([key, modelInfo]) => (
-                      <option key={key} value={`${provider}:${modelInfo.model}`}>
-                        {modelInfo.name} - {modelInfo.speed} / {modelInfo.cost}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Audio File Upload */}
-          <div className="input-group">
-            <label htmlFor="audio-upload">
-              Upload dry audio (optional):
-            </label>
-            <input
-              id="audio-upload"
-              type="file"
-              accept="audio/*"
-              onChange={handleFileChange}
-            />
-            {audioFile && (
-              <div className="file-info">
-                Selected: {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)} MB)
-              </div>
-            )}
-          </div>
-
-          {/* Generate Button */}
-          <button
-            className="generate-btn"
-            onClick={handleGenerate}
-            disabled={isGenerating || !text.trim()}
-          >
-            {isGenerating ? 'Generating...' : 'Generate Parameters'}
-          </button>
-
-          {/* Error Display */}
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
+      )}
 
-        {/* Results */}
+      <main>
         {renderParameters()}
       </main>
     </div>
