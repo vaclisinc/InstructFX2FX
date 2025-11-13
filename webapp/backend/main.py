@@ -3,14 +3,11 @@ FastAPI backend for text2preset web application.
 Provides REST API endpoints for audio effect parameter generation.
 """
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pathlib import Path
 import sys
 import os
-import shutil
-from typing import Optional
 
 # Add baseline-system to Python path
 baseline_path = Path(__file__).parent.parent.parent / "baseline-system"
@@ -35,10 +32,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Setup directories
-UPLOAD_DIR = Path(__file__).parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
 
 # Load environment and config
 # Load .env from baseline-system directory
@@ -134,47 +127,11 @@ async def get_models():
     }
 
 
-@app.post("/api/upload")
-async def upload_audio(file: UploadFile = File(...)):
-    """
-    Upload audio file for processing.
-    Accepts: WAV, MP3, FLAC, OGG
-    """
-    # Validate file type
-    allowed_extensions = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
-    file_ext = Path(file.filename).suffix.lower()
-
-    if file_ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
-        )
-
-    # Save file
-    file_path = UPLOAD_DIR / file.filename
-    try:
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to save file: {str(e)}"
-        )
-
-    return {
-        "filename": file.filename,
-        "path": str(file_path),
-        "size": file_path.stat().st_size,
-        "format": file_ext[1:]
-    }
-
-
 @app.post("/api/generate")
 async def generate_audio_parameters(
     text: str = Form(...),
     model_provider: str = Form("openrouter"),
-    model_name: str = Form("anthropic/claude-3.5-haiku"),
-    audio_filename: Optional[str] = Form(None)
+    model_name: str = Form("anthropic/claude-3.5-haiku")
 ):
     """
     Generate audio effect parameters from text description.
@@ -183,7 +140,6 @@ async def generate_audio_parameters(
         text: User's text description (e.g., "warm and spacious")
         model_provider: LLM provider (openrouter, openai, claude)
         model_name: Specific model identifier
-        audio_filename: Optional uploaded audio filename (not used in Phase 1)
 
     Returns:
         JSON with reverb, EQ, and compressor parameters
@@ -210,8 +166,7 @@ async def generate_audio_parameters(
                 "provider": model_provider,
                 "name": model_name
             },
-            "parameters": params,
-            "audio_filename": audio_filename
+            "parameters": params
         }
 
     except Exception as e:
@@ -247,7 +202,6 @@ async def health_check():
         "config_file": str(DEFAULT_CONFIG_PATH) if config_exists else "missing",
         "baseline_system": "found" if baseline_exists else "missing",
         "api_keys": api_keys,
-        "upload_dir": str(UPLOAD_DIR),
         "python_path": sys.path[0]
     }
 
@@ -257,10 +211,10 @@ if __name__ == "__main__":
 
     print("🚀 Starting Text2Preset API server...")
     print(f"📁 Baseline system: {baseline_path}")
-    print(f"📁 Upload directory: {UPLOAD_DIR}")
     print(f"🔑 API keys configured: {sum([bool(os.getenv(k)) for k in ['OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']])}/3")
     print("🌐 Server will be available at: http://localhost:8000")
     print("📚 API docs at: http://localhost:8000/docs")
+    print("⚡ Audio processing runs in browser (Web Audio API)")
 
     uvicorn.run(
         "main:app",

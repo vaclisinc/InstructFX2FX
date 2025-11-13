@@ -8,7 +8,9 @@ function App() {
   const [selectedModel, setSelectedModel] = useState(null)
   const [audioFile, setAudioFile] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [result, setResult] = useState(null)
+  const [processedAudio, setProcessedAudio] = useState(null)
   const [error, setError] = useState(null)
   const [models, setModels] = useState(null)
   const [activeTab, setActiveTab] = useState('reverb')
@@ -49,33 +51,11 @@ function App() {
     setResult(null)
 
     try {
-      // Upload audio file if provided
-      let audioFilename = null
-      if (audioFile) {
-        const formData = new FormData()
-        formData.append('file', audioFile)
-
-        const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
-          method: 'POST',
-          body: formData
-        })
-
-        if (!uploadRes.ok) {
-          throw new Error('Failed to upload audio file')
-        }
-
-        const uploadData = await uploadRes.json()
-        audioFilename = uploadData.filename
-      }
-
-      // Generate parameters
+      // Generate parameters (no need to upload audio file)
       const generateFormData = new FormData()
       generateFormData.append('text', text)
       generateFormData.append('model_provider', selectedModel.provider)
       generateFormData.append('model_name', selectedModel.model)
-      if (audioFilename) {
-        generateFormData.append('audio_filename', audioFilename)
-      }
 
       const generateRes = await fetch(`${API_BASE_URL}/api/generate`, {
         method: 'POST',
@@ -109,6 +89,191 @@ function App() {
       setAudioFile(file)
       setError(null)
     }
+  }
+
+  const handleProcess = async () => {
+    if (!audioFile) {
+      setError('Please upload an audio file first')
+      return
+    }
+
+    if (!result || !result.parameters) {
+      setError('Please generate parameters first')
+      return
+    }
+
+    setIsProcessing(true)
+    setError(null)
+
+    try {
+      // Process audio directly in browser using Sony's Web Audio API
+      const processedBlob = await processAudioInBrowser(audioFile, result.parameters)
+
+      // Create download URL
+      const url = URL.createObjectURL(processedBlob)
+
+      setProcessedAudio({
+        success: true,
+        processed_file: `processed_${audioFile.name}`,
+        download_url: url,
+        blob: processedBlob
+      })
+      setError(null)
+    } catch (err) {
+      setError('Processing failed: ' + err.message)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const processAudioInBrowser = async (file, parameters) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Create audio context
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+        // Read audio file
+        const arrayBuffer = await file.arrayBuffer()
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+
+        // Create offline context for processing
+        const offlineContext = new OfflineAudioContext(
+          audioBuffer.numberOfChannels,
+          audioBuffer.length,
+          audioBuffer.sampleRate
+        )
+
+        // Create source
+        const source = offlineContext.createBufferSource()
+        source.buffer = audioBuffer
+
+        // === 1. EQ (Sony Equalizer) ===
+        // Convert webapp EQ params to Sony 40-band format
+        const eqCurve = convertEQToSonyFormat(parameters.eq)
+        const equalizer = new window.Equalizer(offlineContext, {
+          curve: eqCurve,
+          range: 1
+        })
+
+        // === 2. Compressor (Web Audio API native) ===
+        const compressor = offlineContext.createDynamicsCompressor()
+        compressor.threshold.value = parameters.compressor.threshold
+        compressor.ratio.value = parameters.compressor.ratio
+        compressor.attack.value = parameters.compressor.attack
+        compressor.release.value = parameters.compressor.release
+        // Note: makeup_gain not directly supported, would need additional gain node
+
+        // === 3. Reverb (Sony Reverb) ===
+        const reverb = new window.Reverb(offlineContext, {
+          d: parameters.reverb.delay_time,
+          g: parameters.reverb.decay,
+          m: parameters.reverb.stereo_spread,
+          f: parameters.reverb.cutoff_freq,
+          E: 0.5,  // wet_gain
+          wetdry: parameters.reverb.wet_dry
+        })
+
+        // Connect chain: source → EQ → Compressor → Reverb → destination
+        source.connect(equalizer.input)
+        equalizer.connect(compressor)
+        compressor.connect(reverb.input)
+        reverb.connect(offlineContext.destination)
+
+        // Process
+        source.start(0)
+        const renderedBuffer = await offlineContext.startRendering()
+
+        // Convert to WAV blob
+        const wavBlob = audioBufferToWav(renderedBuffer)
+        resolve(wavBlob)
+
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  const convertEQToSonyFormat = (eqParams) => {
+    // Sony's 40 fixed frequencies
+    const sonyFreqs = [
+      20, 50, 83, 120, 161, 208, 259, 318, 383, 455, 537, 628, 729, 843,
+      971, 1114, 1273, 1452, 1652, 1875, 2126, 2406, 2719, 3070, 3462,
+      3901, 4392, 4941, 5556, 6244, 7014, 7875, 8839, 9917, 11124, 12474,
+      13984, 15675, 17566, 19682
+    ]
+
+    // Initialize with 0 dB (flat)
+    const sonyGains = new Array(40).fill(0.0)
+
+    // For each Sony band, calculate gain from webapp parametric bands
+    sonyFreqs.forEach((freq, i) => {
+      let totalGain = 0.0
+
+      // Sum contributions from all parametric bands
+      eqParams.forEach(band => {
+        const fc = band.freq
+        const gain = band.gain
+        const Q = band.Q
+
+        // Calculate bell filter response
+        const octaveDistance = Math.abs(Math.log2(freq / fc))
+        const bandwidth = 1 / Q
+
+        // Apply gain if within bandwidth
+        if (octaveDistance < bandwidth) {
+          const attenuation = Math.exp(-Math.pow(octaveDistance / bandwidth, 2))
+          totalGain += gain * attenuation
+        }
+      })
+
+      sonyGains[i] = totalGain
+    })
+
+    return sonyGains
+  }
+
+  const audioBufferToWav = (audioBuffer) => {
+    const numOfChannels = audioBuffer.numberOfChannels
+    const length = audioBuffer.length * numOfChannels * 2
+    const buffer = new ArrayBuffer(44 + length)
+    const view = new DataView(buffer)
+
+    // WAV header
+    const channels = numOfChannels
+    const sampleRate = audioBuffer.sampleRate
+    const bitsPerSample = 16
+
+    const writeString = (view, offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+
+    writeString(view, 0, 'RIFF')
+    view.setUint32(4, 36 + length, true)
+    writeString(view, 8, 'WAVE')
+    writeString(view, 12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, channels, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * channels * bitsPerSample / 8, true)
+    view.setUint16(32, channels * bitsPerSample / 8, true)
+    view.setUint16(34, bitsPerSample, true)
+    writeString(view, 36, 'data')
+    view.setUint32(40, length, true)
+
+    // Write audio data
+    let offset = 44
+    for (let i = 0; i < audioBuffer.length; i++) {
+      for (let channel = 0; channel < numOfChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]))
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true)
+        offset += 2
+      }
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' })
   }
 
   const renderParameters = () => {
@@ -186,6 +351,47 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* Process Audio Button */}
+        {audioFile && (
+          <div className="process-section">
+            <button
+              className="process-btn"
+              onClick={handleProcess}
+              disabled={isProcessing}
+            >
+              {isProcessing ? 'Processing Audio...' : '🎵 Apply Effects to Audio'}
+            </button>
+          </div>
+        )}
+
+        {/* Audio Playback */}
+        {processedAudio && (
+          <div className="audio-playback">
+            <h3>🎧 Audio Comparison</h3>
+            <div className="audio-players">
+              <div className="audio-player">
+                <label>Original Audio</label>
+                <audio controls src={URL.createObjectURL(audioFile)}>
+                  Your browser does not support audio playback.
+                </audio>
+              </div>
+              <div className="audio-player">
+                <label>Processed Audio</label>
+                <audio controls src={processedAudio.download_url}>
+                  Your browser does not support audio playback.
+                </audio>
+              </div>
+            </div>
+            <a
+              href={processedAudio.download_url}
+              download={processedAudio.processed_file}
+              className="download-btn"
+            >
+              ⬇️ Download Processed Audio
+            </a>
+          </div>
+        )}
 
         {/* JSON Export */}
         <details className="json-export">
