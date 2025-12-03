@@ -8,3 +8,6 @@
 [submodule "ref/others/U-SAM/repo"]
 	path = ref/others/U-SAM/repo
 	url = https://github.com/Honee-W/U-SAM.git
+[submodule "ref/text2fx-repo"]
+	path = ref/text2fx-repo
+	url = https://github.com/anniejchu/text2fx
