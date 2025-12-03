@@ -21,3 +21,11 @@ torchaudio>=2.0.0
 openai>=1.0.0
 anthropic>=0.21.0
 requests>=2.32.0  # For OpenRouter API
+
+# Text2FX dependencies
+descript_audiotools @ git+https://github.com/descriptinc/audiotools
+dasp-pytorch
+auraloss[all]
+msclap
+gradio
+jupyter

@@ -25,6 +25,11 @@ prompts:
 
 # Refinement loop settings
 refinement:
-  max_iterations: 10          # Maximum number of refinement iterations
+  method: llm                 # Options: llm, text2fx
+  max_iterations: 10          # Maximum number of refinement iterations (LLM)
   target_score: 8.0           # Stop if score >= this value (good enough)
   convergence_threshold: 0.1  # Stop if score improvement < this value (no progress)
+  
+  # Text2FX specific settings
+  learning_rate: 0.01
+  text2fx_iterations: 100     # Gradient steps for Text2FX
