@@ -14,6 +14,7 @@ from src.generation.audio_description import (
     generate_audio_description_with_clap,
     generate_audio_description_from_params
 )
+from src.generation.refine_text2fx import refine_with_text2fx
 
 
 def _load_prompt_template(template_path_str: str) -> str:
@@ -236,6 +237,17 @@ def refine_loop(user_prompt: str, audio_path: str, config: dict) -> dict:
     best_params = None
 
     # Generate initial parameters
+    # If using Text2FX, we might skip this or use it as initialization. 
+    # Text2FX initializes randomly by default, but we could potentially use LLM params as start.
+    # For now, let's keep the flow simple and separate.
+    
+    # Check refinement method
+    refinement_method = config.get('refinement', {}).get('method', 'llm')
+    
+    if refinement_method == 'text2fx':
+        print(f"Using Text2FX refinement method...")
+        return refine_with_text2fx(user_prompt, audio_path, config)
+
     current_params = generate_parameters(user_prompt, config)
 
     # Refinement loop
