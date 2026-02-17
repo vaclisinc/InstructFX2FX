@@ -1,0 +1,30 @@
+{
+  "prompt": "this sound is too bright, make it warmer",
+  "search_time_seconds": 45.743468046188354,
+  "results": [
+    {
+      "composite_score": 0.19467400759458542,
+      "benchmark_clap_score": 0.1097484827041626,
+      "plugins": [
+        {
+          "type": "EQ",
+          "mode": "shelf-shelf",
+          "low_cut": 386.17805922785993,
+          "high_cut": 8000.000000000004,
+          "q": 7.429493266361247,
+          "gains": {
+            "low_shelf": -20.0,
+            "high_shelf": 20.0,
+            "peak1": -14.273346337584234,
+            "peak2": 20.0,
+            "peak3": -20.0
+          },
+          "peak1_freq": 100.0,
+          "peak2_freq": 2663.1955112616397,
+          "peak3_freq": 8744.356838523718
+        }
+      ],
+      "rank": 1
+    }
+  ]
+}
