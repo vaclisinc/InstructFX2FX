@@ -36,6 +36,8 @@ from pedalboard import (
     Bitcrush,
 )
 
+import matplotlib.pyplot as plt
+
 import torch
 from transformers import ClapProcessor, ClapModel
 
@@ -249,7 +251,7 @@ def render(audio, sr, config: Dict):
     return pb(audio, sr)
 
 
-def refine_candidate_bayesian(args_dict):
+def refine_candidate_bayesian(args_dict, plot=False):
     """Refines a candidate using Bayesian Optimization."""
     initial_config = args_dict['initial_config']
     audio = args_dict['audio']
@@ -381,6 +383,56 @@ def refine_candidate_bayesian(args_dict):
                          callback=[pbar_callback, early_stopper]
                         )
     pbar.close()
+
+    def plot_optimization_trajectories(result, param_names, search_space, outdir):
+        # result.x_iters is a list of parameter lists per iteration
+        x_iters = result.x_iters
+        if not x_iters:
+            return
+
+        n_iters = len(x_iters)
+        n_params = len(param_names)
+
+        # Transpose to shape (n_params, n_iters)
+        param_iters = [[] for _ in range(n_params)]
+        for it in x_iters:
+            for i, val in enumerate(it):
+                param_iters[i].append(val)
+
+        for i, name in enumerate(param_names):
+            values = param_iters[i]
+
+            plt.figure(figsize=(10, 3))
+            # Handle categorical parameters
+            space_obj = search_space[i]
+            if isinstance(space_obj, Categorical):
+                categories = list(space_obj.categories)
+                # map category values to indices for plotting
+                numeric = [categories.index(v) if v in categories else None for v in values]
+                plt.plot(numeric, marker='o')
+                plt.yticks(range(len(categories)), categories)
+                plt.ylabel('Category')
+            else:
+                # Numeric (Real)
+                numeric = [float(v) if v is not None else np.nan for v in values]
+                plt.plot(numeric, marker='o')
+                plt.ylabel('Value')
+
+            plt.title(f"Parameter: {name}")
+            plt.xlabel('Iteration')
+            plt.grid(alpha=0.3)
+            fname = safe_folder_name(name)
+            plt.tight_layout()
+            plt.savefig(os.path.join(outdir, f"param_trajectory_{fname}.png"))
+            plt.close()
+
+    try:
+        if plot:
+            plot_optimization_trajectories(result, param_names, search_space, outdir)
+            print(f"Optimization trajectories plotted and saved to {outdir}")
+    except Exception as e:
+        print(f"Warning: failed to plot optimization trajectories: {e}")
+
     # 4. Extract Top-N results from the search history
     all_results = sorted(zip(result.func_vals, result.x_iters), key=lambda x: x[0])
     top_n_results = all_results[:top_n]
@@ -439,7 +491,8 @@ def refine_candidate_bayesian(args_dict):
 ALL_PARAM_RANGES = {
     "Distortion": {"drive_db": {"lo": 0, "hi": 15, "res": 0.1, "scale": "linear"}},
     "EQ": {
-        "mode": {"choices": ["pass-pass", "pass-shelf", "shelf-pass", "shelf-shelf"], "type": "categorical"},
+        "mode": {"choices":
+                 ["pass-pass", "pass-shelf", "shelf-pass", "shelf-shelf"], "type": "categorical"},
         "low_cut": {"lo": 50, "hi": 500, "res": 10, "scale": "log"},
         "high_cut": {"lo": 8000, "hi": 16000, "res": 100, "scale": "log"},
         "q": {"lo": 0.1, "hi": 10.0, "res": 0.1, "scale": "linear"},
@@ -471,7 +524,9 @@ def fxsearcher(audio: str = None,
                model: str = "laion/clap-htsat-unfused",
                top_n: int = 5,
                n_calls: int = 100,
-               use_guide: bool = False, fxs: list = None):
+               use_guide: bool = False, fxs: list = None,
+               initial_config: dict = None,
+               plot: bool = False):
     """Run the FX searcher.
 
     Parameters can be provided directly (programmatic use) or via CLI (when
@@ -489,6 +544,7 @@ def fxsearcher(audio: str = None,
         ap.add_argument("--top_n", type=int, default=5, help="Number of top candidates to refine in parallel.")
         ap.add_argument("--n_calls", type=int, default=100, help="Number of calls for Bayesian optimization.")
         ap.add_argument("--use_guide", action="store_true", help="Whether to use guiding prompt.")
+        ap.add_argument("--plot", action="store_true", help="Whether to plot the results.")
         args = ap.parse_args()
 
         audio_input = args.audio
@@ -525,12 +581,13 @@ def fxsearcher(audio: str = None,
 
     start_time = time.time()
 
-    initial_config = [
-        {"type": "EQ", "mode": "shelf", "low_cut": 120.0, "high_cut": 12000.0, "q": 1.0, "gains": {},
-         "peak1_freq": 200.0, "peak2_freq": 1000.0, "peak3_freq": 5000.0},
-        {"type": "Distortion", "drive_db": 1.0},
-        {"type": "Reverb", "room_size": 0.3, "damping": 0.5, "wet_level": 0.1},
-        {"type": "Delay", "delay": 0.1},
+    if initial_config is None:
+        initial_config = [
+            {"type": "EQ", "mode": "shelf", "low_cut": 120.0, "high_cut": 12000.0, "q": 1.0, "gains": {},
+             "peak1_freq": 200.0, "peak2_freq": 1000.0, "peak3_freq": 5000.0},
+            {"type": "Distortion", "drive_db": 1.0},
+            {"type": "Reverb", "room_size": 0.3, "damping": 0.5, "wet_level": 0.1},
+            {"type": "Delay", "delay": 0.1},
         {"type": "PitchShift", "semitones": 0},
         {"type": "Bitcrush", "bit_depth": 0},
     ]
@@ -549,7 +606,7 @@ def fxsearcher(audio: str = None,
         'top_n': top_n, 'n_calls': n_calls, 'use_guide': use_guide
     }
 
-    final_result = refine_candidate_bayesian(args_dict)
+    final_result = refine_candidate_bayesian(args_dict, plot=plot)
 
     elapsed = time.time() - start_time
     print(f"\nRefinement finished. Total search time: {elapsed:.2f} seconds")
