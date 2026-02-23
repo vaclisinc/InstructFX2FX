@@ -1,0 +1,46 @@
+# Setup LLM client
+import json
+import os
+import openai
+import getpass
+from dotenv import load_dotenv
+from prompts.prompt import Prompt
+from utilities.utility import extract_json
+# from anthropic import Anthropic
+
+class LLMClient:
+    """LLM client for interacting with OpenRouter or Anthropic."""
+    def __init__(self):
+        env_path = os.path.join("env")
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            self.api_key = os.getenv("OPENROUTER_API_KEY")
+        else:
+            self.api_key = getpass.getpass("Enter your OpenRouter API key: ")
+
+        self.llm = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://openrouter.ai/api/v1"
+        )
+        # self.llm = Anthropic(api_key=self.api_key)
+        print("✓ LLM client ready")
+
+
+    def generate_parameters(self, prompt: Prompt) -> dict:
+        """Generate parameters from the LLM based on the given prompt."""
+        prompt = prompt.text
+
+        response = self.llm.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        text = response.choices[0].message.content
+        if text:
+            try:
+                return extract_json(text)
+            except ValueError as e:
+                raise ValueError(f"Invalid JSON from LLM: {e}")
+        else:
+            return {}
