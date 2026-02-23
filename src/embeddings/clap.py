@@ -1,10 +1,16 @@
+import torch
+import torch.nn.functional as F
+import numpy as np
+from pathlib import Path
+import json
+import laion_clap
+
 # ========== CLAP Model ==========
 
 class CLAPWrapper:
     """CLAP model for encoding audio and text using laion_clap."""
 
     def __init__(self, device='cpu'):
-        import laion_clap
         self.device = device
         self.model = laion_clap.CLAP_Module(enable_fusion=False, device=device)
         self.model.load_ckpt()  # Load default checkpoint
