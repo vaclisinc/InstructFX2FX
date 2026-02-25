@@ -4,7 +4,9 @@ import torch
 from enum import Enum
 from metrics.metric import Metric
 from embeddings.embeddingspace import EmbeddingSpace
-from effects.fxchain import FXChain
+from effects.fx import FXChain
+from prompts.prompt import Prompt
+
 from abc import ABC, abstractmethod
 
 class OptimizationMethod(Enum):
@@ -44,7 +46,7 @@ class Config:
     # ========== General Configurations ==========
     device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
     # ========== LLM Prompt Configurations ==========
-    instruction: str = None
+    prompt: Prompt = None
     # ========== Initialization Configurations ==========
     initialization_method: ParameterInitializationMethod = ParameterInitializationMethod.RANDOM  # or ParameterInitializationMethod.LLM
     # ========== Optimization Configurations ==========
