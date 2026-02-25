@@ -59,7 +59,6 @@ class FXChain:
         self.effects = effects
 
     def __call__(self, audio, params):
-        print(f"Applying FX chain with {params} parameters")
         idx = 0
         for effect in self.effects:
             effect_params = params[:, idx:idx + effect.num_params]

@@ -488,7 +488,7 @@ def refine_candidate_bayesian(args_dict, plot=False):
             preset['rank'] = rank + 1
     return final_presets
 
-ALL_PARAM_RANGES = {
+ALL_PARAM_RANGES_FXSearcher = {
     "Distortion": {"drive_db": {"lo": 0, "hi": 15, "res": 0.1, "scale": "linear"}},
     "EQ": {
         "mode": {"choices":
@@ -515,6 +515,8 @@ ALL_PARAM_RANGES = {
     "Bitcrush": {"bit_depth": {"lo": 0, "hi": 16, "res": 1, "scale": "linear"}},
 }
 
+
+
 # ==============================================================================
 # Main Logic
 # ==============================================================================
@@ -525,14 +527,22 @@ def fxsearcher(audio: str = None,
                top_n: int = 5,
                n_calls: int = 100,
                use_guide: bool = False, fxs: list = None,
-               initial_config: dict = None,
-               plot: bool = False):
+               initial_params: dict = None,
+               plot: bool = False,
+               all_param_ranges: dict = None):
     """Run the FX searcher.
 
     Parameters can be provided directly (programmatic use) or via CLI (when
     `audio`, `prompt` or `outdir` are not provided).
     """
     from datetime import datetime
+
+    if all_param_ranges is not None:
+        global ALL_PARAM_RANGES
+        ALL_PARAM_RANGES = all_param_ranges
+    else:
+        global ALL_PARAM_RANGES
+        ALL_PARAM_RANGES = ALL_PARAM_RANGES_FXSearcher
 
     # If essential arguments are missing, fall back to CLI parsing for backwards compatibility
     if audio is None or prompt is None or outdir is None:
@@ -581,8 +591,8 @@ def fxsearcher(audio: str = None,
 
     start_time = time.time()
 
-    if initial_config is None:
-        initial_config = [
+    if initial_params is None:
+        initial_params = [
             {"type": "EQ", "mode": "shelf", "low_cut": 120.0, "high_cut": 12000.0, "q": 1.0, "gains": {},
              "peak1_freq": 200.0, "peak2_freq": 1000.0, "peak3_freq": 5000.0},
             {"type": "Distortion", "drive_db": 1.0},
@@ -592,7 +602,7 @@ def fxsearcher(audio: str = None,
         {"type": "Bitcrush", "bit_depth": 0},
     ]
     if fxs is not None:
-        initial_config = [fx for fx in initial_config if fx['type'] in fxs]
+        initial_params = [fx for fx in initial_params if fx['type'] in fxs]
         PARAM_RANGES = {fx: ALL_PARAM_RANGES[fx] for fx in ALL_PARAM_RANGES if fx in fxs}
     else:
         PARAM_RANGES = ALL_PARAM_RANGES
@@ -600,7 +610,7 @@ def fxsearcher(audio: str = None,
     print(f"\n--- Starting Bayesian Optimization for {', '.join(PARAM_RANGES.keys())} ---")
 
     args_dict = {
-        'initial_config': initial_config,
+        'initial_config': initial_params,
         'audio': audio, 'sr': sr, 'PARAM_RANGES': PARAM_RANGES,
         'model_name': model, 'prompt': prompt, 'outdir': outdir,
         'top_n': top_n, 'n_calls': n_calls, 'use_guide': use_guide
