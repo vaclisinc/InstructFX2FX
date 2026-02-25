@@ -538,10 +538,8 @@ def fxsearcher(audio: str = None,
     from datetime import datetime
 
     if all_param_ranges is not None:
-        global ALL_PARAM_RANGES
         ALL_PARAM_RANGES = all_param_ranges
     else:
-        global ALL_PARAM_RANGES
         ALL_PARAM_RANGES = ALL_PARAM_RANGES_FXSearcher
 
     # If essential arguments are missing, fall back to CLI parsing for backwards compatibility
