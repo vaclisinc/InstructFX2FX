@@ -5,7 +5,7 @@ import openai
 import getpass
 from dotenv import load_dotenv
 from prompts.prompt import Prompt
-from utilities.utility import extract_json
+from utilities.parsing import extract_json
 # from anthropic import Anthropic
 
 class LLMClient:
@@ -28,12 +28,13 @@ class LLMClient:
 
     def generate_parameters(self, prompt: Prompt) -> dict:
         """Generate parameters from the LLM based on the given prompt."""
-        prompt = prompt.text
 
         response = self.llm.chat.completions.create(
             model="gpt-4o",
             max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[
+                {"role": "system", "content": prompt.sys_prompt},
+                {"role": "user", "content": prompt.instruction}]
         )
 
         text = response.choices[0].message.content
