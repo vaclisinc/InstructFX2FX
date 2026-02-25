@@ -14,7 +14,7 @@ class OptimizationMethod(Enum):
     BAYESIAN_OPTIMIZATION = 'bayesian_optimization'
 
 class LossFunction(Enum):
-    CLAP_SIMILARITY = 'clap_similarity'
+    DIRECTIONAL_LOSS = 'directional_loss'
 
 class ParameterInitializationMethod(Enum):
     RANDOM = 'random'
@@ -50,7 +50,7 @@ class Config:
     # ========== Initialization Configurations ==========
     initialization_method: ParameterInitializationMethod = ParameterInitializationMethod.RANDOM  # or ParameterInitializationMethod.LLM
     # ========== Optimization Configurations ==========
-    optimization: OptimizationMethod = OptimizationMethod.GRADIENT_DESCENT
+    optimization_method: OptimizationMethod = OptimizationMethod.GRADIENT_DESCENT
     num_iterations: int = 100
     learning_rate: float = 0.01
     # ========== Embedding Configurations ==========
@@ -58,10 +58,10 @@ class Config:
     # ========== Metric Configurations ==========
     metrics: list[Metric] = None  # List of metric instances to compute, e.g., [CLAPSimilarity()]
     # ========== Effects ==========
-    effects: list = None  # List of effects
+    fx_chain: FXChain = None  # List of effects
     # ========== Logging Configurations ==========
     log_dir: str = './logs'
     save_checkpoints: bool = True
     checkpoint_dir: str = './checkpoints'
     # ========== Loss Function Configurations ==========
-    loss_function: LossFunction = LossFunction.CLAP_SIMILARITY
+    loss_function: LossFunction = LossFunction.DIRECTIONAL_LOSS

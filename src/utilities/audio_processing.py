@@ -22,3 +22,8 @@ def play_audio(audio, sample_rate=44100):
     from IPython.display import Audio
     audio_np = audio.detach().squeeze().cpu().numpy().squeeze()
     return Audio(audio_np, rate=sample_rate)
+
+def play_audio_from_file(file_path, sample_rate=44100):
+    """Utility to play audio from a file in Jupyter notebooks."""
+    from IPython.display import Audio
+    return Audio(filename=file_path, rate=sample_rate)
