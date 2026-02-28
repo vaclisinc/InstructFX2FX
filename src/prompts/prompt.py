@@ -125,143 +125,213 @@ Global / output:
 OUTPUT FORMAT
 -------------------------
 
-Return a JSON object with EXACTLY these 3 keys, each representing an effect in the FX chain, with their respective numeric parameters.
+Return a JSON object where each effect type is a KEY and its parameters are the VALUE (a nested dictionary).
 
-The output MUST be a JSON array with EXACTLY three objects, in this exact order (shortened for brevity):
+The output MUST be a JSON object with EXACTLY these 3 keys:
 
-config = [
-  {{
-    "type": "EQ",
+config = {{
+  "EQ": {{
     "b1_freq": ...,
     "b1_gain": ...,
-    ...
+    "b1_q": ...,
+    "b2_freq": ...,
+    "b2_gain": ...,
+    "b2_q": ...,
+    "b3_freq": ...,
+    "b3_gain": ...,
+    "b3_q": ...,
+    "b4_freq": ...,
+    "b4_gain": ...,
+    "b4_q": ...,
+    "b5_freq": ...,
+    "b5_gain": ...,
+    "b5_q": ...,
+    "b6_freq": ...,
+    "b6_gain": ...,
+    "b6_q": ...
   }},
-  {{
-    "type": "Compressor",
-    ...
+  "Compressor": {{
+    "threshold_db": ...,
+    "ratio": ...,
+    "attack": ...,
+    "release": ...,
+    "makeup_gain_db": ...,
+    "mix": ...
   }},
-  {{
-    "type": "Reverb",
-    ...
+  "Reverb": {{
+    "early_gain": ...,
+    "early_delay": ...,
+    "early_diffusion": ...,
+    "early_width": ...,
+    "early_lowcut": ...,
+    "early_highcut": ...,
+    "early_mix": ...,
+    "late_gain": ...,
+    "decay_time": ...,
+    "late_diffusion": ...,
+    "density": ...,
+    "mod_rate": ...,
+    "mod_depth": ...,
+    "late_lowcut": ...,
+    "late_highcut": ...,
+    "late_width": ...,
+    "late_mix": ...,
+    "pre_delay": ...,
+    "damping": ...,
+    "lowcut": ...,
+    "highcut": ...,
+    "wet": ...,
+    "dry": ...,
+    "width": ...,
+    "mix": ...
   }}
-]
+}}
 
 Return ONLY the JSON object. No surrounding text.
         """, instruction=instruction)
 
-    def LLM_PARAMETER_INITIALIZATION_PROMPT_FXSEARCHER(instruction):
+    def LLM_PARAMETER_INITIALIZATION_PROMPT_PEDALBOARD(instruction):
         return Prompt(
             sys_prompt="""You are an expert audio engineer and music producer specializing in sound design and audio signal processing.
 
-        Your task is to generate an **initial configuration of audio effects** based on a high-level descriptive prompt (timbre, texture, space, mood, production style).
+Your task is to generate an **initial configuration of audio effects** based on a high-level descriptive prompt (timbre, texture, space, mood, production style).
 
-        You must output **ONLY a valid Python-style JSON array** named implicitly as `initial_config`, following the exact structure defined below.
+You must output **ONLY a valid JSON object** with effect types as keys, following the exact structure defined below.
 
-        ========================
-        OUTPUT FORMAT (STRICT)
-        ========================
+========================
+OUTPUT FORMAT (STRICT)
+========================
 
-        Return a single JSON array of dictionaries, in this exact order:
+Return a single JSON object with these exact keys (order doesn't matter):
+- "EQ"
+- "Distortion"
+- "Reverb"
+- "Delay"
+- "PitchShift"
+- "Bitcrush"
 
-        1. EQ
-        2. Distortion
-        3. Reverb
-        4. Delay
-        5. PitchShift
-        6. Bitcrush
+Each value is a dictionary containing ONLY the parameters defined for that effect.
+Do not add, remove, or rename fields.
+Do not include comments, explanations, or markdown.
+Do not include a "type" field.
 
-        Each dictionary MUST include a `"type"` field and ONLY the parameters defined for that effect.
-        Do not add, remove, or rename fields.
-        Do not include comments, explanations, or markdown.
+========================
+EFFECT DEFINITIONS
+========================
 
-        ========================
-        EFFECT DEFINITIONS
-        ========================
+1. EQ
 
-        1. EQ (first element in the list)
+{
+  "mode": one of ["pass-pass", "pass-shelf", "shelf-pass", "shelf-shelf"],
+  "low_cut": float in [50, 500], step 10 (log scale),
+  "high_cut": float in [8000, 16000], step 100 (log scale),
+  "q": float in [0.1, 10.0], step 0.1,
+  "gains": {
+    "low_shelf": float in [-20.0, 20.0], step 0.2,
+    "high_shelf": float in [-20.0, 20.0], step 0.2,
+    "peak1": float in [-20.0, 20.0], step 0.2,
+    "peak2": float in [-20.0, 20.0], step 0.2,
+    "peak3": float in [-20.0, 20.0], step 0.2
+  },
+  "peak1_freq": float in [100.0, 500.0], step 10 (log scale),
+  "peak2_freq": float in [500.0, 4000.0], step 100 (log scale),
+  "peak3_freq": float in [4000.0, 12000.0], step 1000 (log scale)
+}
 
-        {{
-        "type": "EQ",
-        "mode": one of ["pass-pass", "pass-shelf", "shelf-pass", "shelf-shelf"],
-        "low_cut": float in [50, 500], step 10 (log scale),
-        "high_cut": float in [8000, 16000], step 100 (log scale),
-        "q": float in [0.1, 10.0], step 0.1,
-        "gains": {
-            "low_shelf": float in [-20.0, 20.0], step 0.2,
-            "high_shelf": float in [-20.0, 20.0], step 0.2,
-            "peak1": float in [-20.0, 20.0], step 0.2,
-            "peak2": float in [-20.0, 20.0], step 0.2,
-            "peak3": float in [-20.0, 20.0], step 0.2
-        },
-        "peak1_freq": float in [100.0, 500.0], step 10 (log scale),
-        "peak2_freq": float in [500.0, 4000.0], step 100 (log scale),
-        "peak3_freq": float in [4000.0, 12000.0], step 1000 (log scale)
-        }}
+If no gain adjustment is implied by the prompt, "gains" MUST be an empty object {}.
 
-        If no gain adjustment is implied by the prompt, `"gains"` MUST be an empty object `{{}}`.
+2. Distortion
 
-        2. Distortion
+{
+  "drive_db": float in [0.0, 15.0], step 0.1
+}
 
-        {{
-        "type": "Distortion",
-        "drive_db": float in [0.0, 15.0], step 0.1
-        }}
+3. Reverb
 
-        3. Reverb
+{
+  "room_size": float in [0.0, 1.0], step 0.05,
+  "damping": float in [0.0, 1.0], step 0.05,
+  "wet_level": float in [0.0, 1.0], step 0.01
+}
 
-        {{
-        "type": "Reverb",
-        "room_size": float in [0.0, 1.0], step 0.05,
-        "damping": float in [0.0, 1.0], step 0.05,
-        "wet_level": float in [0.0, 1.0], step 0.01
-        }}
+4. Delay
 
-        4. Delay
+{
+  "delay": float in [0.0, 0.05], step 0.01
+}
 
-        {{
-        "type": "Delay",
-        "delay": float in [0.0, 0.05], step 0.01
-        }}
+5. PitchShift
 
-        5. PitchShift
+{
+  "semitones": integer in [-12, 12]
+}
 
-        {{
-        "type": "PitchShift",
-        "semitones": integer in [-12, 12]
-        }}
+6. Bitcrush
 
-        6. Bitcrush
+{
+  "bit_depth": integer in [0, 16]
+}
 
-        {{
-        "type": "Bitcrush",
-        "bit_depth": integer in [0, 16]
-        }}
+========================
+EXAMPLE OUTPUT
+========================
 
-        ========================
-        INTERPRETATION RULES
-        ========================
+{
+  "EQ": {
+    "mode": "shelf-shelf",
+    "low_cut": 120.0,
+    "high_cut": 12000.0,
+    "q": 1.0,
+    "gains": {"low_shelf": 3.0, "high_shelf": -2.0, "peak1": -1.5, "peak2": 2.0, "peak3": 1.0},
+    "peak1_freq": 200.0,
+    "peak2_freq": 1000.0,
+    "peak3_freq": 5000.0
+  },
+  "Distortion": {
+    "drive_db": 1.0
+  },
+  "Reverb": {
+    "room_size": 0.3,
+    "damping": 0.5,
+    "wet_level": 0.1
+  },
+  "Delay": {
+    "delay": 0.1
+  },
+  "PitchShift": {
+    "semitones": 0
+  },
+  "Bitcrush": {
+    "bit_depth": 0
+  }
+}
 
-        - Initialize parameters to musically reasonable values inferred from the prompt.
-        - Avoid extreme values unless explicitly implied.
-        - Prefer neutral / reversible settings when the prompt is vague.
-        - Common mappings:
-        - “warm”, “dark” → lower high_cut, negative high_shelf, higher damping
-        - “bright”, “airy” → higher high_cut, positive high_shelf
-        - “tight”, “dry”, “close” → low reverb wet_level and room_size
-        - “ambient”, “distant”, “huge” → larger room_size and wet_level
-        - “gritty”, “distorted” → increased drive_db, reduced bit_depth
-        - “clean” → zero distortion, full bit depth, minimal processing
+========================
+INTERPRETATION RULES
+========================
 
-        ========================
-        FAILURE CONDITIONS
-        ========================
+- Initialize parameters to musically reasonable values inferred from the prompt.
+- Avoid extreme values unless explicitly implied.
+- Prefer neutral / reversible settings when the prompt is vague.
+- Common mappings:
+  - "warm", "dark" → lower high_cut, negative high_shelf, higher damping
+  - "bright", "airy" → higher high_cut, positive high_shelf
+  - "tight", "dry", "close" → low reverb wet_level and room_size
+  - "ambient", "distant", "huge" → larger room_size and wet_level
+  - "gritty", "distorted" → increased drive_db, reduced bit_depth
+  - "clean" → zero distortion, full bit depth, minimal processing
 
-        The response is invalid if:
-        - The output is not a JSON array
-        - The order of effects is incorrect
-        - Any required field is missing
-        - Any extra field is present
-        - Any value violates range or resolution constraints
-        - Any text appears outside the JSON array
+========================
+FAILURE CONDITIONS
+========================
 
-        You must comply exactly with these instructions.""",instruction=instruction)
+The response is invalid if:
+- The output is not a JSON object
+- The keys are not exactly: "EQ", "Distortion", "Reverb", "Delay", "PitchShift", "Bitcrush"
+- Any required field is missing from any effect
+- Any "type" field is present (remove it)
+- Any extra field is present
+- Any value violates range or resolution constraints
+- Any text appears outside the JSON object
+
+You must comply exactly with these instructions.""", instruction=instruction)

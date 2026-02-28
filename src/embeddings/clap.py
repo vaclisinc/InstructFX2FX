@@ -1,13 +1,25 @@
+from abc import ABC
 import torch
 import torch.nn.functional as F
 import numpy as np
 from pathlib import Path
 import json
 import laion_clap
+from abc import ABC, abstractmethod
+
+
+class EmbeddingWrapper(ABC):
+    @abstractmethod
+    def get_audio_embedding(self, audio, enable_grad=False):
+        pass
+
+    @abstractmethod
+    def get_text_embedding(self, text):
+        pass
 
 # ========== CLAP Model ==========
 
-class CLAPWrapper:
+class CLAPWrapper(EmbeddingWrapper):
     """CLAP model for encoding audio and text using laion_clap."""
 
     def __init__(self, device='cpu'):
