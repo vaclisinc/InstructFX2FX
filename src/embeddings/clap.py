@@ -80,3 +80,11 @@ class CLAPWrapper(EmbeddingWrapper):
             emb = emb.to(self.device)
 
         return emb
+
+    def __call__(self, value, enable_grad=False):
+        if value is not None and isinstance(value, torch.Tensor):
+            return self.get_audio_embedding(value, enable_grad)
+        elif value is not None and isinstance(value, str):
+            return self.get_text_embedding(value)
+        else:
+            raise ValueError("Must provide either audio or text input to CLAPWrapper.")
