@@ -3,9 +3,10 @@ import torch
 
 from enum import Enum
 from metrics.metric import Metric
-from embeddings.embeddingspace import EmbeddingSpace
 from effects.fx import FXChain
 from prompts.prompt import Prompt
+from llms.llmclient import LLMClient
+from embeddings.clap import EmbeddingWrapper
 
 from abc import ABC, abstractmethod
 
@@ -15,31 +16,16 @@ class OptimizationMethod(Enum):
 
 class LossFunction(Enum):
     DIRECTIONAL_LOSS = 'directional_loss'
+    SEMANTIC_SIMILARITY_LOSS = 'semantic_similarity_loss'
+    GUIDED_SEMANTIC_LOSS = 'guided_semantic_loss'
 
 class ParameterInitializationMethod(Enum):
     RANDOM = 'random'
     LLM = 'llm'
     PRESET = 'preset'
+    UNIFORM = 'uniform'
 
-class ParameterInitialization(ABC):
-    @abstractmethod
-    def initialize(self, fxchain : FXChain) -> dict:
-        pass
 
-class RandomInitialization(ParameterInitialization):
-    def initialize(self, fxchain : FXChain) -> dict:
-        # Placeholder for random initialization logic
-        return {}
-
-class LLMInitialization(ParameterInitialization):
-    def initialize(self, fxchain : FXChain) -> dict:
-        # Placeholder for LLM-based initialization logic
-        return {}
-
-class PresetInitialization(ParameterInitialization):
-    def initialize(self, fxchain : FXChain) -> dict:
-        # Placeholder for preset-based initialization logic
-        return {}
 
 @dataclass
 class Config:
@@ -47,14 +33,16 @@ class Config:
     device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
     # ========== LLM Prompt Configurations ==========
     prompt: Prompt = None
+    text_anchor: str = None
+    text_target: str = None
     # ========== Initialization Configurations ==========
-    initialization_method: ParameterInitializationMethod = ParameterInitializationMethod.RANDOM  # or ParameterInitializationMethod.LLM
+    initialization_method: ParameterInitializationMethod = None  # or ParameterInitializationMethod.LLM
     # ========== Optimization Configurations ==========
-    optimization_method: OptimizationMethod = OptimizationMethod.GRADIENT_DESCENT
+    optimization_method: OptimizationMethod = None
     num_iterations: int = 100
     learning_rate: float = 0.01
     # ========== Embedding Configurations ==========
-    embedding_space: EmbeddingSpace = EmbeddingSpace.CLAP  # Placeholder for potential future models
+    embedding: EmbeddingWrapper = None  # Placeholder for potential future models
     # ========== Metric Configurations ==========
     metrics: list[Metric] = None  # List of metric instances to compute, e.g., [CLAPSimilarity()]
     # ========== Effects ==========
@@ -64,4 +52,8 @@ class Config:
     save_checkpoints: bool = True
     checkpoint_dir: str = './checkpoints'
     # ========== Loss Function Configurations ==========
-    loss_function: LossFunction = LossFunction.DIRECTIONAL_LOSS
+    loss_function: LossFunction = None
+
+    llmclient: LLMClient = None
+
+    effects_type: str = "DASP"  # or "Pedalboard"
