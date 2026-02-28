@@ -25,8 +25,6 @@ class ParameterInitializationMethod(Enum):
     PRESET = 'preset'
     UNIFORM = 'uniform'
 
-
-
 @dataclass
 class Config:
     # ========== General Configurations ==========

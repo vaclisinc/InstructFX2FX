@@ -183,6 +183,7 @@ def clap_score_batch_guide(audio_list: list[np.ndarray], sr: int, prompts: str o
     audio_embeddings = clap_model.get_audio_embedding(audio_batch, enable_grad=False)
     print(f"      [clap_score_batch_guide] Audio embeddings shape: {audio_embeddings.shape}")
 
+
     print(f"      [clap_score_batch_guide] Computing text embeddings...")
     positive_embedding = clap_model.get_text_embedding(positive_prompt)  # [1, D]
     negative_embedding = clap_model.get_text_embedding(negative_prompt)  # [1, D]
@@ -194,7 +195,6 @@ def clap_score_batch_guide(audio_list: list[np.ndarray], sr: int, prompts: str o
     negative_scores = (audio_embeddings * negative_embedding).sum(dim=-1)  # [B]
     guided_scores = (positive_scores - negative_scores).cpu().numpy().tolist()
     print(f"      [clap_score_batch_guide] Final guided scores: {guided_scores}")
-
     return [guided_scores] if not isinstance(guided_scores, list) else guided_scores
 
 def clap_score(audio_mono: np.ndarray, sr: int, prompt: str, clap_model) -> float:
@@ -371,9 +371,22 @@ def refine_candidate_bayesian(args_dict, plot=False):
         print(f"    🔄 Computing CLAP score...")
         score = clap_score(resampled_processed_audio, 48000, prompt, clap_model)
         print(f"      └─ Score: {score:.4f}")
+
+        # Store audio embedding for later visualization
+        a = np.asarray(resampled_processed_audio, dtype=np.float32)
+        if a.ndim == 1:
+            a = a[np.newaxis, :]
+        audio_emb = clap_model.get_audio_embedding(torch.from_numpy(a).unsqueeze(0), enable_grad=False)
+        embeddings_history.append({
+            'iteration': len(embeddings_history),
+            'audio_embedding': audio_emb.detach().cpu(),
+            'score': score,
+        })
+
         return -1.0 * score
 
     scores_history = {}
+    embeddings_history = []  # stores {'iteration', 'audio_embedding', 'score'} per call
 
     @use_named_args(search_space)
     def objective_function_guide(**params):
@@ -426,6 +439,18 @@ def refine_candidate_bayesian(args_dict, plot=False):
 
         params_tuple = tuple(sorted(params.items()))
         scores_history[params_tuple] = positive_score
+
+        # Store audio embedding for later visualization
+        a = np.asarray(resampled_processed_audio, dtype=np.float32)
+        if a.ndim == 1:
+            a = a[np.newaxis, :]
+        audio_emb = clap_model.get_audio_embedding(torch.from_numpy(a).unsqueeze(0), enable_grad=False)
+        embeddings_history.append({
+            'iteration': len(embeddings_history),
+            'audio_embedding': audio_emb.detach().cpu(),
+            'score': float(positive_score),
+            'guided_score': float(final_score),
+        })
 
         # skopt minimizes the objective function, so we return -1 times the final score
         return -1.0 * final_score
@@ -563,9 +588,10 @@ def refine_candidate_bayesian(args_dict, plot=False):
 
     print(f"\n✓ === Bayesian Optimization Complete ===")
     print(f"  ├─ Output directory: {outdir}")
-    print(f"  └─ Presets saved: {len(final_presets)}")
+    print(f"  ├─ Presets saved: {len(final_presets)}")
+    print(f"  └─ Embeddings stored: {len(embeddings_history)}")
 
-    return final_presets
+    return final_presets, embeddings_history
 
 ALL_PARAM_RANGES_FXSearcher = {
     "Distortion": {"drive_db": {"lo": 0, "hi": 15, "res": 0.1, "scale": "linear"}},
@@ -710,7 +736,7 @@ def fxsearcher(audio: str = None,
         'clap_model': clap_model
     }
 
-    final_result = refine_candidate_bayesian(args_dict, plot=plot)
+    final_result, embeddings_history = refine_candidate_bayesian(args_dict, plot=plot)
 
     elapsed = time.time() - start_time
     print(f"\nRefinement finished. Total search time: {elapsed:.2f} seconds")
@@ -731,12 +757,9 @@ def fxsearcher(audio: str = None,
 
     # FXSearcher returns Pedalboard params (incompatible with DASP chain)
     # The audio has already been rendered and saved internally
-    # Return a dummy tensor so trainer doesn't crash
-    best_params_dict = final_result[0] if isinstance(final_result, list) and len(final_result) > 0 else {}
-    dummy_params_tensor = torch.ones(49, dtype=torch.float32) * 0.5  # Dummy DASP params
-
+    # Return embeddings_history as second value for downstream visualization
     audio, sr = torchaudio.load(os.path.join(outdir, "best.wav"))
-    return audio, None, None
+    return audio, embeddings_history, None
 
 
 if __name__ == "__main__":
