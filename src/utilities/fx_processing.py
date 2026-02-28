@@ -1,7 +1,8 @@
 import math
 import torch
+from effects.fx import ALL_PARAM_RANGES
 
-def normalize(value, spec):
+def normalize_effect_parameters(value, spec):
     lo, hi = spec["lo"], spec["hi"]
     if spec["scale"] == "linear":
         return (value - lo) / (hi - lo)
@@ -61,15 +62,27 @@ REVERB_ORDER = [
     "mix",
 ]
 
-def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, ALL_PARAM_RANGES=None):
+def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, param_ranges=None):
     """
-    Convert grouped FX config JSON into a normalized tensor of 49 parameters
+    Convert grouped FX config dict into a normalized tensor of 49 parameters
     in the exact order expected by FXChain.process_normalized().
-    """
 
-    eq   = next(c for c in config if c["type"] == "EQ")
-    comp = next(c for c in config if c["type"] == "Compressor")
-    rev  = next(c for c in config if c["type"] == "Reverb")
+    Args:
+        config: Dict with effect types as keys ('EQ', 'Compressor', 'Reverb')
+                and parameter dicts as values
+    """
+    if type(config) is torch.Tensor:
+        return config.to(device=device, dtype=dtype)
+
+    elif type(config) is not dict:
+        raise ValueError(f"Expected config to be a dict or Tensor, got {type(config)}")
+
+    if param_ranges is None:
+        param_ranges = ALL_PARAM_RANGES
+
+    eq   = config["EQ"]
+    comp = config["Compressor"]
+    rev  = config["Reverb"]
 
     params = []
 
@@ -77,22 +90,22 @@ def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, ALL_P
     # 1) EQ (18)
     # -----------------------------
     for key in EQ_ORDER:
-        spec = ALL_PARAM_RANGES["EQ"][key]
-        params.append(normalize(eq[key], spec))
+        spec = param_ranges["EQ"][key]
+        params.append(normalize_effect_parameters(eq[key], spec))
 
     # -----------------------------
     # 2) Compressor (6)
     # -----------------------------
     for key in COMP_ORDER:
-        spec = ALL_PARAM_RANGES["Compressor"][key]
-        params.append(normalize(comp[key], spec))
+        spec = param_ranges["Compressor"][key]
+        params.append(normalize_effect_parameters(comp[key], spec))
 
     # -----------------------------
     # 3) Reverb (25)
     # -----------------------------
     for key in REVERB_ORDER:
-        spec = ALL_PARAM_RANGES["Reverb"][key]
-        params.append(normalize(rev[key], spec))
+        spec = param_ranges["Reverb"][key]
+        params.append(normalize_effect_parameters(rev[key], spec))
 
     assert len(params) == 49, f"Expected 49 params, got {len(params)}"
 
