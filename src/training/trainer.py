@@ -24,6 +24,7 @@ class ParameterEngine:
             initial_params_tensor = fx_initial_params_to_tensor(initial_params_dict, device=self.config.device, param_ranges=ALL_PARAM_RANGES)
 
         elif init_method_value == ParameterInitializationMethod.LLM.value:
+            print("🔄 Initializing parameters using LLM...")
             if self.config.llmclient is None:
                 raise ValueError("LLM client must be provided in config for LLM-based initialization.")
 
@@ -35,11 +36,13 @@ class ParameterEngine:
                 llm_params_tensor = torch.zeros((1, 49), device=self.config.device) + 0.5
                 print(f"✓ LLM generated parameters for Bayesian Optimization: {llm_params_dict.keys()}")
             elif not llm_params_tensor_example or not llm_params_dict_example:
+                print("⚠️ LLM-generated example parameters not found. Generating new parameters using LLM client...")
                 llm_params_dict = self.config.llmclient.generate_parameters(self.config.prompt)
                 llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict, device=self.config.device, param_ranges=ALL_PARAM_RANGES)
                 print(f"✓ LLM generated {llm_params_tensor.shape[1]} parameters")
-                print(f"Sample: {llm_params_tensor[0, :5].tolist()}...")
+                print(llm_params_dict, llm_params_tensor)
             else:
+                print("✓ Using existing LLM-generated example parameters for Optimization")
                 llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict_example, device=self.config.device, param_ranges=ALL_PARAM_RANGES)
                 llm_params_dict = llm_params_dict_example
             initial_params_dict = llm_params_dict
@@ -125,5 +128,7 @@ class ParameterEngine:
             )
 
         else:
+            if self.config.initialization_method is ParameterInitializationMethod.LLM and self.config.loss_function is None:
+                return initial_params_tensor, initial_params_dict, None
             print(f"⚠️ Unknown loss function: {self.config.loss_function}. Returning initial parameters without optimization.")
-            return torch.sigmoid(initial_params_tensor), None, None
+            return initial_params_tensor, None, None

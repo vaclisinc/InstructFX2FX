@@ -1,10 +1,11 @@
+
 import torch.nn.functional as F
 import torch
 import numpy as np
 from tqdm import tqdm
 
 from skopt import gp_minimize
-from skopt.space import Real
+from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 
 from configurations.config import OptimizationMethod
@@ -44,6 +45,11 @@ def refine_with_directional_loss(
     if device is None:
         device = audio.device
 
+
+    def inverse_sigmoid_torch(y, eps=1e-6):
+        y = torch.clamp(y, eps, 1 - eps)
+        return torch.log(y / (1 - y))
+
     # Shorten audio for faster CLAP processing (use first 5 seconds)
     max_clap_samples = 5 * 44100
     if audio.shape[-1] > max_clap_samples:
@@ -53,16 +59,17 @@ def refine_with_directional_loss(
         audio_short = audio
 
     # Setup - ensure initial_params is on correct device and requires grad
-    params = torch.nn.Parameter(initial_params.clone().detach().to(device).requires_grad_(True))
+    params = torch.nn.Parameter(inverse_sigmoid_torch(initial_params).clone().detach().to(device).requires_grad_(True))
     optimizer = torch.optim.Adam([params], lr=lr)
 
     # Get fixed embeddings (no gradients needed for these)
     text_anchor_emb = clap_model.get_text_embedding(text_anchor)
     text_target_emb = clap_model.get_text_embedding(text_target)
     # Use LLM-processed audio as anchor so it semantically aligns with text_anchor
+
+    # Anchor embedding is from the original audio (before effects) to capture the "starting point" in CLAP space
     audio_anchor_emb = clap_model.get_audio_embedding(
-        fx_chain(audio_short.clone(), torch.sigmoid(initial_params.clone().detach().to(device)))
-    )
+        audio_short.clone())
 
     # Ensure all are tensors and detached
     if isinstance(text_anchor_emb, torch.Tensor):
@@ -91,9 +98,12 @@ def refine_with_directional_loss(
     if snapshot_interval:
         print(f"📸 Saving param snapshots every {snapshot_interval} iterations")
 
-    if optimization_method == OptimizationMethod.GRADIENT_DESCENT:
+    audios = {}
+    audios.update({"original": audio_short.detach().cpu()})
 
-
+    print(f'\n⚡ Starting {optimization_method.name.replace("_", " ").title()}-based refinement for {n_iterations} iterations...')
+    if optimization_method.value == OptimizationMethod.GRADIENT_DESCENT.value:
+        print(f"⚡ Starting gradient descent refinement...")
         for i in tqdm(range(n_iterations)):
             optimizer.zero_grad()
 
@@ -102,6 +112,9 @@ def refine_with_directional_loss(
 
             # Get embedding - gradients will flow back through audio_effected
             audio_effected_emb = clap_model.get_audio_embedding(audio_effected)
+
+            if i % 10 == 0:
+                audios[f"iter_{i}_in_{optimization_method.name.lower().replace(' ', '_')}"] = audio_effected.detach().cpu()
 
             # Ensure it's a tensor
             if not isinstance(audio_effected_emb, torch.Tensor):
@@ -126,7 +139,7 @@ def refine_with_directional_loss(
                 if (i + 1) % snapshot_interval == 0 or i == n_iterations - 1:
                     snapshots[i + 1] = params.detach().clone()
 
-    elif optimization_method == OptimizationMethod.BAYESIAN_OPTIMIZATION:
+    elif optimization_method.value == OptimizationMethod.BAYESIAN_OPTIMIZATION.value:
         # ---------------------------------------------------------------
         # Bayesian Optimization over directional loss
         # Search space: 49 normalised params in [0, 1] matching FXChain order
@@ -142,6 +155,7 @@ def refine_with_directional_loss(
         assert n_params == 49, f"Expected 49 params, got {n_params}"
 
         search_space = [Real(0.0, 1.0, name=name) for name in param_order]
+        iterator = Integer(0, n_iterations, name='iteration')
 
         # Initial point from LLM / preset (already normalised to [0, 1])
         x0 = torch.sigmoid(initial_params.clone().detach()).squeeze().cpu().numpy().tolist()
@@ -155,7 +169,7 @@ def refine_with_directional_loss(
             ).unsqueeze(0)
 
             with torch.no_grad():
-                audio_effected = fx_chain(audio_short.clone(), param_tensor)
+                audio_effected = fx_chain(audio_short.clone(), torch.sigmoid(param_tensor))
                 audio_effected_emb = clap_model.get_audio_embedding(audio_effected)
 
                 if not isinstance(audio_effected_emb, torch.Tensor):
@@ -189,7 +203,8 @@ def refine_with_directional_loss(
                 if iteration % snapshot_interval == 0 or iteration == n_iterations:
                     best_params_list = res.x
                     snap = torch.tensor(best_params_list, device=device, dtype=torch.float32).unsqueeze(0)
-                    snapshots[iteration] = snap
+                    audio_effected = fx_chain(audio_short.clone(), snap)
+                    audios[f"iter_{iteration}_in_{optimization_method.name.lower().replace(' ', '_')}"] = audio_effected.detach().cpu()
 
             if iteration % 20 == 0 or iteration == n_iterations:
                 print(f"  Iter {iteration:3d}: best loss = {current_best:.4f}")
@@ -230,7 +245,8 @@ def refine_with_directional_loss(
         if not history:
             history.append({"iteration": 0, "loss": result.fun})
 
-    print(f"✓ Done! Final loss = {history[-1]['loss']:.4f}")
-    if snapshots:
-        print(f"📸 Saved {len(snapshots)} param snapshots")
-    return torch.sigmoid(best_params) if optimization_method == OptimizationMethod.BAYESIAN_OPTIMIZATION else torch.sigmoid(params.detach()), history, snapshots
+    if len(history) > 0:
+        print(f"✓ Done! Final loss = {history[-1]['loss']:.4f}")
+    # if snapshots:
+    #     print(f"📸 Saved {len(snapshots)} param snapshots")
+    return torch.sigmoid(best_params) if optimization_method == OptimizationMethod.BAYESIAN_OPTIMIZATION else torch.sigmoid(params.detach()), history, audios
