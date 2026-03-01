@@ -49,6 +49,7 @@ class Config:
     log_dir: str = './logs'
     save_checkpoints: bool = True
     checkpoint_dir: str = './checkpoints'
+    snapshot_interval: int = 10  # Save intermediate results every N iterations
     # ========== Loss Function Configurations ==========
     loss_function: LossFunction = None
 
