@@ -99,7 +99,7 @@ def refine_with_directional_loss(
         print(f"📸 Saving param snapshots every {snapshot_interval} iterations")
 
     audios = {}
-    audios.update({"original": audio_short.detach().cpu()})
+    audios.update({"original": (audio_short.clone().cpu(), torch.sigmoid(params).detach().cpu())})  # Store original audio for reference
 
     print(f'\n⚡ Starting {optimization_method.name.replace("_", " ").title()}-based refinement for {n_iterations} iterations...')
     if optimization_method.value == OptimizationMethod.GRADIENT_DESCENT.value:
@@ -114,7 +114,7 @@ def refine_with_directional_loss(
             audio_effected_emb = clap_model.get_audio_embedding(audio_effected)
 
             if i % 10 == 0:
-                audios[f"iter_{i}_in_{optimization_method.name.lower().replace(' ', '_')}"] = audio_effected.detach().cpu()
+                audios[f"iter_{i}_in_{optimization_method.name.lower().replace(' ', '_')}"] = (audio_effected.detach().cpu(), torch.sigmoid(params).detach().cpu())
 
             # Ensure it's a tensor
             if not isinstance(audio_effected_emb, torch.Tensor):
@@ -202,9 +202,11 @@ def refine_with_directional_loss(
             if snapshot_interval is not None:
                 if iteration % snapshot_interval == 0 or iteration == n_iterations:
                     best_params_list = res.x
+
                     snap = torch.tensor(best_params_list, device=device, dtype=torch.float32).unsqueeze(0)
+                    print(f"📸 BO Iter {iteration}: loss = {current_best:.4f} - saving snapshot.", snap.squeeze().cpu().numpy())
                     audio_effected = fx_chain(audio_short.clone(), snap)
-                    audios[f"iter_{iteration}_in_{optimization_method.name.lower().replace(' ', '_')}"] = audio_effected.detach().cpu()
+                    audios[f"iter_{iteration}_in_{optimization_method.name.lower().replace(' ', '_')}"] = (audio_effected.detach().cpu(), snap)
 
             if iteration % 20 == 0 or iteration == n_iterations:
                 print(f"  Iter {iteration:3d}: best loss = {current_best:.4f}")
@@ -249,4 +251,14 @@ def refine_with_directional_loss(
         print(f"✓ Done! Final loss = {history[-1]['loss']:.4f}")
     # if snapshots:
     #     print(f"📸 Saved {len(snapshots)} param snapshots")
-    return torch.sigmoid(best_params) if optimization_method == OptimizationMethod.BAYESIAN_OPTIMIZATION else torch.sigmoid(params.detach()), history, audios
+
+    final_params = best_params if optimization_method == OptimizationMethod.BAYESIAN_OPTIMIZATION else torch.sigmoid(params.detach())
+    print(f"📊 Final params (normalized): {final_params.squeeze().cpu().numpy()}")
+    
+    # Compute and store final audio with final parameters
+    with torch.no_grad():
+        final_audio = fx_chain(audio_short.clone(), final_params)
+        audios['final'] = (final_audio.detach().cpu(), final_params.detach().cpu())
+    
+    return_value = final_params, history, audios
+    return return_value
