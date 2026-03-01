@@ -218,68 +218,13 @@ def initialize_uniform_params():
     return params
 
 
-llm_params_dict_example = {
-    'EQ': {
-        'b1_freq': 120,
-        'b1_gain': 2.5,
-        'b1_q': 1.0,
-        'b2_freq': 300,
-        'b2_gain': 1.5,
-        'b2_q': 1.2,
-        'b3_freq': 1000,
-        'b3_gain': 3.0,
-        'b3_q': 0.8,
-        'b4_freq': 3000,
-        'b4_gain': 5.0,
-        'b4_q': 0.7,
-        'b5_freq': 6000,
-        'b5_gain': 6.0,
-        'b5_q': 0.9,
-        'b6_freq': 10000,
-        'b6_gain': 4.5,
-        'b6_q': 0.7
-    },
-    'Compressor': {
-        'threshold_db': -20,
-        'ratio': 3.0,
-        'attack': 0.01,
-        'release': 0.1,
-        'makeup_gain_db': 2.0,
-        'mix': 0.8
-    },
-    'Reverb': {
-        'early_gain': 0.6,
-        'early_delay': 0.01,
-        'early_diffusion': 0.7,
-        'early_width': 0.8,
-        'early_lowcut': 200,
-        'early_highcut': 8000,
-        'early_mix': 0.7,
-        'late_gain': 0.5,
-        'decay_time': 1.5,
-        'late_diffusion': 0.8,
-        'density': 0.9,
-        'mod_rate': 0.3,
-        'mod_depth': 0.2,
-        'late_lowcut': 250,
-        'late_highcut': 9000,
-        'late_width': 0.75,
-        'late_mix': 0.6,
-        'pre_delay': 0.02,
-        'damping': 0.5,
-        'lowcut': 100,
-        'highcut': 12000,
-        'wet': 0.5,
-        'dry': 0.5,
-        'width': 0.9,
-        'mix': 0.7
-    }
-}
-llm_params_tensor_example = [0.2594, 0.5521, 0.5000, 0.3920, 0.5312, 0.5396, 0.5663, 0.5625, 0.4515,
-         0.7254, 0.6042, 0.4225, 0.8257, 0.6250, 0.4771, 0.8997, 0.5938, 0.4225,
-         0.6667, 0.3667, 0.5000, 0.5000, 0.0833, 0.8000, 0.6000, 0.1000, 0.7000,
-         0.8000, 0.5886, 0.6021, 0.7000, 0.5000, 0.5880, 0.8000, 0.9000, 0.0600,
-         0.2000, 0.6456, 0.6532, 0.7500, 0.6000, 0.2000, 0.5000, 0.4114, 0.7782,
-         0.5000, 0.5000, 0.9000, 0.7000]
+llm_params_dict_example = {'EQ': {'b1_freq': 100, 'b1_gain': -3, 'b1_q': 0.7, 'b2_freq': 250, 'b2_gain': -2, 'b2_q': 1.0, 'b3_freq': 1000, 'b3_gain': 2.5, 'b3_q': 0.9, 'b4_freq': 3000, 'b4_gain': 5, 'b4_q': 1.2, 'b5_freq': 6000, 'b5_gain': 4, 'b5_q': 1.1, 'b6_freq': 12000, 'b6_gain': 6, 'b6_q': 0.8}, 'Compressor': {'threshold_db': -18, 'ratio': 4, 'attack': 0.003, 'release': 0.15, 'makeup_gain_db': 5, 'mix': 0.8}, 'Reverb': {'early_gain': 0.8, 'early_delay': 0.05, 'early_diffusion': 0.7, 'early_width': 1.0, 'early_lowcut': 100, 'early_highcut': 8000, 'early_mix': 0.6, 'late_gain': 0.7, 'decay_time': 2.5, 'late_diffusion': 0.8, 'density': 0.85, 'mod_rate': 0.5, 'mod_depth': 0.3, 'late_lowcut': 150, 'late_highcut': 9000, 'late_width': 0.9, 'late_mix': 0.7, 'pre_delay': 0.02, 'damping': 0.5, 'lowcut': 80, 'highcut': 16000, 'wet': 0.6, 'dry': 1.0, 'width': 0.95, 'mix': 0.5}}
+llm_params_tensor_example = [0.2330, 0.4375, 0.4225, 0.3656, 0.4583, 0.5000, 0.5663, 0.5521, 0.4771,
+         0.7254, 0.6042, 0.5396, 0.8257, 0.5833, 0.5207, 0.9261, 0.6250, 0.4515,
+         0.7000, 0.4628, 0.2386, 0.5880, 0.2083, 0.8000, 0.8000, 0.5000, 0.7000,
+         1.0000, 0.4114, 0.6021, 0.6000, 0.7000, 0.6990, 0.8000, 0.8500, 0.1000,
+         0.3000, 0.5151, 0.6532, 0.9000, 0.7000, 0.2000, 0.5000, 0.3544, 0.9031,
+         0.6000, 1.0000, 0.9500, 0.5000]
+# LLM-generated example parameters for task "Make the sound brighter."
 
 llm_params_dict_example_pedalboard = {'EQ': {'mode': 'shelf-shelf', 'low_cut': 100.0, 'high_cut': 16000.0, 'q': 1.0, 'gains': {'high_shelf': 4.0}, 'peak1_freq': 200.0, 'peak2_freq': 1000.0, 'peak3_freq': 5000.0}, 'Distortion': {'drive_db': 0.0}, 'Reverb': {'room_size': 0.3, 'damping': 0.2, 'wet_level': 0.1}, 'Delay': {'delay': 0.01}, 'PitchShift': {'semitones': 0}, 'Bitcrush': {'bit_depth': 16}}
