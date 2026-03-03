@@ -538,10 +538,8 @@ def fxsearcher_og(audio: str = None,
     from datetime import datetime
 
     if all_param_ranges is not None:
-        global ALL_PARAM_RANGES
         ALL_PARAM_RANGES = all_param_ranges
     else:
-        global ALL_PARAM_RANGES
         ALL_PARAM_RANGES = ALL_PARAM_RANGES_FXSearcher
 
     # If essential arguments are missing, fall back to CLI parsing for backwards compatibility
@@ -604,6 +602,8 @@ def fxsearcher_og(audio: str = None,
     if fxs is not None:
         initial_params = [fx for fx in initial_params if fx['type'] in fxs]
         PARAM_RANGES = {fx: ALL_PARAM_RANGES[fx] for fx in ALL_PARAM_RANGES if fx in fxs}
+
+        print("Param Ranges", PARAM_RANGES)
     else:
         PARAM_RANGES = ALL_PARAM_RANGES
 
