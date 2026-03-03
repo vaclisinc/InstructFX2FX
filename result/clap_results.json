@@ -1,0 +1,14 @@
+{
+  "clap_per_file": {
+    "guitar_clean.wav": 0.15572563741956014,
+    "piano_close.wav": 0.10737580911065303,
+    "vocal_dry.wav": 0.0676112174987793
+  },
+  "guided_clap_per_file": {
+    "guitar_clean.wav": 0.20354422650004822,
+    "piano_close.wav": 0.0451867702492017,
+    "vocal_dry.wav": 0.040794895961880684
+  },
+  "clap_mean": 0.11023755467633083,
+  "guided_clap_mean": 0.0965086309037102
+}
