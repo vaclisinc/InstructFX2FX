@@ -113,7 +113,7 @@ def refine_with_directional_loss(
             # Get embedding - gradients will flow back through audio_effected
             audio_effected_emb = clap_model.get_audio_embedding(audio_effected)
 
-            if i % 10 == 0:
+            if snapshot_interval is not None and i % snapshot_interval == 0:
                 audios[f"iter_{i}_in_{optimization_method.name.lower().replace(' ', '_')}"] = (audio_effected.detach().cpu(), torch.sigmoid(params).detach().cpu())
 
             # Ensure it's a tensor
@@ -131,7 +131,7 @@ def refine_with_directional_loss(
             optimizer.step()
 
             history.append({'iteration': i, 'loss': loss.item()})
-            if i % 20 == 0 or i == n_iterations - 1:
+            if snapshot_interval is not None and (i % snapshot_interval == 0 or i == n_iterations - 1):
                 print(f"  Iter {i:3d}: loss = {loss.item():.4f}")
 
             # Save param snapshot at intervals and at the last iteration
@@ -158,7 +158,9 @@ def refine_with_directional_loss(
         iterator = Integer(0, n_iterations, name='iteration')
 
         # Initial point from LLM / preset (already normalised to [0, 1])
-        x0 = torch.sigmoid(initial_params.clone().detach()).squeeze().cpu().numpy().tolist()
+        x0 = initial_params.detach().cpu().numpy().flatten().tolist()
+
+        print(f"⚡ Starting Bayesian Optimization refinement with {n_iterations} iterations... {params}")
 
         # ----- objective -------------------------------------------------
         @use_named_args(search_space)
@@ -169,7 +171,7 @@ def refine_with_directional_loss(
             ).unsqueeze(0)
 
             with torch.no_grad():
-                audio_effected = fx_chain(audio_short.clone(), torch.sigmoid(param_tensor))
+                audio_effected = fx_chain(audio_short.clone(), param_tensor)
                 audio_effected_emb = clap_model.get_audio_embedding(audio_effected)
 
                 if not isinstance(audio_effected_emb, torch.Tensor):
@@ -254,11 +256,11 @@ def refine_with_directional_loss(
 
     final_params = best_params if optimization_method == OptimizationMethod.BAYESIAN_OPTIMIZATION else torch.sigmoid(params.detach())
     print(f"📊 Final params (normalized): {final_params.squeeze().cpu().numpy()}")
-    
+
     # Compute and store final audio with final parameters
     with torch.no_grad():
         final_audio = fx_chain(audio_short.clone(), final_params)
         audios['final'] = (final_audio.detach().cpu(), final_params.detach().cpu())
-    
+
     return_value = final_params, history, audios
     return return_value
