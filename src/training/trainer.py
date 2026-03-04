@@ -35,7 +35,7 @@ class ParameterEngine:
                     llm_params_dict = self.config.llmclient.generate_parameters(self.config.prompt)
                 llm_params_tensor = torch.zeros((1, 49), device=self.config.device) + 0.5
                 print(f"✓ LLM generated parameters for Bayesian Optimization: {llm_params_dict.keys()}")
-            elif not llm_params_tensor_example or not llm_params_dict_example:
+            elif not llm_params_tensor_example or not llm_params_dict_example or self.config.prompt.instruction != "This is piano music. Make the sound brighter":
                 print("⚠️ LLM-generated example parameters not found. Generating new parameters using LLM client...")
                 llm_params_dict = self.config.llmclient.generate_parameters(self.config.prompt)
                 llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict, device=self.config.device, param_ranges=ALL_PARAM_RANGES)
