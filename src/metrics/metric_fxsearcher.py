@@ -15,13 +15,16 @@ import soundfile as sf
 
 import whisper
 import jiwer
-from pesq import pesq
+# from pesq import pesq
 from frechet_audio_distance import FrechetAudioDistance
 import pyloudnorm as pyln
 
-from metrics.metric import Metric
-from prompts.prompt import Prompt
-from embeddings.clap_fxsearcher import CLAPFxSearcherWrapper
+import json
+from typing import Optional, Dict, Any, List
+
+from src.metrics.metric import Metric
+from src.prompts.prompt import Prompt
+from src.embeddings.clap_fxsearcher import CLAPFxSearcherWrapper
 
 @dataclass(frozen=True)
 class AudioItem:
@@ -98,14 +101,19 @@ class FxSearcherWER(Metric):
         return float(jiwer.wer(ref, hyp))
 
 class FxSearcherPESQ(Metric):
-    """Perceptual Speech Quality (WB-PESQ)"""
     def compute(self, original_audio: Any, target_audio: Any, prompt=None):
+
+        try:
+            from pesq import pesq
+        except Exception:
+            return None
+
         wav_o_raw, sr_o = _extract_audio_and_sr(original_audio)
         wav_t_raw, sr_t = _extract_audio_and_sr(target_audio)
-        
-        # PESQ strictly requires 16kHz
+
         ref = librosa.resample(_load_waveform_mono(wav_o_raw), orig_sr=sr_o, target_sr=16000)
         deg = librosa.resample(_load_waveform_mono(wav_t_raw), orig_sr=sr_t, target_sr=16000)
+
         return float(pesq(16000, ref, deg, 'wb'))
 
 class FxSearcherFAD(Metric):
@@ -145,3 +153,86 @@ class AIJudgeGemini(Metric):
         # Implementation: Ask Gemini which audio matches prompt better
         # Return "A", "B", or "Tie"
         return "A"
+    
+def run_fxsearcher_evaluation(
+    pred_dir: str,
+    gt_dir: Optional[str] = None,
+    prompts_map: Optional[Dict[str, str]] = None,
+    target_sr: int = 48000,
+    max_files: Optional[int] = None,
+) -> Dict[str, Any]:
+
+    clap_metric = FxSearcherCLAPScore()
+    guided_clap_metric = FxSearcherGuidedCLAPScore()
+    lufs_metric = FxSearcherIntegratedLUFS()
+
+    # wer_metric = FxSearcherWER()
+    pesq_metric = FxSearcherPESQ()
+
+    per_file = {}
+
+    fnames = sorted([f for f in os.listdir(pred_dir) if f.endswith(".wav")])
+
+    if max_files is not None:
+        fnames = fnames[:max_files]
+
+    for fname in fnames:
+
+        audio_path = os.path.join(pred_dir, fname)
+
+        prompt_obj = None
+        if prompts_map is not None and fname in prompts_map:
+            prompt_obj = Prompt(instruction=prompts_map[fname])
+
+        item = AudioItem(audio_path)
+
+        metrics = {}
+
+        if prompt_obj is not None:
+            metrics["clap"] = clap_metric.compute(None, item, prompt_obj)
+            metrics["guided_clap"] = guided_clap_metric.compute(None, item, prompt_obj)
+
+        metrics["lufs"] = lufs_metric.compute(None, item)
+
+        # try:
+        #     metrics["wer"] = wer_metric.compute(item, item)
+        # except Exception:
+        #     metrics["wer"] = None
+        metrics["wer"] = None
+
+        try:
+            metrics["pesq"] = pesq_metric.compute(item, item)
+        except Exception:
+            metrics["pesq"] = None
+
+        per_file[fname] = metrics
+
+    summary = {}
+
+    def safe_mean(values):
+        vals = [v for v in values if v is not None]
+        if len(vals) == 0:
+            return None
+        return float(sum(vals) / len(vals))
+
+    clap_vals = [v.get("clap") for v in per_file.values()]
+    guided_vals = [v.get("guided_clap") for v in per_file.values()]
+    lufs_vals = [v.get("lufs") for v in per_file.values()]
+
+    summary["clap_mean"] = safe_mean(clap_vals)
+    summary["guided_clap_mean"] = safe_mean(guided_vals)
+    summary["lufs_mean"] = safe_mean(lufs_vals)
+
+    if gt_dir is not None:
+        try:
+            fad_metric = FxSearcherFAD()
+            summary["fad"] = fad_metric.compute(gt_dir, pred_dir)
+        except Exception:
+            summary["fad"] = None
+
+    return {
+        "pred_dir": pred_dir,
+        "gt_dir": gt_dir,
+        "summary": summary,
+        "per_file": per_file,
+    }
