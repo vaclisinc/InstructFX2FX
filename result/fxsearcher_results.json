@@ -1,0 +1,23 @@
+{
+  "pred_dir": "results/this_sound_is_too_bright__make_it_warmer",
+  "gt_dir": null,
+  "summary": {
+    "clap_mean": 0.01951407827436924,
+    "guided_clap_mean": -0.021917173638939857,
+    "lufs_mean": -17.76244866806387
+  },
+  "per_file": {
+    "best.wav": {
+      "clap": 0.01951407827436924,
+      "guided_clap": -0.021917173638939857,
+      "lufs": -14.592637468044792,
+      "wer": null,
+      "pesq": null
+    },
+    "original.wav": {
+      "lufs": -20.932259868082948,
+      "wer": null,
+      "pesq": null
+    }
+  }
+}
