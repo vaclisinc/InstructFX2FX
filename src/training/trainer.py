@@ -4,7 +4,7 @@ from effects.fx import initialize_random_params, initialize_uniform_params,llm_p
 from configurations.config import ParameterInitializationMethod
 from utilities.fx_processing import fx_initial_params_to_tensor
 from effects.fx import ALL_PARAM_RANGES
-from Fxsearcher.fxsearcher import fxsearcher, ALL_PARAM_RANGES_FXSearcher
+from FxSearcher.fxsearcher import fxsearcher, ALL_PARAM_RANGES_FXSearcher
 from dataclasses import dataclass
 import torch
 
