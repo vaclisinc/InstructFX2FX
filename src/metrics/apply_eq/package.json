@@ -1,0 +1,15 @@
+{
+  "name": "socialfx_pipeline",
+  "version": "1.0.0",
+  "main": "apply_eq.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "node-web-audio-api": "^1.0.8"
+  }
+}

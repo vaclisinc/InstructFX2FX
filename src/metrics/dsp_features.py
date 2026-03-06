@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
 
 # 35-D feature definition (shared with LLM2Fx paper)
 FEATURE_NAMES = [
+
+
     "spectral_centroid_mean",
     "spectral_centroid_std",
     "spectral_bandwidth_mean",
@@ -44,6 +47,43 @@ FEATURE_NAMES = [
     "brightness",
     "loudness_db",
 ]
+
+
+def extract_dsp_feature(
+    audio: Union[str, np.ndarray],
+    sr: int = 22050,
+    save_dir: Optional[Union[str, Path]] = None,
+) -> List[float]:
+    """
+    Extract 35-D DSP feature vector from one audio clip.
+
+    Args:
+        audio: Path to a WAV file (str) or audio samples as numpy array (mono float).
+        sr: Sample rate. Used when audio is an array; when audio is a path,
+            the file is loaded at this rate (default 22050).
+        save_dir: If provided, save features to save_dir/<stem>_features.json.
+            When audio is a path, stem = filename without extension.
+            Default: metrics/features/ (next to this module).
+
+    Returns:
+        List of 35 floats: spectral, MFCC, RMS, ZCR, crest factor, brightness, loudness.
+    """
+    if isinstance(audio, str):
+        arr = extract_dsp_features(audio, sr=sr)
+    else:
+        arr = extract_dsp_features_from_array(np.asarray(audio), sr)
+    feats = arr.tolist()
+
+    # Save to file when audio is a path (we have a stem)
+    if isinstance(audio, str):
+        out_dir = Path(save_dir) if save_dir is not None else Path(__file__).parent / "features"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stem = Path(audio).stem
+        out_path = out_dir / f"{stem}_features.json"
+        with open(out_path, "w") as f:
+            json.dump(feats, f, indent=2)
+
+    return feats
 
 
 def extract_dsp_features(audio_path: str, sr: int = 22050) -> np.ndarray:
