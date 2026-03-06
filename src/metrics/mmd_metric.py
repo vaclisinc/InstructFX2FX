@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Tuple
-
 import numpy as np
 
 from .dsp_features import extract_features_batch, extract_dsp_features_from_array
-from .metric import Metric
 
 
 def compute_mmd(X: np.ndarray, Y: np.ndarray, sigma: float | None = None) -> float:
@@ -45,6 +41,20 @@ def compute_mmd(X: np.ndarray, Y: np.ndarray, sigma: float | None = None) -> flo
     return float(np.sqrt(max(mmd_sq, 0.0)))
 
 
+def cal_mmd_score(matrix_gt: np.ndarray, matrix_ours: np.ndarray) -> float:
+    """
+    MMD score between ground-truth and our feature matrices.
+
+    Args:
+        matrix_gt:   (n, D) array of DSP feature vectors (e.g. from GT audio).
+        matrix_ours: (m, D) array of DSP feature vectors (e.g. from our output).
+
+    Returns:
+        Single float. Lower = closer distributions; 0 = identical.
+    """
+    return compute_mmd(matrix_gt, matrix_ours)
+
+
 def run_mmd_evaluation(gt_dir: str, pred_dir: str, sr: int = 22050) -> float:
     """
     Folder-based MMD evaluation convenience helper.
@@ -69,31 +79,5 @@ def run_mmd_evaluation(gt_dir: str, pred_dir: str, sr: int = 22050) -> float:
     return mmd
 
 
-@dataclass
-class LLM2FxMMD(Metric):
-    """
-    LLM2Fx-style MMD over DSP features for a single pair of audio items.
-
-    This mirrors the original LLM2FxMMD class in llm2fx.py, but with
-    the DSP feature logic factored out to dsp_features.py.
-    """
-
-    sr: int = 22050
-
-    def compute(
-        self,
-        original_audio: Any,
-        target_audio: Any,
-        prompt: Any = None,
-    ) -> float:
-        gt_feat = extract_dsp_features_from_array(
-            np.asarray(target_audio), sr=self.sr
-        )
-        pred_feat = extract_dsp_features_from_array(
-            np.asarray(original_audio), sr=self.sr
-        )
-        return compute_mmd(gt_feat[np.newaxis, :], pred_feat[np.newaxis, :])
-
-
-__all__ = ["compute_mmd", "run_mmd_evaluation", "LLM2FxMMD"]
+__all__ = ["compute_mmd", "cal_mmd_score", "run_mmd_evaluation"]
 

@@ -4,9 +4,8 @@ Creates data/source, data/gt, data/pred and JSON metadata.
 
 Run from repo root:
   python scripts/generate_test_data.py
-Then:
-  python -m src.metrics.llm2fx --gt_dir data/gt/ --pred_dir data/pred/ \
-    --prompts data/prompts.json --gt_params data/gt_params.json --pred_params data/pred_params.json
+Then run MMD evaluation:
+  python -m src.run_mmd_demo --gt_dir data/gt --pred_dir data/pred --sr 22050
 """
 
 import json
@@ -152,8 +151,7 @@ def main():
             json.dump(data, f, indent=2, default=float)
 
     print(f"\nCreated {N_FILES} pairs in {OUTPUT_DIR}")
-    print("Run: python -m src.metrics.llm2fx --gt_dir data/gt/ --pred_dir data/pred/ \\")
-    print("  --prompts data/prompts.json --gt_params data/gt_params.json --pred_params data/pred_params.json")
+    print("Run MMD: python -m src.run_mmd_demo --gt_dir data/gt --pred_dir data/pred --sr 22050")
 
 
 if __name__ == "__main__":
