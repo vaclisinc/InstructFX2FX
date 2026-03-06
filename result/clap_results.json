@@ -1,0 +1,22 @@
+{
+  "clap_per_file": {
+    "guitar_clean.wav": 0.15572563741956014,
+    "piano_close.wav": 0.10737580911065303,
+    "vocal_dry.wav": 0.0676112174987793
+  },
+  "clap_mean": 0.11023755467633083,
+  "clap_per_phrase": {
+    "guitar_clean.wav": {
+      "a warm": 0.08729986101388931,
+      "lush ambient pad with gentle reverb": 0.151891383754181
+    },
+    "piano_close.wav": {
+      "a warm": 0.19247279256906735,
+      "lush ambient pad with gentle reverb": 0.09871335327625275
+    },
+    "vocal_dry.wav": {
+      "a warm": 0.1504090040678382,
+      "lush ambient pad with gentle reverb": 0.07502595037376603
+    }
+  }
+}
