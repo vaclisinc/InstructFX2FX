@@ -99,7 +99,7 @@ def refine_with_directional_loss(
         print(f"📸 Saving param snapshots every {snapshot_interval} iterations")
 
     audios = {}
-    audios.update({"original": (audio_short.clone().cpu(), torch.sigmoid(params).detach().cpu())})  # Store original audio for reference
+    audios.update({"start": (audio_short.clone().cpu(), torch.sigmoid(params).detach().cpu())})  # Store original audio for reference
 
     print(f'\n⚡ Starting {optimization_method.name.replace("_", " ").title()}-based refinement for {n_iterations} iterations...')
     if optimization_method.value == OptimizationMethod.GRADIENT_DESCENT.value:
@@ -260,7 +260,7 @@ def refine_with_directional_loss(
     # Compute and store final audio with final parameters
     with torch.no_grad():
         final_audio = fx_chain(audio_short.clone(), final_params)
-        audios['final'] = (final_audio.detach().cpu(), final_params.detach().cpu())
+        audios['end'] = (final_audio.detach().cpu(), final_params.detach().cpu())
 
     return_value = final_params, history, audios
     return return_value
