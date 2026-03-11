@@ -37,6 +37,8 @@ class LLMClient:
                 {"role": "user", "content": prompt.instruction}]
         )
 
+        print("LLM generated parameters based on the following instruction: ", prompt.instruction)
+
         text = response.choices[0].message.content
         if text:
             try:

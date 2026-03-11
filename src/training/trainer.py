@@ -74,7 +74,7 @@ class ParameterEngine:
         pass
 
 
-    def get_params(self, audio, config):
+    def get_params(self, audio, config, initial_parames_dict = None, initial_params_tensor = None):
         """
         Return normalized, sigmoid, optimized parameters for the given audio and config.
         """
@@ -82,7 +82,11 @@ class ParameterEngine:
         self.config = config
 
         # Initialize parameters based on the specified method
-        initial_params_dict, initial_params_tensor = self._initialize_parameters()
+        if initial_parames_dict is not None and initial_params_tensor is not None:
+            initial_params_dict = initial_parames_dict
+            initial_params_tensor = initial_params_tensor
+        else:
+            initial_params_dict, initial_params_tensor = self._initialize_parameters()
 
         loss_fn_value = self.config.loss_function.value if self.config.loss_function else None
 
