@@ -24,7 +24,7 @@ Very short guide to what we actually use.
 3. It calls:
 
 ```bash
-node apply_eq.js eq <input.wav> <output.wav> <params.json>
+node apply_eq.js <input.wav> <output.wav> <params.json>
 ```
 
 4. `apply_eq.js` runs the exact Audealize 40‑band graphic EQ over the audio and writes `<output.wav>`.
@@ -36,6 +36,24 @@ So for a list of ids for `"warm"`, you get many files like:
 - …
 
 These are your **EQ ground‑truth examples** per parameter set.
+
+---
+
+### 1b. Reverb ground truth via SocialFX (`apply_eq/`)
+
+- **Goal**: Same idea as EQ, but for the SocialFX **reverb** split: 40‑param reverb curves applied to an input wav as ground truth.
+- **Files**:
+  - `apply_eq/apply_reverb.js`: Builds a noise‑shaped reverb IR from the 40‑band curve (same FREQS/Q as EQ), convolves input with it, wet/dry mix.
+  - `apply_eq/generate_reverb_gt.py`: Loads the SocialFX reverb parquet and, for each selected word’s parameter set, calls the JS script to produce WAVs in e.g. `reverb_gt/`.
+
+**How to run**:
+
+```bash
+cd src/metrics/apply_eq
+python generate_reverb_gt.py
+```
+
+Edit the config at the top of `generate_reverb_gt.py` to set `INPUT_WAV`, `OUTPUT_DIR`, and `WORD`. Outputs are one WAV per row (e.g. `reverb_0.wav`, `reverb_42.wav`).
 
 ---
 
