@@ -43,7 +43,6 @@ webapp/frontend/.vite/
 
 results/fxsearcher/.DS_Store
 
-results/
 *.wav
 *.flac
 *.mp3
