@@ -38,7 +38,6 @@ REVERB_ORDER = [
     "early_lowcut",
     "early_highcut",
     "early_mix",
-
     # Late
     "late_gain",
     "decay_time",
@@ -50,7 +49,6 @@ REVERB_ORDER = [
     "late_highcut",
     "late_width",
     "late_mix",
-
     # Global / Output
     "pre_delay",
     "damping",
@@ -62,51 +60,45 @@ REVERB_ORDER = [
     "mix",
 ]
 
+# Canonical param order per effect dict-key
+EFFECT_PARAM_ORDERS = {
+    "EQ":         EQ_ORDER,
+    "Compressor": COMP_ORDER,
+    "Reverb":     REVERB_ORDER,
+}
+
+# Canonical ordering so tensor always matches FXChain order
+_CANONICAL_EFFECT_KEYS = ["EQ", "Compressor", "Reverb"]
+
+
 def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, param_ranges=None):
-    """
-    Convert grouped FX config dict into a normalized tensor of 49 parameters
-    in the exact order expected by FXChain.process_normalized().
+    """Convert a grouped FX config dict into a normalized parameter tensor.
+
+    Iterates over the effects present in `config` in canonical order
+    (EQ → Compressor → Reverb → any future effects in _CANONICAL_EFFECT_KEYS).
+    Only effects present as keys in `config` are included, so the tensor
+    length equals the total params of those effects.
 
     Args:
-        config: Dict with effect types as keys ('EQ', 'Compressor', 'Reverb')
-                and parameter dicts as values
+        config: Dict mapping effect dict-keys ('EQ', 'Compressor', 'Reverb', …)
+                to parameter dicts. May contain any subset of the known effects.
     """
     if type(config) is torch.Tensor:
         return config.to(device=device, dtype=dtype)
-
-    elif type(config) is not dict:
+    if type(config) is not dict:
         raise ValueError(f"Expected config to be a dict or Tensor, got {type(config)}")
 
     if param_ranges is None:
         param_ranges = ALL_PARAM_RANGES
 
-    eq   = config["EQ"]
-    comp = config["Compressor"]
-    rev  = config["Reverb"]
-
     params = []
-
-    # -----------------------------
-    # 1) EQ (18)
-    # -----------------------------
-    for key in EQ_ORDER:
-        spec = param_ranges["EQ"][key]
-        params.append(normalize_effect_parameters(eq[key], spec))
-
-    # -----------------------------
-    # 2) Compressor (6)
-    # -----------------------------
-    for key in COMP_ORDER:
-        spec = param_ranges["Compressor"][key]
-        params.append(normalize_effect_parameters(comp[key], spec))
-
-    # -----------------------------
-    # 3) Reverb (25)
-    # -----------------------------
-    for key in REVERB_ORDER:
-        spec = param_ranges["Reverb"][key]
-        params.append(normalize_effect_parameters(rev[key], spec))
-
-    assert len(params) == 49, f"Expected 49 params, got {len(params)}"
+    # Iterate in canonical order; skip effects not in the config
+    for dict_key in _CANONICAL_EFFECT_KEYS:
+        if dict_key not in config:
+            continue
+        effect_params = config[dict_key]
+        for param_name in EFFECT_PARAM_ORDERS[dict_key]:
+            spec = param_ranges[dict_key][param_name]
+            params.append(normalize_effect_parameters(effect_params[param_name], spec))
 
     return torch.tensor(params, device=device, dtype=dtype).unsqueeze(0)

@@ -101,7 +101,7 @@ class ParameterEngine:
                 n_iterations=self.config.num_iterations,
                 lr=self.config.learning_rate,
                 device=self.config.device,
-                snapshot_interval=10 if self.config.save_checkpoints else None,
+                snapshot_interval=self.config.snapshot_interval if self.config.save_checkpoints else None,
                 optimization_method=self.config.optimization_method
             )
 
