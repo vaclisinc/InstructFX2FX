@@ -444,7 +444,7 @@ def run_experiments(
     fx_chain=None,
     effects: List[str] = None,
     snapshot_interval: Optional[int] = None,
-) -> List[ExperimentResult]:
+) -> Tuple[List[ExperimentResult], str]:
     """
     Run experiments across multiple audio files.
 
@@ -461,7 +461,8 @@ def run_experiments(
         device: Device to run computations on.
 
     Returns:
-        List of ExperimentResult objects with outputs and parameters.
+        (results, experiment_dir): list of ExperimentResult objects and the
+        path to the experiment_{timestamp}/ directory where all outputs were saved.
     """
     results_dir_path = Path(results_dir)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -647,4 +648,4 @@ def run_experiments(
     print(f"  Summary: {summary_path}")
     print(f"{'='*60}\n")
 
-    return results
+    return results, str(experiment_dir)

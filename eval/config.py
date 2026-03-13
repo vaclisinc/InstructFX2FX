@@ -6,6 +6,7 @@ importable from any working directory.
 """
 
 import os
+import torch
 from typing import List, Tuple
 
 # ── Project root (eval/ lives one level below) ─────────────────────────────
@@ -33,7 +34,7 @@ WORD_PAIRS: List[Tuple[str, str]] = [
 # ── Instruments & dry audio ─────────────────────────────────────────────────
 # Instrument names must match subdirectory names under DRY_AUDIO_DIR.
 # Only violin currently has WAV files in dry_audio/.
-INSTRUMENTS: List[str] = ["violin"]
+INSTRUMENTS: List[str] = ["piano", "violin"]
 
 DRY_AUDIO_DIR: str = os.path.join(ROOT, "dry_audio")
 # Expected structure: DRY_AUDIO_DIR/{instrument}/*.wav
@@ -47,10 +48,11 @@ RESULTS_DIR: str = os.path.join(ROOT, "eval", "results")
 APPLY_EQ_JS_PATH: str = os.path.join(ROOT, "eval", "apply_eq", "apply_eq.js")
 
 # ── FX type ─────────────────────────────────────────────────────────────────
-FX_TYPE: str = "eq"
+FX_EFFECTS: List[str] = ["eq"]
 
 # ── Audio ───────────────────────────────────────────────────────────────────
 SAMPLE_RATE: int = 44100
+DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 # ── System hyperparams ──────────────────────────────────────────────────────
 N_GRAD_ITER: int = 1000
