@@ -54,6 +54,13 @@ def _compute_mmd_for_pair_instrument(
 
 # ── Path helpers ─────────────────────────────────────────────────────────────
 
+def _dry_paths(instrument: str) -> List[str]:
+    d = os.path.join(cfg.DRY_AUDIO_DIR, instrument)
+    if not os.path.isdir(d):
+        return []
+    return sorted(os.path.join(d, f) for f in os.listdir(d) if f.endswith(".wav"))
+
+
 def _seq_gt_paths(word_A: str, word_B: str, instrument: str) -> List[str]:
     pattern = os.path.join(cfg.GT_BANK_DIR, f"{word_A}_to_{word_B}", instrument, "*.wav")
     return sorted(glob.glob(pattern))
@@ -103,7 +110,7 @@ def run_exp1(
         params_A = load_all_params_for_word(word_A)
         params_B = load_all_params_for_word(word_B)
         for instrument in cfg.INSTRUMENTS:
-            dry_paths = cfg.DRY_PATHS_BY_INSTRUMENT.get(instrument, [])
+            dry_paths = _dry_paths(instrument)
             if not dry_paths:
                 print(f"[exp1] SKIP GT {pair_key}/{instrument}: no dry paths")
                 continue
@@ -123,7 +130,7 @@ def run_exp1(
     for word_A, word_B in cfg.WORD_PAIRS:
         pair_key = f"{word_A}_to_{word_B}"
         for instrument in cfg.INSTRUMENTS:
-            dry_paths = cfg.DRY_PATHS_BY_INSTRUMENT.get(instrument, [])
+            dry_paths = _dry_paths(instrument)
             if not dry_paths:
                 print(f"[exp1] SKIP sys {pair_key}/{instrument}: no dry paths")
                 continue
