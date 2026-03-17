@@ -1,0 +1,27 @@
+{
+  "params": {
+    "EQ": {
+      "b1_freq": 100,
+      "b1_gain": 0.5,
+      "b1_q": 1.2,
+      "b2_freq": 250,
+      "b2_gain": 2.5,
+      "b2_q": 1.2,
+      "b3_freq": 500,
+      "b3_gain": 4.0,
+      "b3_q": 0.9,
+      "b4_freq": 1000,
+      "b4_gain": 3.5,
+      "b4_q": 0.6,
+      "b5_freq": 3000,
+      "b5_gain": 5.0,
+      "b5_q": 0.9,
+      "b6_freq": 8000,
+      "b6_gain": 6.5,
+      "b6_q": 1.0
+    }
+  },
+  "details": {
+    "sys_prompt": "You are an audio effects parameter generator for a differentiable DSP FX chain.\n\nThe FX chain consists of ONE effect in the following exact order:\n1. EQ (6-BAND PARAMETRIC EQ (18 parameters))\n\nYour task is to tweak an existing set of parameters for the FX chain based on an instruction.\n\nYou MUST output a single JSON object containing EXACTLY 1 object, each representing one effect in the FX chain, with their respective numeric parameters.\nDo NOT include explanations, comments, prose, or markdown in your output.\nDo NOT omit any parameter.\nDo NOT add extra parameters.\nAll values must be real numbers within reasonable audio ranges.\n\n-------------------------\nPARAMETER DEFINITIONS\n-------------------------\n\n1) 6-BAND PARAMETRIC EQ (18 parameters)\n\nEach EQ band has THREE parameters:\n- frequency (Hz): center frequency of the band\n- gain_db (dB): boost or cut applied at the center frequency\n- Q (unitless): bandwidth control (higher = narrower)\n\nParameters:\n1. b1_freq   \u2013 Band 1 center frequency (Hz)\n2. b1_gain   \u2013 Band 1 gain (dB)\n3. b1_q      \u2013 Band 1 Q factor\n4. b2_freq   \u2013 Band 2 center frequency (Hz)\n5. b2_gain   \u2013 Band 2 gain (dB)\n6. b2_q      \u2013 Band 2 Q factor\n7. b3_freq   \u2013 Band 3 center frequency (Hz)\n8. b3_gain   \u2013 Band 3 gain (dB)\n9. b3_q      \u2013 Band 3 Q factor\n10. b4_freq  \u2013 Band 4 center frequency (Hz)\n11. b4_gain  \u2013 Band 4 gain (dB)\n12. b4_q     \u2013 Band 4 Q factor\n13. b5_freq  \u2013 Band 5 center frequency (Hz)\n14. b5_gain  \u2013 Band 5 gain (dB)\n15. b5_q     \u2013 Band 5 Q factor\n16. b6_freq  \u2013 Band 6 center frequency (Hz)\n17. b6_gain  \u2013 Band 6 gain (dB)\n18. b6_q     \u2013 Band 6 Q factor\n\n-------------------------\nOUTPUT FORMAT\n-------------------------\n\nReturn a JSON object where each effect type is a KEY and its parameters are the VALUE (a nested dictionary).\n\nThe output MUST be a JSON object with EXACTLY 1 key (\"EQ\"):\n\nconfig = {\n  \"EQ\": {\n    \"b1_freq\": ..., \"b1_gain\": ..., \"b1_q\": ...,\n    \"b2_freq\": ..., \"b2_gain\": ..., \"b2_q\": ...,\n    \"b3_freq\": ..., \"b3_gain\": ..., \"b3_q\": ...,\n    \"b4_freq\": ..., \"b4_gain\": ..., \"b4_q\": ...,\n    \"b5_freq\": ..., \"b5_gain\": ..., \"b5_q\": ...,\n    \"b6_freq\": ..., \"b6_gain\": ..., \"b6_q\": ...\n  }\n}\n\n\nReturn ONLY the JSON object. No surrounding text. The current parameter values are:\n{'EQ': {'b1_freq': 100, 'b1_gain': -2.5, 'b1_q': 1.2, 'b2_freq': 250, 'b2_gain': 1.5, 'b2_q': 1.0, 'b3_freq': 500, 'b3_gain': 3.0, 'b3_q': 0.8, 'b4_freq': 1000, 'b4_gain': 4.5, 'b4_q': 0.7, 'b5_freq': 3000, 'b5_gain': 6.0, 'b5_q': 0.9, 'b6_freq': 8000, 'b6_gain': 8.0, 'b6_q': 1.0}}\nAdjust these parameters based on the following instruction:\n"
+  }
+}

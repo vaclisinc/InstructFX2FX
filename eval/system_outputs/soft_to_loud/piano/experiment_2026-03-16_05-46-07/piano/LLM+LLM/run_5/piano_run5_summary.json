@@ -1,0 +1,29 @@
+{
+  "method": "LLM+LLM",
+  "input_audio_path": "/home/hsnu2/text2preset/dry_audio/piano/piano.wav",
+  "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/soft_to_loud/piano/experiment_2026-03-16_05-46-07/piano/LLM+LLM/run_5/piano_final_output.wav",
+  "stages_directory": "/home/hsnu2/text2preset/eval/system_outputs/soft_to_loud/piano/experiment_2026-03-16_05-46-07/piano/LLM+LLM/run_5/intermediate",
+  "final_parameters": {
+    "EQ": {
+      "b1_freq": 100,
+      "b1_gain": 1,
+      "b1_q": 0.7,
+      "b2_freq": 250,
+      "b2_gain": 1.5,
+      "b2_q": 1.0,
+      "b3_freq": 500,
+      "b3_gain": 2,
+      "b3_q": 1.2,
+      "b4_freq": 1000,
+      "b4_gain": 1.5,
+      "b4_q": 1.5,
+      "b5_freq": 3000,
+      "b5_gain": 2.0,
+      "b5_q": 0.9,
+      "b6_freq": 8000,
+      "b6_gain": 1.5,
+      "b6_q": 0.5
+    }
+  },
+  "timestamp": "2026-03-16_05-46-07"
+}

@@ -11,11 +11,8 @@ from utilities.parsing import extract_json
 class LLMClient:
     """LLM client for interacting with OpenRouter or Anthropic."""
     def __init__(self):
-        env_path = os.path.join("env")
-        if os.path.exists(env_path):
-            load_dotenv(env_path)
-            self.api_key = os.getenv("OPENROUTER_API_KEY")
-        else:
+        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        if not self.api_key:
             self.api_key = getpass.getpass("Enter your OpenRouter API key: ")
 
         self.llm = openai.OpenAI(

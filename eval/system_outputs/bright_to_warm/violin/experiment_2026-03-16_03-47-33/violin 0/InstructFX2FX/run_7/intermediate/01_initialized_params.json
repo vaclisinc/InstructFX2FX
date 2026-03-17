@@ -1,0 +1,27 @@
+{
+  "params": {
+    "EQ": {
+      "b1_freq": 300.0,
+      "b1_gain": -2.0,
+      "b1_q": 0.7,
+      "b2_freq": 700.0,
+      "b2_gain": 3.0,
+      "b2_q": 0.8,
+      "b3_freq": 1500.0,
+      "b3_gain": 4.0,
+      "b3_q": 1.0,
+      "b4_freq": 3000.0,
+      "b4_gain": 6.0,
+      "b4_q": 1.2,
+      "b5_freq": 5000.0,
+      "b5_gain": 5.0,
+      "b5_q": 0.9,
+      "b6_freq": 10000.0,
+      "b6_gain": 4.0,
+      "b6_q": 1.0
+    }
+  },
+  "details": {
+    "source": "reused from LLM_LLM"
+  }
+}
