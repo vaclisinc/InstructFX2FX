@@ -74,16 +74,37 @@ class FXChain:
     def num_params(self):
         return sum(effect.num_params for effect in self.effects)
 
+# Registry: effect name (lowercase) → Effect class and dict key used in param dicts
+EFFECT_REGISTRY = {
+    "eq":         {"class": EQ,         "dict_key": "EQ"},
+    "compressor": {"class": Compressor, "dict_key": "Compressor"},
+    "reverb":     {"class": Reverb,     "dict_key": "Reverb"},
+}
+
 class FXChainFactory:
     """Factory to create FX chains."""
     @staticmethod
     def create_fx_chain(sample_rate=44100, device='cpu'):
-        """Create default FX chain."""
+        """Create default FX chain (EQ + Compressor + Reverb)."""
         eq = EQ(sample_rate=sample_rate)
         comp = Compressor(sample_rate=sample_rate)
         reverb = Reverb(sample_rate=sample_rate)
         fx_chain = FXChain([eq, comp, reverb])
         print(f"✓ FX chain created: {fx_chain.num_params} parameters")
+        return fx_chain
+
+    @staticmethod
+    def create_fx_chain_from_effects(effects: list, sample_rate=44100, device='cpu'):
+        """Create FX chain from a list of effect names (e.g. ["eq", "compressor"]).
+
+        Effects are instantiated in the order given. Valid names: "eq", "compressor", "reverb".
+        """
+        unknown = [e for e in effects if e not in EFFECT_REGISTRY]
+        if unknown:
+            raise ValueError(f"Unknown effects: {unknown}. Valid: {list(EFFECT_REGISTRY)}")
+        effect_objects = [EFFECT_REGISTRY[e]["class"](sample_rate=sample_rate) for e in effects]
+        fx_chain = FXChain(effect_objects)
+        print(f"✓ FX chain {effects} created: {fx_chain.num_params} parameters")
         return fx_chain
 
 
