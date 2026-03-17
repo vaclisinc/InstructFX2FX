@@ -1,0 +1,220 @@
+{
+  "method": "InstructFX2FX",
+  "timestamp": "2026-03-16_04-08-38",
+  "runs": [
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_1/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_1/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_2/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_2/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_3/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_3/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_4/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_4/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_5/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_5/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_6/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_6/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_7/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_7/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_8/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_8/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_9/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_9/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_10/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_10/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_11/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_11/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_12/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_12/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_13/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_13/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_14/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_14/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_15/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_15/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_16/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_16/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_17/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_17/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_18/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_18/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_19/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_19/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/LLM+LLM/run_20/violin 0_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-16_04-08-38/violin 0/InstructFX2FX/run_20/violin 0_final_output.wav"
+    }
+  ],
+  "sample_rate": 44100,
+  "instruction_init": {
+    "task": "Make this sound more heavy.",
+    "instruction": "This is violin music. Make this sound more heavy.",
+    "text_anchor": "This sound is ",
+    "text_target": "This sound is heavy"
+  },
+  "instruction_refine": {
+    "task": "Make this sound more calm.",
+    "instruction": "This is violin music, but the sound is not calm. Make this sound more calm.",
+    "text_anchor": "This sound is not calm",
+    "text_target": "This sound is calm"
+  },
+  "original_audio_path": "/home/hsnu2/text2preset/dry_audio/violin/violin 0.wav"
+}

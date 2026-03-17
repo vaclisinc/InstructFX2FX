@@ -1,0 +1,25 @@
+{
+  "method": "LLM+LLM",
+  "timestamp": "2026-03-14_15-03-42",
+  "runs": [
+    {
+      "run": 1,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/warm_to_bright/violin/experiment_2026-03-14_15-03-42/violin 0/LLM+LLM/run_1",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/warm_to_bright/violin/experiment_2026-03-14_15-03-42/violin 0/LLM+LLM/run_1/violin 0_final_output.wav"
+    }
+  ],
+  "sample_rate": 44100,
+  "instruction_init": {
+    "task": "Make this sound more bright.",
+    "instruction": "This is violin music. Make this sound more bright.",
+    "text_anchor": "This sound is ",
+    "text_target": "This sound is bright"
+  },
+  "instruction_refine": {
+    "task": "Make this sound more bright.",
+    "instruction": "This is violin music, but the sound is warm. Make this sound more bright.",
+    "text_anchor": "This sound is warm",
+    "text_target": "This sound is bright"
+  },
+  "original_audio_path": "/home/hsnu2/text2preset/dry_audio/violin/violin 0.wav"
+}

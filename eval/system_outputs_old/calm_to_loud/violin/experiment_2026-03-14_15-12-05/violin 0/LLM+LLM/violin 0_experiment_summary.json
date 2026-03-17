@@ -1,0 +1,25 @@
+{
+  "method": "LLM+LLM",
+  "timestamp": "2026-03-14_15-12-05",
+  "runs": [
+    {
+      "run": 1,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/calm_to_loud/violin/experiment_2026-03-14_15-12-05/violin 0/LLM+LLM/run_1",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/calm_to_loud/violin/experiment_2026-03-14_15-12-05/violin 0/LLM+LLM/run_1/violin 0_final_output.wav"
+    }
+  ],
+  "sample_rate": 44100,
+  "instruction_init": {
+    "task": "Make this sound more loud.",
+    "instruction": "This is violin music. Make this sound more loud.",
+    "text_anchor": "This sound is ",
+    "text_target": "This sound is loud"
+  },
+  "instruction_refine": {
+    "task": "Make this sound more loud.",
+    "instruction": "This is violin music, but the sound is calm. Make this sound more loud.",
+    "text_anchor": "This sound is calm",
+    "text_target": "This sound is loud"
+  },
+  "original_audio_path": "/home/hsnu2/text2preset/dry_audio/violin/violin 0.wav"
+}
