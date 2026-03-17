@@ -25,6 +25,7 @@ from experimentation.experiment import (
 
 from eval.config import (
     DEVICE,
+    FIXED_INIT,
     FX_EFFECTS,
     N_GRAD_ITER,
     NR_RUNS_PER_FILE,
@@ -49,6 +50,7 @@ def run_system_for_pair(
     save_interval: int = SAVE_INTERVAL,
     nr_runs: int = NR_RUNS_PER_FILE,
     device: str = DEVICE,
+    fixed_init: bool = FIXED_INIT,
 ) -> str:
     """Run one (word_A → word_B) pair on all dry clips for one instrument.
 
@@ -71,15 +73,15 @@ def run_system_for_pair(
     pair_instrument_dir = os.path.join(output_dir, f"{word_A}_to_{word_B}", instrument)
 
     # Follow analysis.ipynb pattern:
-    #   init:   InstructionSet1(target=word_B, context=...)
+    #   init:   InstructionSet1(target=word_A, context=...)
     #           → "This is violin music. Make this sound more bright."
-    #   refine: InstructionSet1(anchor=word_A, target=word_B, context=...)
-    #           → "This is violin music, but the sound is warm. Make this sound more bright."
+    #   refine: InstructionSet1(anchor=not word_B, target=word_B, context=...)
+    #           → "This is violin music, but the sound is not warm. Make this sound more warm."
     instructionset_initialization = InstructionSet1(
-        target=word_B, context=f"{instrument} music"
+        target=word_A, context=f"{instrument} music"
     )
     instructionset_refinement = InstructionSet1(
-        anchor=word_A, target=word_B, context=f"{instrument} music"
+        anchor=f"not {word_B}", target=word_B, context=f"{instrument} music"
     )
 
     results, experiment_dir = run_experiments(
@@ -97,6 +99,7 @@ def run_system_for_pair(
         fx_chain=fx_chain,
         snapshot_interval=save_interval,
         effects=effects,
+        fixed_init=fixed_init,
     )
 
     if not results:

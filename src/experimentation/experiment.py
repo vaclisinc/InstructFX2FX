@@ -154,6 +154,8 @@ def run_LLM_LLM(
     experiment_dir: Optional[Path] = None,
     filename_prefix: str = "audio",
     effects: List[str] = None,
+    initial_params_tensor: Optional[torch.Tensor] = None,
+    initial_params_dict: Optional[Dict[str, Any]] = None,
 ) -> Tuple[torch.Tensor, Dict[str, Any], Dict[str, Any]]:
     """
     Run LLM+LLM method: two-stage LLM approach for parameter generation.
@@ -189,22 +191,26 @@ def run_LLM_LLM(
         stage_info["original"] = {"audio": audio_path, "params": params_path}
         print(f"✓ Saved original audio to: {audio_path}")
 
-    # Stage 1: Initialize parameters with LLM
-    config_initialization = Config(
-        prompt=PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_DASP(
-            fx_chain=fx_chain, instruction=instructionset_initialization.instruction,
-            effects=effects,
-        ),
-        initialization_method=ParameterInitializationMethod.LLM,
-        llmclient=llm_client,
-        fx_chain=fx_chain,
-        embedding=embedding,
-        device=device,
-    )
-
-    initial_params_tensor, initial_params_dict, _ = parameter_engine.get_params(
-        audio, config_initialization
-    )
+    # Stage 1: Initialize parameters with LLM (skip if pre-generated params provided)
+    init_details = {}
+    if initial_params_tensor is None:
+        config_initialization = Config(
+            prompt=PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_DASP(
+                fx_chain=fx_chain, instruction=instructionset_initialization.instruction,
+                effects=effects,
+            ),
+            initialization_method=ParameterInitializationMethod.LLM,
+            llmclient=llm_client,
+            fx_chain=fx_chain,
+            embedding=embedding,
+            device=device,
+        )
+        initial_params_tensor, initial_params_dict, _ = parameter_engine.get_params(
+            audio, config_initialization
+        )
+        init_details = {"sys_prompt": config_initialization.prompt.sys_prompt}
+    else:
+        init_details = {"source": "pre-generated fixed init"}
 
     # Store initial params so they can be reused by InstructFX2FX
     stage_info["initial_params_tensor"] = initial_params_tensor
@@ -213,7 +219,7 @@ def run_LLM_LLM(
     if experiment_dir:
         audio_path, params_path = _save_audio_and_params(
             audio, initial_params_tensor, initial_params_dict, fx_chain,
-            sample_rate, stages_dir, "01_initialized", {"sys_prompt": config_initialization.prompt.sys_prompt}
+            sample_rate, stages_dir, "01_initialized", init_details
         )
         stage_info["initialization"] = {"audio": audio_path, "params": params_path}
         print(f"✓ Saved initialization stage to: {audio_path}")
@@ -444,6 +450,7 @@ def run_experiments(
     fx_chain=None,
     effects: List[str] = None,
     snapshot_interval: Optional[int] = None,
+    fixed_init: bool = True,
 ) -> Tuple[List[ExperimentResult], str]:
     """
     Run experiments across multiple audio files.
@@ -504,11 +511,39 @@ def run_experiments(
         file_dir = experiment_dir / Path(audio_path).stem
         file_dir.mkdir(parents=True, exist_ok=True)
 
-        for run in range(1,nr_of_experiments_per_file+1):
+        # fixed_init=True: call the LLM once before the runs loop and reuse
+        # the same init params for all runs and both methods.
+        # fixed_init=False: each run generates its own init on the fly.
+        fixed_init_params_tensor: Optional[torch.Tensor] = None
+        fixed_init_params_dict: Optional[Dict[str, Any]] = None
+        if fixed_init:
+            print("[fixed_init] Generating single LLM init shared across all runs …")
+            _pe = ParameterEngine()
+            _cfg_init = Config(
+                prompt=PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_DASP(
+                    fx_chain=fx_chain,
+                    instruction=instructionset_initialization.instruction,
+                    effects=effects,
+                ),
+                initialization_method=ParameterInitializationMethod.LLM,
+                llmclient=llm_client,
+                fx_chain=fx_chain,
+                embedding=embedding,
+                device=device,
+            )
+            fixed_init_params_tensor, fixed_init_params_dict, _ = _pe.get_params(audio_tensor, _cfg_init)
+            print("[fixed_init] Init generated — reusing for all runs.")
 
-            # Track LLM init params so InstructFX2FX can reuse them
-            llm_init_params_tensor = None
-            llm_init_params_dict = None
+        for run in range(1, nr_of_experiments_per_file + 1):
+
+            # All runs share the same init (fixed_init=True) or generate their
+            # own on the fly via LLM_LLM (fixed_init=False).
+            if fixed_init:
+                llm_init_params_tensor = fixed_init_params_tensor
+                llm_init_params_dict = fixed_init_params_dict
+            else:
+                llm_init_params_tensor = None
+                llm_init_params_dict = None
 
             # Ensure LLM_LLM runs before InstructFX2FX so init params are available
             sorted_methods = sorted(methods, key=lambda m: 0 if m == Method.LLM_LLM else 1)
@@ -550,10 +585,15 @@ def run_experiments(
                         experiment_dir=run_dir,
                         filename_prefix=Path(audio_path).stem,
                         effects=effects,
+                        initial_params_tensor=llm_init_params_tensor,
+                        initial_params_dict=llm_init_params_dict,
                     )
                     # Capture LLM init params for InstructFX2FX to reuse
-                    llm_init_params_tensor = stage_info.get("initial_params_tensor")
-                    llm_init_params_dict = stage_info.get("initial_params_dict")
+                    # (in fixed_init mode these are already set; in stochastic
+                    #  mode we grab them from stage_info as before)
+                    if not fixed_init:
+                        llm_init_params_tensor = stage_info.get("initial_params_tensor")
+                        llm_init_params_dict = stage_info.get("initial_params_dict")
                 else:
                     raise ValueError(f"Unknown method: {method}")
 

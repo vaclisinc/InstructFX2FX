@@ -54,7 +54,18 @@ FX_EFFECTS: List[str] = ["eq"]
 SAMPLE_RATE: int = 44100
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
 
+# ── GT bank sampling ────────────────────────────────────────────────────────
+GT_BANK_SAMPLES: int = 50   # random (i, j) pairs sampled per dry clip
+
 # ── System hyperparams ──────────────────────────────────────────────────────
 N_GRAD_ITER: int = 1000
 SAVE_INTERVAL: int = 50    # snapshot_interval for trajectory (Exp 2)
-NR_RUNS_PER_FILE: int = 1  # nr_of_experiments_per_file passed to run_experiments
+NR_RUNS_PER_FILE: int = 20  # nr_of_experiments_per_file passed to run_experiments
+
+# ── Init mode ────────────────────────────────────────────────────────────────
+# True  (Option B): call LLM once per audio file before the runs loop;
+#                   ALL runs (and both methods) share that single fixed init.
+# False (Option A): each run calls LLM fresh for init (stochastic across runs);
+#                   LLM_LLM captures the init and InstructFX2FX reuses it within
+#                   the same run.
+FIXED_INIT: bool = False
