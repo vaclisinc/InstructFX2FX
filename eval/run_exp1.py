@@ -19,6 +19,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env", override=False)
 
+import glob
+
 import eval.config as cfg
 from embeddings.clap import CLAPWrapper
 from experimentation.experiment import Method
@@ -30,7 +32,8 @@ if __name__ == "__main__":
     print(f"device : {cfg.DEVICE}")
     print(f"pairs  : {len(cfg.WORD_PAIRS)}")
     print(f"instr  : {cfg.INSTRUMENTS}")
-    print(f"dry    : { {k: len(v) for k, v in cfg.DRY_PATHS_BY_INSTRUMENT.items()} }")
+    dry_paths = {i: sorted(glob.glob(os.path.join(cfg.DRY_AUDIO_DIR, i, "*.wav"))) for i in cfg.INSTRUMENTS}
+    print(f"dry    : { {k: len(v) for k, v in dry_paths.items()} }")
     print(f"n_iter : {cfg.N_GRAD_ITER}")
     print()
 

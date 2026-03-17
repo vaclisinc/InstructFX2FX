@@ -11,13 +11,15 @@ Both are idempotent: files that already exist are skipped.
 from __future__ import annotations
 
 import os
+import random
+from collections import defaultdict
 from typing import List
 
 import numpy as np
 import soundfile as sf
 
 from eval.apply_eq.get_gt import get_gt
-from eval.config import APPLY_EQ_JS_PATH, SAMPLE_RATE
+from eval.config import APPLY_EQ_JS_PATH, GT_BANK_SAMPLES, SAMPLE_RATE
 
 
 def build_word_gt_bank(
@@ -83,22 +85,37 @@ def build_sequential_gt_bank(
     out_dir = os.path.join(cache_dir, pair_name, instrument)
     os.makedirs(out_dir, exist_ok=True)
 
+    # If the directory already contains WAV files, return them as-is.
+    # Avoids re-sampling a different random subset on subsequent calls.
+    existing = sorted(
+        os.path.join(out_dir, f) for f in os.listdir(out_dir) if f.endswith(".wav")
+    )
+    if existing:
+        return existing
+
+    all_pairs = [(i, j) for i in range(len(params_A)) for j in range(len(params_B))]
+    sampled_pairs = random.sample(all_pairs, min(GT_BANK_SAMPLES, len(all_pairs)))
+
     paths: List[str] = []
     for dry_idx, dry_path in enumerate(dry_paths):
         dry_audio, file_sr = sf.read(dry_path, dtype="float32", always_2d=False)
         use_sr = file_sr  # honour the file's native sample rate
 
-        for i, pA in enumerate(params_A):
-            audio_A = get_gt("eq", pA, dry_audio, sr=use_sr, apply_eq_js_path=APPLY_EQ_JS_PATH)
+        # group by i to avoid recomputing audio_A for the same params_A
+        pairs_by_i: dict = defaultdict(list)
+        for i, j in sampled_pairs:
+            pairs_by_i[i].append(j)
 
-            for j, pB in enumerate(params_B):
+        for i, js in pairs_by_i.items():
+            audio_A = get_gt("eq", params_A[i], dry_audio, sr=use_sr, apply_eq_js_path=APPLY_EQ_JS_PATH)
+            for j in js:
                 out_path = os.path.join(out_dir, f"{dry_idx}_{i}_{j}.wav")
                 paths.append(out_path)
 
                 if os.path.exists(out_path):
                     continue  # idempotent — skip
 
-                audio_AB = get_gt("eq", pB, audio_A, sr=use_sr, apply_eq_js_path=APPLY_EQ_JS_PATH)
+                audio_AB = get_gt("eq", params_B[j], audio_A, sr=use_sr, apply_eq_js_path=APPLY_EQ_JS_PATH)
                 sf.write(out_path, audio_AB, use_sr, subtype="FLOAT")
 
     return paths

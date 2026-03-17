@@ -21,3 +21,4 @@ optuna
 resampy
 scikit-learn
 plotly
+datasets

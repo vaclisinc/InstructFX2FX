@@ -17,23 +17,27 @@ def compute_mmd(X: np.ndarray, Y: np.ndarray, sigma: float | None = None) -> flo
     - If sigma is None, uses the median pairwise distance heuristic
     - Returns square-rooted unbiased estimator (LLM2Fx-style)
     """
-    from scipy.spatial.distance import pdist, cdist
+    from scipy.spatial.distance import cdist
 
     combined = np.vstack([X, Y])
     mu, sd = combined.mean(0), combined.std(0) + 1e-8
-    Xn, Yn = (X - mu) / sd, (Y - mu) / sd
+    Zn = (combined - mu) / sd
+
+    n, m = len(X), len(Y)
+
+    D = cdist(Zn, Zn, "sqeuclidean")
 
     if sigma is None:
-        sq = pdist(np.vstack([Xn, Yn]), "sqeuclidean")
-        sigma_sq = max(float(np.median(sq)) if len(sq) else 1.0, 1e-8)
+        off_diag = D[D > 0]
+        sigma_sq = max(float(np.median(off_diag)) if len(off_diag) else 1.0, 1e-8)
     else:
         sigma_sq = sigma**2
 
-    K_xx = np.exp(-cdist(Xn, Xn, "sqeuclidean") / (2 * sigma_sq))
-    K_yy = np.exp(-cdist(Yn, Yn, "sqeuclidean") / (2 * sigma_sq))
-    K_xy = np.exp(-cdist(Xn, Yn, "sqeuclidean") / (2 * sigma_sq))
+    K = np.exp(-D / (2 * sigma_sq))
+    K_xx = K[:n, :n]
+    K_yy = K[n:, n:]
+    K_xy = K[:n, n:]
 
-    n, m = len(Xn), len(Yn)
     np.fill_diagonal(K_xx, 0.0)
     np.fill_diagonal(K_yy, 0.0)
 
