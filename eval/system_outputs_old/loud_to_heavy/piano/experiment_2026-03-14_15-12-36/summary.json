@@ -1,0 +1,16 @@
+{
+  "methods": [
+    "InstructFX2FX",
+    "LLM+LLM"
+  ],
+  "timestamp": "2026-03-14_15-12-36",
+  "num_audio_files": 1,
+  "audio_files": [
+    {
+      "file_name": "piano",
+      "num_runs": 1
+    }
+  ],
+  "embedding_model": "CLAPWrapper",
+  "user": "hsnu2"
+}

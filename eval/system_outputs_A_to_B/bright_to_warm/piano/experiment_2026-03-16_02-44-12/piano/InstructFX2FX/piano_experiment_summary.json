@@ -1,0 +1,220 @@
+{
+  "method": "InstructFX2FX",
+  "timestamp": "2026-03-16_02-44-12",
+  "runs": [
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_1/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_1/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_2/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_2/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_3/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_3/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_4/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_4/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_5/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_5/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_6/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_6/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_7/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_7/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_8/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_8/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_9/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_9/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_10/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_10/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_11/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_11/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_12/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_12/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_13/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_13/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_14/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_14/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_15/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_15/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_16/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_16/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_17/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_17/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_18/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_18/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_19/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_19/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/LLM+LLM/run_20/piano_final_output.wav"
+    },
+    {
+      "run": 20,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/piano/experiment_2026-03-16_02-44-12/piano/InstructFX2FX/run_20/piano_final_output.wav"
+    }
+  ],
+  "sample_rate": 44100,
+  "instruction_init": {
+    "task": "Make this sound more warm.",
+    "instruction": "This is piano music. Make this sound more warm.",
+    "text_anchor": "This sound is ",
+    "text_target": "This sound is warm"
+  },
+  "instruction_refine": {
+    "task": "Make this sound more warm.",
+    "instruction": "This is piano music, but the sound is bright. Make this sound more warm.",
+    "text_anchor": "This sound is bright",
+    "text_target": "This sound is warm"
+  },
+  "original_audio_path": "/home/hsnu2/text2preset/dry_audio/piano/piano.wav"
+}

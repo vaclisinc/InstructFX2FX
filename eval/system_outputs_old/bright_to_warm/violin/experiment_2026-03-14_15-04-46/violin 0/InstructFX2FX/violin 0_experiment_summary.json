@@ -1,0 +1,30 @@
+{
+  "method": "InstructFX2FX",
+  "timestamp": "2026-03-14_15-04-46",
+  "runs": [
+    {
+      "run": 1,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/violin/experiment_2026-03-14_15-04-46/violin 0/InstructFX2FX/run_1",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/violin/experiment_2026-03-14_15-04-46/violin 0/LLM+LLM/run_1/violin 0_final_output.wav"
+    },
+    {
+      "run": 1,
+      "run_directory": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/violin/experiment_2026-03-14_15-04-46/violin 0/InstructFX2FX/run_1",
+      "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/bright_to_warm/violin/experiment_2026-03-14_15-04-46/violin 0/InstructFX2FX/run_1/violin 0_final_output.wav"
+    }
+  ],
+  "sample_rate": 44100,
+  "instruction_init": {
+    "task": "Make this sound more warm.",
+    "instruction": "This is violin music. Make this sound more warm.",
+    "text_anchor": "This sound is ",
+    "text_target": "This sound is warm"
+  },
+  "instruction_refine": {
+    "task": "Make this sound more warm.",
+    "instruction": "This is violin music, but the sound is bright. Make this sound more warm.",
+    "text_anchor": "This sound is bright",
+    "text_target": "This sound is warm"
+  },
+  "original_audio_path": "/home/hsnu2/text2preset/dry_audio/violin/violin 0.wav"
+}

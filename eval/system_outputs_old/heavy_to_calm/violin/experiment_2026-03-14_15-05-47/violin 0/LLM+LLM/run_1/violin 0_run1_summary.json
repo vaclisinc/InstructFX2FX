@@ -1,0 +1,29 @@
+{
+  "method": "LLM+LLM",
+  "input_audio_path": "/home/hsnu2/text2preset/dry_audio/violin/violin 0.wav",
+  "final_output_audio_path": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-14_15-05-47/violin 0/LLM+LLM/run_1/violin 0_final_output.wav",
+  "stages_directory": "/home/hsnu2/text2preset/eval/system_outputs/heavy_to_calm/violin/experiment_2026-03-14_15-05-47/violin 0/LLM+LLM/run_1/intermediate",
+  "final_parameters": {
+    "EQ": {
+      "b1_freq": 100.0,
+      "b1_gain": -1.5,
+      "b1_q": 1.5,
+      "b2_freq": 250.0,
+      "b2_gain": -1.0,
+      "b2_q": 1.0,
+      "b3_freq": 500.0,
+      "b3_gain": 0.5,
+      "b3_q": 1.2,
+      "b4_freq": 1000.0,
+      "b4_gain": 0.3,
+      "b4_q": 1.0,
+      "b5_freq": 3000.0,
+      "b5_gain": -1.0,
+      "b5_q": 0.8,
+      "b6_freq": 6000.0,
+      "b6_gain": -1.0,
+      "b6_q": 1.0
+    }
+  },
+  "timestamp": "2026-03-14_15-05-47"
+}
