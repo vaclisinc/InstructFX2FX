@@ -63,9 +63,6 @@ class FXChain:
         idx = 0
         for effect in self.effects:
             effect_params = params[:, idx:idx + effect.num_params]
-            if effect.type == "Reverb":
-                idx += effect.num_params
-                continue
             audio = effect.apply(audio, effect_params)
             idx += effect.num_params
         return audio
