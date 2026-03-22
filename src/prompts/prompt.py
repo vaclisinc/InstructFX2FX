@@ -13,7 +13,7 @@ class Prompt:
 # Per-effect text blocks
 # ---------------------------------------------------------------------------
 
-_EFFECT_DESCRIPTIONS = {
+_EFFECT_DESCRIPTIONS_DASP = {
     "eq": """\
 6-BAND PARAMETRIC EQ (18 parameters)
 
@@ -93,7 +93,68 @@ Global / output:
 25. mix               – Global dry/wet mix""",
 }
 
-_EFFECT_OUTPUT_BLOCKS = {
+_EFFECT_DESCRIPTIONS_PEDALBOARD = {
+    "eq": """\
+EQ
+
+{
+  "mode": one of ["pass-pass", "pass-shelf", "shelf-pass", "shelf-shelf"],
+  "low_cut": float in [50, 500], step 10 (log scale),
+  "high_cut": float in [8000, 16000], step 100 (log scale),
+  "q": float in [0.1, 10.0], step 0.1,
+  "gains": {
+    "low_shelf": float in [-20.0, 20.0], step 0.2,
+    "high_shelf": float in [-20.0, 20.0], step 0.2,
+    "peak1": float in [-20.0, 20.0], step 0.2,
+    "peak2": float in [-20.0, 20.0], step 0.2,
+    "peak3": float in [-20.0, 20.0], step 0.2
+  },
+  "peak1_freq": float in [100.0, 500.0], step 10 (log scale),
+  "peak2_freq": float in [500.0, 4000.0], step 100 (log scale),
+  "peak3_freq": float in [4000.0, 12000.0], step 1000 (log scale)
+}
+
+If no gain adjustment is implied by the prompt, "gains" MUST be an empty object {}.""",
+
+    "distortion": """\
+DISTORTION
+
+{
+  "drive_db": float in [0.0, 15.0], step 0.1
+}""",
+
+    "reverb": """\
+REVERB
+
+{
+  "room_size": float in [0.0, 1.0], step 0.05,
+  "damping": float in [0.0, 1.0], step 0.05,
+  "wet_level": float in [0.0, 1.0], step 0.01
+}""",
+
+    "delay": """\
+DELAY
+
+{
+  "delay": float in [0.0, 0.05], step 0.01
+}""",
+
+    "pitchshift": """\
+PITCHSHIFT
+
+{
+  "semitones": integer in [-12, 12]
+}""",
+
+    "bitcrush": """\
+BITCRUSH
+
+{
+  "bit_depth": integer in [0, 16]
+}""",
+}
+
+_EFFECT_OUTPUT_BLOCKS_DASP = {
     "eq": '''\
   "EQ": {
     "b1_freq": ..., "b1_gain": ..., "b1_q": ...,
@@ -122,11 +183,63 @@ _EFFECT_OUTPUT_BLOCKS = {
   }''',
 }
 
+_EFFECT_OUTPUT_BLOCKS_PEDALBOARD = {
+    "eq": '''\
+  "EQ": {
+    "mode": ...,
+    "low_cut": ...,
+    "high_cut": ...,
+    "q": ...,
+    "gains": {
+      "low_shelf": ..., "high_shelf": ..., "peak1": ..., "peak2": ..., "peak3": ...
+    },
+    "peak1_freq": ...,
+    "peak2_freq": ...,
+    "peak3_freq": ...
+  }''',
+
+    "distortion": '''\
+  "Distortion": {
+    "drive_db": ...
+  }''',
+
+    "reverb": '''\
+  "Reverb": {
+    "room_size": ...,
+    "damping": ...,
+    "wet_level": ...
+  }''',
+
+    "delay": '''\
+  "Delay": {
+    "delay": ...
+  }''',
+
+    "pitchshift": '''\
+  "PitchShift": {
+    "semitones": ...
+  }''',
+
+    "bitcrush": '''\
+  "Bitcrush": {
+    "bit_depth": ...
+  }''',
+}
+
 # Dict keys (as used in LLM output JSON) for each effect name
 _EFFECT_DICT_KEYS = {
     "eq": "EQ",
     "compressor": "Compressor",
     "reverb": "Reverb",
+}
+
+_EFFECT_DICT_KEYS_PEDALBOARD = {
+  "eq": "EQ",
+  "distortion": "Distortion",
+  "reverb": "Reverb",
+  "delay": "Delay",
+  "pitchshift": "PitchShift",
+  "bitcrush": "Bitcrush",
 }
 
 
@@ -139,9 +252,9 @@ def _build_dasp_sys_prompt(effects: List[str], task_description: str,
         task_description: one-sentence description of the task (init vs. refine)
         current_parameters_dict: if provided, appended for refinement prompts
     """
-    unknown = [e for e in effects if e not in _EFFECT_DESCRIPTIONS]
+    unknown = [e for e in effects if e not in _EFFECT_DESCRIPTIONS_DASP]
     if unknown:
-        raise ValueError(f"Unknown effects: {unknown}. Valid: {list(_EFFECT_DESCRIPTIONS)}")
+        raise ValueError(f"Unknown effects: {unknown}. Valid: {list(_EFFECT_DESCRIPTIONS_DASP)}")
 
     n = len(effects)
     n_word = {1: "ONE", 2: "TWO", 3: "THREE"}.get(n, str(n))
@@ -150,20 +263,20 @@ def _build_dasp_sys_prompt(effects: List[str], task_description: str,
     # Chain description
     chain_lines = "\n".join(
         f"{i+1}. {_EFFECT_DICT_KEYS[e]} " +
-        f"({_EFFECT_DESCRIPTIONS[e].split(chr(10))[0]})"
+        f"({_EFFECT_DESCRIPTIONS_DASP[e].split(chr(10))[0]})"
         for i, e in enumerate(effects)
     )
     chain_desc = f"{n_word} effect{'s' if n != 1 else ''} in the following exact order:\n{chain_lines}"
 
     # Parameter sections
     param_sections = "\n\n".join(
-        f"{i+1}) {_EFFECT_DESCRIPTIONS[e]}"
+        f"{i+1}) {_EFFECT_DESCRIPTIONS_DASP[e]}"
         for i, e in enumerate(effects)
     )
 
     # Output format
     key_list = ", ".join(f'"{_EFFECT_DICT_KEYS[e]}"' for e in effects)
-    output_blocks = ",\n".join(_EFFECT_OUTPUT_BLOCKS[e] for e in effects)
+    output_blocks = ",\n".join(_EFFECT_OUTPUT_BLOCKS_DASP[e] for e in effects)
     output_format = (
         f"The output MUST be a JSON object with EXACTLY {n} key{'s' if n != 1 else ''} "
         f"({key_list}):\n\nconfig = {{\n{output_blocks}\n}}"
@@ -206,16 +319,102 @@ Return a JSON object where each effect type is a KEY and its parameters are the 
 """
 
 
+def _build_pedalboard_sys_prompt(effects: List[str], task_description: str) -> str:
+  """Build a Pedalboard sys_prompt that covers exactly the effects in `effects`."""
+  unknown = [e for e in effects if e not in _EFFECT_DESCRIPTIONS_PEDALBOARD]
+  if unknown:
+    raise ValueError(
+      f"Unknown effects: {unknown}. Valid: {list(_EFFECT_DESCRIPTIONS_PEDALBOARD)}"
+    )
+
+  n = len(effects)
+  n_word = {1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE", 6: "SIX"}.get(n, str(n))
+  obj_word = "object" if n == 1 else "objects"
+  key_list = ", ".join(f'"{_EFFECT_DICT_KEYS_PEDALBOARD[e]}"' for e in effects)
+
+  chain_lines = "\n".join(
+    f"{index + 1}. {_EFFECT_DICT_KEYS_PEDALBOARD[effect]} "
+    f"({_EFFECT_DESCRIPTIONS_PEDALBOARD[effect].split(chr(10))[0]})"
+    for index, effect in enumerate(effects)
+  )
+  chain_desc = f"{n_word} effect{'s' if n != 1 else ''} in the following exact order:\n{chain_lines}"
+
+  param_sections = "\n\n".join(
+    f"{index + 1}) {_EFFECT_DESCRIPTIONS_PEDALBOARD[effect]}"
+    for index, effect in enumerate(effects)
+  )
+
+  output_blocks = ",\n".join(_EFFECT_OUTPUT_BLOCKS_PEDALBOARD[effect] for effect in effects)
+  output_format = (
+    f"The output MUST be a JSON object with EXACTLY {n} key{'s' if n != 1 else ''} "
+    f"({key_list}):\n\nconfig = {{\n{output_blocks}\n}}"
+  )
+
+  return f"""You are an expert audio engineer and music producer specializing in sound design and audio signal processing.
+
+The FX chain consists of {chain_desc}
+
+{task_description}
+
+You must output ONLY a valid JSON object containing EXACTLY {n} {obj_word}, one per effect in the FX chain.
+Do not add, remove, or rename fields.
+Do not include comments, explanations, prose, or markdown.
+Do not include a \"type\" field.
+
+-------------------------
+PARAMETER DEFINITIONS
+-------------------------
+
+{param_sections}
+
+-------------------------
+OUTPUT FORMAT
+-------------------------
+
+Return a JSON object where each effect type is a KEY and its parameters are the VALUE (a nested dictionary).
+
+{output_format}
+
+-------------------------
+INTERPRETATION RULES
+-------------------------
+
+- Initialize parameters to musically reasonable values inferred from the prompt.
+- Avoid extreme values unless explicitly implied.
+- Prefer neutral or reversible settings when the prompt is vague.
+- Common mappings:
+  - \"warm\", \"dark\" -> lower high_cut, negative high_shelf, higher damping
+  - \"bright\", \"airy\" -> higher high_cut, positive high_shelf
+  - \"tight\", \"dry\", \"close\" -> low reverb wet_level and room_size
+  - \"ambient\", \"distant\", \"huge\" -> larger room_size and wet_level
+  - \"gritty\", \"distorted\" -> increased drive_db, reduced bit_depth
+  - \"clean\" -> zero distortion, full bit depth, minimal processing
+
+-------------------------
+FAILURE CONDITIONS
+-------------------------
+
+The response is invalid if:
+- The output is not a JSON object
+- The keys are not exactly: {key_list}
+- Any required field is missing from any effect
+- Any \"type\" field is present
+- Any extra field is present
+- Any value violates range or resolution constraints
+- Any text appears outside the JSON object
+
+Return ONLY the JSON object. No surrounding text."""
+
+
 class PromptFactory:
     @staticmethod
     def create_prompt(instruction: str, sys_prompt: str = "") -> Prompt:
         return Prompt(instruction=instruction, sys_prompt=sys_prompt)
 
     @staticmethod
-    def LLM_PARAMETER_INITIALIZATION_PROMPT_DASP(fx_chain, instruction,
-                                                  effects: List[str] = None):
+    def LLM_PARAMETER_INITIALIZATION_PROMPT_DASP(fx_chain, instruction, effects: List[str] = None):
         if effects is None:
-            effects = ["eq", "compressor", "reverb"]
+            effects = ["eq", "reverb"] # No compressor at the moment
         sys_prompt = _build_dasp_sys_prompt(
             effects=effects,
             task_description="Your task is to generate a COMPLETE set of parameters for this FX chain.",
@@ -226,7 +425,7 @@ class PromptFactory:
     def LLM_PARAMETER_REFINEMENT_PROMPT_DASP(fx_chain, instruction, current_parameters_dict,
                                               effects: List[str] = None):
         if effects is None:
-            effects = ["eq", "compressor", "reverb"]
+            effects = ["eq", "reverb"] # No compressor at the moment
         sys_prompt = _build_dasp_sys_prompt(
             effects=effects,
             task_description="Your task is to tweak an existing set of parameters for the FX chain based on an instruction.",
@@ -235,148 +434,17 @@ class PromptFactory:
         return Prompt(sys_prompt=sys_prompt, instruction=instruction)
 
 
-    def LLM_PARAMETER_INITIALIZATION_PROMPT_PEDALBOARD(instruction):
-        return Prompt(
-            sys_prompt="""You are an expert audio engineer and music producer specializing in sound design and audio signal processing.
-
-Your task is to generate an **initial configuration of audio effects** based on a high-level descriptive prompt (timbre, texture, space, mood, production style).
-
-You must output **ONLY a valid JSON object** with effect types as keys, following the exact structure defined below.
-
-========================
-OUTPUT FORMAT (STRICT)
-========================
-
-Return a single JSON object with these exact keys (order doesn't matter):
-- "EQ"
-- "Distortion"
-- "Reverb"
-- "Delay"
-- "PitchShift"
-- "Bitcrush"
-
-Each value is a dictionary containing ONLY the parameters defined for that effect.
-Do not add, remove, or rename fields.
-Do not include comments, explanations, or markdown.
-Do not include a "type" field.
-
-========================
-EFFECT DEFINITIONS
-========================
-
-1. EQ
-
-{
-  "mode": one of ["pass-pass", "pass-shelf", "shelf-pass", "shelf-shelf"],
-  "low_cut": float in [50, 500], step 10 (log scale),
-  "high_cut": float in [8000, 16000], step 100 (log scale),
-  "q": float in [0.1, 10.0], step 0.1,
-  "gains": {
-    "low_shelf": float in [-20.0, 20.0], step 0.2,
-    "high_shelf": float in [-20.0, 20.0], step 0.2,
-    "peak1": float in [-20.0, 20.0], step 0.2,
-    "peak2": float in [-20.0, 20.0], step 0.2,
-    "peak3": float in [-20.0, 20.0], step 0.2
-  },
-  "peak1_freq": float in [100.0, 500.0], step 10 (log scale),
-  "peak2_freq": float in [500.0, 4000.0], step 100 (log scale),
-  "peak3_freq": float in [4000.0, 12000.0], step 1000 (log scale)
-}
-
-If no gain adjustment is implied by the prompt, "gains" MUST be an empty object {}.
-
-2. Distortion
-
-{
-  "drive_db": float in [0.0, 15.0], step 0.1
-}
-
-3. Reverb
-
-{
-  "room_size": float in [0.0, 1.0], step 0.05,
-  "damping": float in [0.0, 1.0], step 0.05,
-  "wet_level": float in [0.0, 1.0], step 0.01
-}
-
-4. Delay
-
-{
-  "delay": float in [0.0, 0.05], step 0.01
-}
-
-5. PitchShift
-
-{
-  "semitones": integer in [-12, 12]
-}
-
-6. Bitcrush
-
-{
-  "bit_depth": integer in [0, 16]
-}
-
-========================
-EXAMPLE OUTPUT
-========================
-
-{
-  "EQ": {
-    "mode": "shelf-shelf",
-    "low_cut": 120.0,
-    "high_cut": 12000.0,
-    "q": 1.0,
-    "gains": {"low_shelf": 3.0, "high_shelf": -2.0, "peak1": -1.5, "peak2": 2.0, "peak3": 1.0},
-    "peak1_freq": 200.0,
-    "peak2_freq": 1000.0,
-    "peak3_freq": 5000.0
-  },
-  "Distortion": {
-    "drive_db": 1.0
-  },
-  "Reverb": {
-    "room_size": 0.3,
-    "damping": 0.5,
-    "wet_level": 0.1
-  },
-  "Delay": {
-    "delay": 0.1
-  },
-  "PitchShift": {
-    "semitones": 0
-  },
-  "Bitcrush": {
-    "bit_depth": 0
-  }
-}
-
-========================
-INTERPRETATION RULES
-========================
-
-- Initialize parameters to musically reasonable values inferred from the prompt.
-- Avoid extreme values unless explicitly implied.
-- Prefer neutral / reversible settings when the prompt is vague.
-- Common mappings:
-  - "warm", "dark" → lower high_cut, negative high_shelf, higher damping
-  - "bright", "airy" → higher high_cut, positive high_shelf
-  - "tight", "dry", "close" → low reverb wet_level and room_size
-  - "ambient", "distant", "huge" → larger room_size and wet_level
-  - "gritty", "distorted" → increased drive_db, reduced bit_depth
-  - "clean" → zero distortion, full bit depth, minimal processing
-
-========================
-FAILURE CONDITIONS
-========================
-
-The response is invalid if:
-- The output is not a JSON object
-- The keys are not exactly: "EQ", "Distortion", "Reverb", "Delay", "PitchShift", "Bitcrush"
-- Any required field is missing from any effect
-- Any "type" field is present (remove it)
-- Any extra field is present
-- Any value violates range or resolution constraints
-- Any text appears outside the JSON object
-
-You must comply exactly with these instructions.""", instruction=instruction)
+    @staticmethod
+    def LLM_PARAMETER_INITIALIZATION_PROMPT_PEDALBOARD(
+        fx_chain=None,
+        instruction: str = "",
+        current_parameters_dict=None,
+        effects: List[str] = None,
+    ):
+        if effects is None:
+            effects = ["distortion", "delay", "pitchshift", "bitcrush"]
+        sys_prompt = _build_pedalboard_sys_prompt(
+            effects=effects,
+            task_description="Your task is to generate a COMPLETE set of parameters for this FX chain.",
+        )
+        return Prompt(sys_prompt=sys_prompt, instruction=instruction)
