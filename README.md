@@ -1,4 +1,4 @@
-# Welcome to PWFX
+# Welcome to InstructFX2FX/PWFX
 
 ### Installation
 

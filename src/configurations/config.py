@@ -24,6 +24,7 @@ class ParameterInitializationMethod(Enum):
     LLM = 'llm'
     PRESET = 'preset'
     UNIFORM = 'uniform'
+    INPUT = 'input'
 
 @dataclass
 class Config:

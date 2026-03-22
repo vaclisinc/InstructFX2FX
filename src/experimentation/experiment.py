@@ -343,7 +343,7 @@ def run_InstructFX2FX(
         prompt=PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_DASP(
             fx_chain, instructionset_initialization.instruction, effects=effects
         ),
-        initialization_method=ParameterInitializationMethod.LLM,
+        initialization_method=ParameterInitializationMethod.INPUT,
         loss_function=LossFunction.DIRECTIONAL_LOSS,
         optimization_method=optimization_method,
         text_anchor=instructionset_refinement.text_anchor,
@@ -359,8 +359,9 @@ def run_InstructFX2FX(
     )
 
     refined_params_tensor, refined_params_dict, history = parameter_engine.get_params(
-        audio, config_refinement,
-        initial_parames_dict=initial_params_dict,
+        audio,
+        config_refinement,
+        initial_params_dict=initial_params_dict,
         initial_params_tensor=initial_params_tensor,
     )
 
@@ -553,25 +554,7 @@ def run_experiments(
                 run_dir = file_dir / method.value / f"run_{run}"
                 run_dir.mkdir(parents=True, exist_ok=True)
 
-                if method.value == "InstructFX2FX":
-                    params_tensor, params_dict, stage_info = run_InstructFX2FX(
-                        audio=audio_tensor,
-                        fx_chain=fx_chain,
-                        instructionset_initialization=instructionset_initialization,
-                        instructionset_refinement=instructionset_refinement,
-                        llm_client=llm_client,
-                        embedding=embedding,
-                        sample_rate=sample_rate,
-                        device=device,
-                        iterations=iterations,
-                        experiment_dir=run_dir,
-                        filename_prefix=Path(audio_path).stem,
-                        initial_params_tensor=llm_init_params_tensor,
-                        initial_params_dict=llm_init_params_dict,
-                        snapshot_interval=snapshot_interval,
-                        effects=effects,
-                    )
-                elif method.value == "LLM+LLM":
+                if method.value == "LLM+LLM":
                     params_tensor, params_dict, stage_info = run_LLM_LLM(
                         audio=audio_tensor,
                         fx_chain=fx_chain,
@@ -594,6 +577,25 @@ def run_experiments(
                     if not fixed_init:
                         llm_init_params_tensor = stage_info.get("initial_params_tensor")
                         llm_init_params_dict = stage_info.get("initial_params_dict")
+
+                elif method.value == "InstructFX2FX":
+                    params_tensor, params_dict, stage_info = run_InstructFX2FX(
+                        audio=audio_tensor,
+                        fx_chain=fx_chain,
+                        instructionset_initialization=instructionset_initialization,
+                        instructionset_refinement=instructionset_refinement,
+                        llm_client=llm_client,
+                        embedding=embedding,
+                        sample_rate=sample_rate,
+                        device=device,
+                        iterations=iterations,
+                        experiment_dir=run_dir,
+                        filename_prefix=Path(audio_path).stem,
+                        initial_params_tensor=llm_init_params_tensor,
+                        initial_params_dict=llm_init_params_dict,
+                        snapshot_interval=snapshot_interval,
+                        effects=effects,
+                    )
                 else:
                     raise ValueError(f"Unknown method: {method}")
 
