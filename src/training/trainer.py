@@ -3,10 +3,12 @@ from training.loss import refine_with_directional_loss
 from effects.fx import initialize_random_params, initialize_uniform_params,llm_params_dict_example, llm_params_tensor_example, llm_params_dict_example_pedalboard
 from configurations.config import ParameterInitializationMethod
 from utilities.fx_processing import fx_initial_params_to_tensor
-from effects.fx import ALL_PARAM_RANGES
-from FxSearcher.fxsearcher import fxsearcher, ALL_PARAM_RANGES_FXSearcher
+from effects.fx import ALL_PARAM_RANGES_DASP, ALL_PARAM_RANGES_PB
+from FxSearcher.fxsearcher import fxsearcher
 from dataclasses import dataclass
 import torch
+
+DEV = True
 
 @dataclass
 class ParameterEngine:
@@ -19,7 +21,7 @@ class ParameterEngine:
 
         if init_method_value == ParameterInitializationMethod.RANDOM.value:
             initial_params_dict = initialize_random_params()
-            initial_params_tensor = fx_initial_params_to_tensor(initial_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES)
+            initial_params_tensor = fx_initial_params_to_tensor(initial_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES_DASP)
 
         elif init_method_value == ParameterInitializationMethod.LLM.value:
             print("🔄 Initializing parameters using LLM...")
@@ -27,29 +29,31 @@ class ParameterEngine:
                 raise ValueError("LLM client must be provided in config for LLM-based initialization.")
 
             if config.effects_type == "Pedalboard":
-                if llm_params_dict_example_pedalboard:
+                if llm_params_dict_example_pedalboard and DEV:
                     llm_params_dict = llm_params_dict_example_pedalboard
                 else:
                     llm_params_dict = config.llmclient.generate_parameters(config.prompt)
-                llm_params_tensor = torch.zeros((1, 49), device=config.device) + 0.5
+                llm_params_tensor = torch.zeros((1, 49), device=config.device) + 0.5 # CHECK: placeholder since fxsearcher doesn't use the tensor; we just want to be able to pass the dict params to it
                 print(f"✓ LLM generated parameters for Bayesian Optimization: {llm_params_dict.keys()}")
+            elif config.effects_type == "DASP":
+                if llm_params_dict_example and llm_params_tensor_example and DEV:
+                    print("✓ Using existing LLM-generated example parameters for Optimization")
+                    llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict_example, device=config.device, param_ranges=ALL_PARAM_RANGES_DASP)
+                    llm_params_dict = llm_params_dict_example
+                else:
+                    print("Generating new parameters using LLM client...")
+                    llm_params_dict = config.llmclient.generate_parameters(config.prompt)
+                    llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES_DASP)
+                    print(f"✓ LLM generated {llm_params_tensor.shape[1]} parameters")
             else:
-                print("Generating new parameters using LLM client...")
-                llm_params_dict = config.llmclient.generate_parameters(config.prompt)
-                llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES)
-                print(f"✓ LLM generated {llm_params_tensor.shape[1]} parameters")
-                print(llm_params_dict, llm_params_tensor)
-            # else:
-            #     print("✓ Using existing LLM-generated example parameters for Optimization")
-            #     llm_params_tensor = fx_initial_params_to_tensor(llm_params_dict_example, device=config.device, param_ranges=ALL_PARAM_RANGES)
-            #     llm_params_dict = llm_params_dict_example
+                raise ValueError(f"Unknown effects type: {config.effects_type}")
             initial_params_dict = llm_params_dict
             initial_params_tensor = llm_params_tensor
 
 
         elif init_method_value == ParameterInitializationMethod.UNIFORM.value:
             initial_params_dict = initialize_uniform_params()
-            initial_params_tensor = fx_initial_params_to_tensor(initial_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES)
+            initial_params_tensor = fx_initial_params_to_tensor(initial_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES_DASP)
 
         else:
             raise ValueError(f"Unknown initialization method: {config.initialization_method}")
@@ -96,7 +100,7 @@ class ParameterEngine:
                 top_n = 1,
                 n_calls = config.num_iterations,
                 use_guide=False,
-                all_param_ranges=ALL_PARAM_RANGES_FXSearcher,
+                all_param_ranges=ALL_PARAM_RANGES_PB,
                 initial_params=initial_params_dict
             )
 
@@ -109,7 +113,7 @@ class ParameterEngine:
                 top_n = 1,
                 n_calls = config.num_iterations,
                 use_guide=True,
-                all_param_ranges=ALL_PARAM_RANGES_FXSearcher,
+                all_param_ranges=ALL_PARAM_RANGES_PB,
                 initial_params=initial_params_dict
             )
 

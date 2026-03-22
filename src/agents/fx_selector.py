@@ -9,6 +9,7 @@ FX_DESCRIPTIONS = {
     "delay":     "Delay — creates echoes and rhythmic repetition",
     "pitchshift":"Pitch shifter — changes the pitch of the audio",
     "bitcrush":  "Bitcrusher — lo-fi digital degradation, adds noise and aliasing",
+    # "panner":    "Panner — controls stereo placement and width",
 }
 
 _SYSTEM_PROMPT = """You are an expert audio engineer. Given a sound descriptor, select the appropriate audio effects (FX) and decide their order in the signal chain.

@@ -1,6 +1,6 @@
 import math
 import torch
-from effects.fx import ALL_PARAM_RANGES
+from effects.fx import ALL_PARAM_RANGES_DASP
 
 def normalize_effect_parameters(value, spec):
     lo, hi = spec["lo"], spec["hi"]
@@ -79,13 +79,13 @@ def fx_tensor_to_params_dict(tensor, effect_keys, param_ranges=None):
     Args:
         tensor: shape [1, N] normalized params (as returned by refine_with_directional_loss)
         effect_keys: list of effect dict-keys in chain order (e.g. ['EQ', 'Reverb'])
-        param_ranges: param ranges dict (defaults to ALL_PARAM_RANGES)
+        param_ranges: param ranges dict (defaults to ALL_PARAM_RANGES_DASP)
 
     Returns:
         dict like {'EQ': {'b1_freq': 100.0, ...}, 'Reverb': {...}}
     """
     if param_ranges is None:
-        param_ranges = ALL_PARAM_RANGES
+        param_ranges = ALL_PARAM_RANGES_DASP
 
     params_flat = tensor.squeeze(0).tolist()
     result = {}
@@ -129,7 +129,7 @@ def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, param
         raise ValueError(f"Expected config to be a dict or Tensor, got {type(config)}")
 
     if param_ranges is None:
-        param_ranges = ALL_PARAM_RANGES
+        param_ranges = ALL_PARAM_RANGES_DASP
 
     params = []
     # Iterate in canonical order; skip effects not in the config
