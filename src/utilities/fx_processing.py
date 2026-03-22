@@ -71,6 +71,46 @@ EFFECT_PARAM_ORDERS = {
 _CANONICAL_EFFECT_KEYS = ["EQ", "Compressor", "Reverb"]
 
 
+def fx_tensor_to_params_dict(tensor, effect_keys, param_ranges=None):
+    """Inverse of fx_initial_params_to_tensor.
+
+    Converts a normalized [0,1] param tensor back to a nested params dict.
+
+    Args:
+        tensor: shape [1, N] normalized params (as returned by refine_with_directional_loss)
+        effect_keys: list of effect dict-keys in chain order (e.g. ['EQ', 'Reverb'])
+        param_ranges: param ranges dict (defaults to ALL_PARAM_RANGES)
+
+    Returns:
+        dict like {'EQ': {'b1_freq': 100.0, ...}, 'Reverb': {...}}
+    """
+    if param_ranges is None:
+        param_ranges = ALL_PARAM_RANGES
+
+    params_flat = tensor.squeeze(0).tolist()
+    result = {}
+    idx = 0
+    for key in effect_keys:
+        if key not in EFFECT_PARAM_ORDERS:
+            continue
+        effect_dict = {}
+        for param_name in EFFECT_PARAM_ORDERS[key]:
+            spec = param_ranges[key][param_name]
+            norm_val = params_flat[idx]
+            if spec["scale"] == "linear":
+                val = norm_val * (spec["hi"] - spec["lo"]) + spec["lo"]
+            elif spec["scale"] == "log":
+                val = math.exp(
+                    norm_val * (math.log(spec["hi"]) - math.log(spec["lo"])) + math.log(spec["lo"])
+                )
+            else:
+                raise ValueError(f"Unknown scale: {spec['scale']}")
+            effect_dict[param_name] = val
+            idx += 1
+        result[key] = effect_dict
+    return result
+
+
 def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, param_ranges=None):
     """Convert a grouped FX config dict into a normalized parameter tensor.
 
