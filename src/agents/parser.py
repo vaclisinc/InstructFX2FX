@@ -6,11 +6,12 @@ import tempfile
 import torch
 
 from effects.fx import FXChainFactory
-from FxSearcher.fxsearcher import fxsearcher, ALL_PARAM_RANGES_FXSearcher
+from FxSearcher.fxsearcher import fxsearcher
 from prompts.prompt import PromptFactory
 from session.session import Session
 from training.loss import refine_with_directional_loss
 from utilities.fx_processing import fx_initial_params_to_tensor, fx_tensor_to_params_dict
+from effects.fx import ALL_PARAM_RANGES_DASP, ALL_PARAM_RANGES_PB
 
 # ---------------------------------------------------------------------------
 # FX name mappings
@@ -32,7 +33,10 @@ _PB_DICT_KEY = {
     "delay":      "Delay",
     "pitchshift": "PitchShift",
     "bitcrush":   "Bitcrush",
+    # "panner":     "Panner",
 }
+
+# ASSUMPTION: Compressor goes through Pedalboard + BO, not DASP + gradient descent, since it has discrete attack/release times that are not well-suited to gradient-based optimization. If this changes, we may need to update the prompts and how we route FX in Parser.
 
 
 class Parser:
@@ -114,7 +118,10 @@ class Parser:
                     result[fx] = params_dict[dict_key]
 
         if pb_fxs:
-            prompt = PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_PEDALBOARD(instruction)
+            prompt = PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_PEDALBOARD(
+                instruction=instruction,
+                effects=pb_fxs,
+            )
             pb_dict = self.llm.generate_parameters(prompt)
             for fx in pb_fxs:
                 dict_key = _PB_DICT_KEY.get(fx)
@@ -178,9 +185,9 @@ class Parser:
             if fx in init_params and fx in _PB_DICT_KEY
         }
         pb_param_ranges = {
-            _PB_DICT_KEY[fx]: ALL_PARAM_RANGES_FXSearcher[_PB_DICT_KEY[fx]]
+            _PB_DICT_KEY[fx]: ALL_PARAM_RANGES_PB[_PB_DICT_KEY[fx]]
             for fx in pb_fxs
-            if fx in _PB_DICT_KEY and _PB_DICT_KEY[fx] in ALL_PARAM_RANGES_FXSearcher
+            if fx in _PB_DICT_KEY and _PB_DICT_KEY[fx] in ALL_PARAM_RANGES_PB
         }
 
         if not pb_param_ranges:

@@ -24,7 +24,7 @@ from typing import Optional, Dict, Any, List
 
 from src.metrics.metric import Metric
 from src.prompts.prompt import Prompt
-from src.embeddings.clap_fxsearcher import CLAPFxSearcherWrapper
+from drafts.clap_fxsearcher import CLAPFxSearcherWrapper # TODO: Change to CLAPWrapper to have the same CLAP for both text2fx and fxsearcher
 
 @dataclass(frozen=True)
 class AudioItem:
@@ -40,13 +40,13 @@ def _load_waveform_mono(x: Any) -> np.ndarray:
 
     if isinstance(x, torch.Tensor):
         t = x.detach().cpu().float()
-        if t.dim() == 1: 
+        if t.dim() == 1:
             return t.numpy()
-        if t.dim() == 2: 
+        if t.dim() == 2:
             return t.mean(dim=0).numpy()
-        if t.dim() == 3: 
+        if t.dim() == 3:
             return _load_waveform_mono(t.squeeze(0))
-        
+
     a = np.asarray(x, dtype=np.float32)
     if a.ndim == 1: return a
     if a.ndim == 2: return a.mean(axis=0) if a.shape[0] < a.shape[1] else a.mean(axis=1)
@@ -94,7 +94,7 @@ class FxSearcherWER(Metric):
     def compute(self, original_audio: Any, target_audio: Any, prompt: Optional[Prompt] = None):
         wav_orig, sr_o = _extract_audio_and_sr(original_audio)
         wav_target, sr_t = _extract_audio_and_sr(target_audio)
-        
+
         # Whisper transcribes from path or ndarray
         ref = self.model.transcribe(_load_waveform_mono(wav_orig))["text"]
         hyp = self.model.transcribe(_load_waveform_mono(wav_target))["text"]
@@ -145,7 +145,7 @@ class AIJudgeQwen(Metric):
     def compute(self, target_audio: Any, prompt: Prompt):
         # Implementation: Send audio + prompt to Qwen-Omni
         # Return numeric score 1.0 - 5.0
-        return 0.0 
+        return 0.0
 
 class AIJudgeGemini(Metric):
     """Gemini 2.5 Flash: Pairwise preference (Win Rate)"""
@@ -153,7 +153,7 @@ class AIJudgeGemini(Metric):
         # Implementation: Ask Gemini which audio matches prompt better
         # Return "A", "B", or "Tie"
         return "A"
-    
+
 def run_fxsearcher_evaluation(
     pred_dir: str,
     gt_dir: Optional[str] = None,
