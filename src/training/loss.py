@@ -33,9 +33,17 @@ def directional_loss(audio_anchor, audio_effected, text_anchor, text_target):
 
 
 def refine_with_directional_loss(
-    audio, fx_chain, initial_params, text_anchor, text_target,
-    clap_model, n_iterations=100, lr=0.01, device=None,
-    snapshot_interval=None, optimization_method=OptimizationMethod.GRADIENT_DESCENT
+    audio,
+    fx_chain,
+    initial_params,
+    text_anchor,
+    text_target,
+    clap_model,
+    n_iterations=100,
+    lr=0.01,
+    device=None,
+    snapshot_interval=None,
+    optimization_method=OptimizationMethod.GRADIENT_DESCENT
 ):
     """Refine parameters using gradient descent in CLAP space.
 
@@ -44,7 +52,6 @@ def refine_with_directional_loss(
     """
     if device is None:
         device = audio.device
-
 
     def inverse_sigmoid_torch(y, eps=1e-6):
         y = torch.clamp(y, eps, 1 - eps)
@@ -59,7 +66,7 @@ def refine_with_directional_loss(
         audio_short = audio
 
     # Setup - ensure initial_params is on correct device and requires grad
-    params = torch.nn.Parameter(inverse_sigmoid_torch(initial_params).clone().detach().to(device).requires_grad_(True))
+    params = torch.nn.Parameter(inverse_sigmoid_torch(initial_params).clone().detach().to(device).requires_grad_(True)) # INVERSE SIGMOID
     optimizer = torch.optim.Adam([params], lr=lr)
 
     # Get fixed embeddings (no gradients needed for these)
@@ -108,7 +115,7 @@ def refine_with_directional_loss(
             optimizer.zero_grad()
 
             # Apply FX with gradient tracking
-            audio_effected = fx_chain(audio_short.clone(), torch.sigmoid(params))
+            audio_effected = fx_chain(audio_short.clone(), torch.sigmoid(params)) # SIGMOID
 
             # Get embedding - gradients will flow back through audio_effected
             audio_effected_emb = clap_model.get_audio_embedding(audio_effected)
@@ -158,7 +165,7 @@ def refine_with_directional_loss(
         iterator = Integer(0, n_iterations, name='iteration')
 
         # Initial point from LLM / preset (already normalised to [0, 1])
-        x0 = initial_params.detach().cpu().numpy().flatten().tolist()
+        x0 = initial_params.detach().cpu().numpy().flatten().tolist() # NO SIGMOID
 
         print(f"⚡ Starting Bayesian Optimization refinement with {n_iterations} iterations... {params}")
 
@@ -224,7 +231,7 @@ def refine_with_directional_loss(
                 print(f"\n⏹ Early stopping: no improvement in {stall_limit} iterations.")
                 return True  # stops gp_minimize
 
-        print(f"\n🎯 Bayesian refinement: '{text_anchor}' → '{text_target}'")
+        print(f"\n🎯 Bayesian refinement done: '{text_anchor}' → '{text_target}'")
         if snapshot_interval:
             print(f"📸 Saving param snapshots every {snapshot_interval} iterations")
 
@@ -259,7 +266,7 @@ def refine_with_directional_loss(
 
     # Compute and store final audio with final parameters
     with torch.no_grad():
-        final_audio = fx_chain(audio_short.clone(), final_params)
+        final_audio = fx_chain(audio.clone(), final_params)
         audios['end'] = (final_audio.detach().cpu(), final_params.detach().cpu())
 
     return_value = final_params, history, audios
