@@ -718,7 +718,6 @@ def fxsearcher(audio: str = None,
             "Bitcrush": {"bit_depth": 0},
         }
     if fxs is not None:
-        fxs = ['EQ','Compression']
         initial_params = {k: v for k, v in initial_params.items() if k in fxs}
         PARAM_RANGES = {fx: ALL_PARAM_RANGES[fx] for fx in ALL_PARAM_RANGES if fx in fxs}
 
