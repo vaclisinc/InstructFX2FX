@@ -183,3 +183,234 @@ def extract_features_batch(audio_dir: str, sr: int = 22050) -> Tuple[np.ndarray,
 
     return np.asarray(features), names
 
+
+# ---------------------------------------------------------------------------
+# Timbre PCA features (19-D)
+#
+# Two principal components from timbre perception research:
+#   PC 1: Irregularity, Irregularity_p, Kurtosis_p, Skew_s, Irregularity_h,
+#          Kurtosis_h, Skew_p, Std, RMS, Skew_h, Kurtosis_s, Var
+#   PC 2: Centroid_p, Centroid_h, Rolloff_s, Std_h, Std_p, Centroid_s, Slope_s
+#
+# Subscripts:  s = magnitude spectrum,  p = peak spectrum,
+#              h = harmonic peak spectrum,  (none) = temporal / abstract
+# Spectral irregularity uses the method described by Krimphoff et al.
+# ---------------------------------------------------------------------------
+
+TIMBRE_FEATURE_NAMES = [
+    # Temporal / abstract (no subscript)
+    "irregularity",
+    "std",
+    "rms",
+    "var",
+    # Magnitude spectrum (_s)
+    "skew_s",
+    "kurtosis_s",
+    "centroid_s",
+    "rolloff_s",
+    "slope_s",
+    # Peak spectrum (_p)
+    "irregularity_p",
+    "kurtosis_p",
+    "skew_p",
+    "centroid_p",
+    "std_p",
+    # Harmonic peak spectrum (_h)
+    "irregularity_h",
+    "kurtosis_h",
+    "skew_h",
+    "centroid_h",
+    "std_h",
+]
+
+
+# ── Spectral helpers ─────────────────────────────────────────────────────────
+
+def _irregularity_krimphoff(amplitudes: np.ndarray) -> float:
+    """Spectral irregularity (Krimphoff et al.):
+    sum of squared differences between adjacent amplitude values."""
+    if len(amplitudes) < 2:
+        return 0.0
+    return float(np.sum(np.diff(amplitudes) ** 2))
+
+
+def _weighted_centroid(amps: np.ndarray, freqs: np.ndarray) -> float:
+    total = np.sum(amps)
+    if total < 1e-10:
+        return 0.0
+    return float(np.sum(freqs * amps) / total)
+
+
+def _weighted_spread(amps: np.ndarray, freqs: np.ndarray) -> float:
+    """Amplitude-weighted spectral standard deviation (spread)."""
+    centroid = _weighted_centroid(amps, freqs)
+    total = np.sum(amps)
+    if total < 1e-10:
+        return 0.0
+    return float(np.sqrt(np.sum(amps * (freqs - centroid) ** 2) / total))
+
+
+def _weighted_skewness(amps: np.ndarray, freqs: np.ndarray) -> float:
+    centroid = _weighted_centroid(amps, freqs)
+    spread = _weighted_spread(amps, freqs)
+    total = np.sum(amps)
+    if total < 1e-10 or spread < 1e-10:
+        return 0.0
+    return float(np.sum(amps * ((freqs - centroid) / spread) ** 3) / total)
+
+
+def _weighted_kurtosis(amps: np.ndarray, freqs: np.ndarray) -> float:
+    centroid = _weighted_centroid(amps, freqs)
+    spread = _weighted_spread(amps, freqs)
+    total = np.sum(amps)
+    if total < 1e-10 or spread < 1e-10:
+        return 0.0
+    return float(np.sum(amps * ((freqs - centroid) / spread) ** 4) / total)
+
+
+def _spectral_rolloff_custom(amps: np.ndarray, freqs: np.ndarray, threshold: float = 0.85) -> float:
+    """Frequency below which *threshold* fraction of spectral energy lies."""
+    total = np.sum(amps)
+    if total < 1e-10:
+        return 0.0
+    cumsum = np.cumsum(amps)
+    idx = int(np.searchsorted(cumsum, threshold * total))
+    return float(freqs[min(idx, len(freqs) - 1)])
+
+
+def _spectral_slope(amps: np.ndarray, freqs: np.ndarray) -> float:
+    """Linear regression slope of amplitude vs. frequency."""
+    if len(freqs) < 2:
+        return 0.0
+    f_mean = np.mean(freqs)
+    a_mean = np.mean(amps)
+    denom = np.sum((freqs - f_mean) ** 2)
+    if abs(denom) < 1e-10:
+        return 0.0
+    return float(np.sum((freqs - f_mean) * (amps - a_mean)) / denom)
+
+
+def _find_spectral_peaks(magnitude: np.ndarray, freqs: np.ndarray):
+    """Return (peak_amps, peak_freqs) from the magnitude spectrum."""
+    from scipy.signal import find_peaks as _find_peaks
+
+    indices, _ = _find_peaks(magnitude, height=0)
+    if len(indices) == 0:
+        return magnitude, freqs  # fallback: treat whole spectrum as peaks
+    return magnitude[indices], freqs[indices]
+
+
+def _find_harmonic_peaks(
+    magnitude: np.ndarray,
+    freqs: np.ndarray,
+    f0: float,
+    n_harmonics: int = 20,
+    tolerance_hz: float = 30.0,
+):
+    """Return (harmonic_amps, harmonic_freqs) at multiples of f0."""
+    if f0 <= 0 or len(freqs) == 0:
+        return np.array([]), np.array([])
+    target_freqs = f0 * np.arange(1, n_harmonics + 1)
+    target_freqs = target_freqs[target_freqs < freqs[-1]]
+    amps, matched_freqs = [], []
+    for hf in target_freqs:
+        idx = int(np.argmin(np.abs(freqs - hf)))
+        if abs(freqs[idx] - hf) <= tolerance_hz:
+            amps.append(magnitude[idx])
+            matched_freqs.append(freqs[idx])
+    if not amps:
+        return np.array([]), np.array([])
+    return np.array(amps), np.array(matched_freqs)
+
+
+def _estimate_f0(y: np.ndarray, sr: int) -> float:
+    """Robust f0 estimate via librosa.pyin (median of voiced frames)."""
+    import librosa
+
+    f0_arr, voiced, _ = librosa.pyin(
+        y, fmin=50, fmax=4000, sr=sr, frame_length=2048
+    )
+    voiced_f0 = f0_arr[voiced]
+    if len(voiced_f0) == 0:
+        return 0.0
+    return float(np.median(voiced_f0))
+
+
+# ── Main extraction functions ────────────────────────────────────────────────
+
+def _compute_timbre_features(y: np.ndarray, sr: int) -> np.ndarray:
+    """Compute the 19-D timbre feature vector from an audio signal array."""
+    n_features = len(TIMBRE_FEATURE_NAMES)
+    if np.max(np.abs(y)) < 1e-8:
+        return np.zeros(n_features, dtype=np.float32)
+
+    # ── Temporal / abstract (no subscript) ────────────────────────────────
+    sig_rms = float(np.sqrt(np.mean(y ** 2)))
+    sig_std = float(np.std(y))
+    sig_var = float(np.var(y))
+
+    # Magnitude spectrum (average over frames)
+    S = np.abs(np.fft.rfft(y))
+    import librosa
+    freqs = np.fft.rfftfreq(len(y), d=1.0 / sr).astype(np.float64)
+
+    # Irregularity on the full magnitude spectrum (Krimphoff)
+    irregularity = _irregularity_krimphoff(S)
+
+    # ── Magnitude spectrum features (_s) ──────────────────────────────────
+    skew_s = _weighted_skewness(S, freqs)
+    kurtosis_s = _weighted_kurtosis(S, freqs)
+    centroid_s = _weighted_centroid(S, freqs)
+    rolloff_s = _spectral_rolloff_custom(S, freqs)
+    slope_s = _spectral_slope(S, freqs)
+
+    # ── Peak spectrum features (_p) ───────────────────────────────────────
+    peak_amps, peak_freqs = _find_spectral_peaks(S, freqs)
+    irregularity_p = _irregularity_krimphoff(peak_amps)
+    kurtosis_p = _weighted_kurtosis(peak_amps, peak_freqs)
+    skew_p = _weighted_skewness(peak_amps, peak_freqs)
+    centroid_p = _weighted_centroid(peak_amps, peak_freqs)
+    std_p = _weighted_spread(peak_amps, peak_freqs)
+
+    # ── Harmonic peak spectrum features (_h) ──────────────────────────────
+    f0 = _estimate_f0(y, sr)
+    harm_amps, harm_freqs = _find_harmonic_peaks(S, freqs, f0)
+
+    if len(harm_amps) >= 2:
+        irregularity_h = _irregularity_krimphoff(harm_amps)
+        kurtosis_h = _weighted_kurtosis(harm_amps, harm_freqs)
+        skew_h = _weighted_skewness(harm_amps, harm_freqs)
+        centroid_h = _weighted_centroid(harm_amps, harm_freqs)
+        std_h = _weighted_spread(harm_amps, harm_freqs)
+    else:
+        irregularity_h = kurtosis_h = skew_h = centroid_h = std_h = 0.0
+
+    return np.asarray(
+        [
+            # No subscript
+            irregularity, sig_std, sig_rms, sig_var,
+            # _s
+            skew_s, kurtosis_s, centroid_s, rolloff_s, slope_s,
+            # _p
+            irregularity_p, kurtosis_p, skew_p, centroid_p, std_p,
+            # _h
+            irregularity_h, kurtosis_h, skew_h, centroid_h, std_h,
+        ],
+        dtype=np.float32,
+    )
+
+
+def extract_timbre_features(audio_path: str, sr: int = 22050) -> np.ndarray:
+    """Extract the 19-D timbre PCA feature vector from an audio file on disk."""
+    import librosa
+
+    y, sr = librosa.load(audio_path, sr=sr, mono=True)
+    return _compute_timbre_features(y, sr)
+
+
+def extract_timbre_features_from_array(audio: np.ndarray, sr: int = 22050) -> np.ndarray:
+    """Extract the 19-D timbre PCA feature vector from an in-memory audio array."""
+    if audio.ndim == 2:
+        audio = np.mean(audio, axis=0)
+    return _compute_timbre_features(audio.astype(np.float64), sr)
+
