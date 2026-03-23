@@ -66,6 +66,6 @@ NR_RUNS_PER_FILE: int = 20  # nr_of_experiments_per_file passed to run_experimen
 # True  (Option B): call LLM once per audio file before the runs loop;
 #                   ALL runs (and both methods) share that single fixed init.
 # False (Option A): each run calls LLM fresh for init (stochastic across runs);
-#                   LLM_LLM captures the init and InstructFX2FX reuses it within
+#                   LLM_LLM captures the init and InstructFX2FX does not reuse it within
 #                   the same run.
 FIXED_INIT: bool = False

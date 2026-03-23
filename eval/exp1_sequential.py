@@ -69,6 +69,7 @@ def _seq_gt_paths(word_A: str, word_B: str, instrument: str) -> List[str]:
 def _latest_experiment_dir(word_A: str, word_B: str, instrument: str):
     pair_inst_dir = os.path.join(cfg.SYSTEM_RESULTS_DIR, f"{word_A}_to_{word_B}", instrument)
     candidates = sorted(glob.glob(os.path.join(pair_inst_dir, "experiment_*")))
+    print('[DEBUG] Looking for experiment dirs in:', pair_inst_dir, 'Found:', candidates)
     return candidates[-1] if candidates else None
 
 
@@ -177,7 +178,7 @@ def run_exp1(
 
                 sys_paths = collect_final_audio_paths(exp_dir, method)
                 if not sys_paths:
-                    print(f"[exp1] SKIP MMD {pair_key}/{instrument}: no final WAVs for {method_name}")
+                    print(f"[exp1] SKIP MMD {pair_key}/{instrument}: no final WAVs for {method_name} at {sys_paths}")
                     continue
 
                 mmd = _compute_mmd_for_pair_instrument(sys_paths, gt_paths)
