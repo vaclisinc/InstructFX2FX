@@ -118,9 +118,11 @@ def collect_final_audio_paths(pair_run_dir: str, method: Method) -> List[str]:
 
     Returns paths sorted lexicographically (stable across runs).
     """
+    print('[DEBUG] Looking for final audio paths in:', pair_run_dir, 'for method:', method.value)
     pattern = os.path.join(
         pair_run_dir, "**", method.value, "run_*", "*_final_output.wav"
     )
+    print('[DEBUG] Final audio search pattern:', pattern)
     return sorted(glob.glob(pattern, recursive=True))
 
 
