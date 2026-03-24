@@ -77,7 +77,7 @@ def fx_tensor_to_params_dict(tensor, effect_keys, param_ranges=None):
     Converts a normalized [0,1] param tensor back to a nested params dict.
 
     Args:
-        tensor: shape [1, N] normalized params (as returned by refine_with_directional_loss)
+        tensor: shape [1, N] normalized params (as returned by move_in_CLAP)
         effect_keys: list of effect dict-keys in chain order (e.g. ['EQ', 'Reverb'])
         param_ranges: param ranges dict (defaults to ALL_PARAM_RANGES_DASP)
 

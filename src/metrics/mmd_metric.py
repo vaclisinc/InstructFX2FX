@@ -5,7 +5,7 @@ from typing import Any, Tuple
 
 import numpy as np
 
-from .dsp_features import extract_features_batch, extract_dsp_features_from_array
+from .dsp_feature_metrics import extract_features_batch, extract_dsp_features_from_array
 from .metric import Metric
 
 
@@ -74,7 +74,7 @@ def run_mmd_evaluation(gt_dir: str, pred_dir: str, sr: int = 22050) -> float:
 
 
 @dataclass
-class LLM2FxMMD(Metric):
+class AudioFeaturesMMD(Metric):
     """
     LLM2Fx-style MMD over DSP features for a single pair of audio items.
 
@@ -100,4 +100,3 @@ class LLM2FxMMD(Metric):
 
 
 __all__ = ["compute_mmd", "run_mmd_evaluation", "LLM2FxMMD"]
-

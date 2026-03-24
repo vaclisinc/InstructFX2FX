@@ -3,7 +3,7 @@ import json
 import os
 from typing import Dict, Any
 
-from src.metrics.metric_fxsearcher import run_fxsearcher_evaluation
+from misc.drafts.metric_fxsearcher import run_fxsearcher_evaluation
 
 
 def main() -> None:
@@ -27,7 +27,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--outdir",
-        default="result-demo",
+        default="result",
         help="Directory to save the JSON result (default: result)",
     )
     parser.add_argument(
