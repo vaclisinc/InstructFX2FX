@@ -40,7 +40,7 @@ DRY_AUDIO_DIR: str = os.path.join(ROOT, "dry_audio")
 # Expected structure: DRY_AUDIO_DIR/{instrument}/*.wav
 
 # ── Cache / output directories ──────────────────────────────────────────────
-GT_BANK_DIR: str = os.path.join(ROOT, "eval", "gt_cache")
+GT_BANK_DIR: str = os.path.join(ROOT, "eval", "gt_cache", "sequential")
 SYSTEM_RESULTS_DIR: str = os.path.join(ROOT, "eval", "system_outputs")
 RESULTS_DIR: str = os.path.join(ROOT, "eval", "results")
 
