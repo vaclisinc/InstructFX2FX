@@ -15,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "eval"))
 
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env", override=False)
@@ -23,10 +24,10 @@ import glob
 
 import eval.config as cfg
 from embeddings.clap import CLAPWrapper
-from experimentation.experiment import Method
+from runners.runners import Method
 from llms.llmclient import LLMClient
 
-from eval.exp1_sequential import run_exp1
+from eval.exp.exp1_sequential import run_exp1
 
 if __name__ == "__main__":
     print(f"device : {cfg.DEVICE}")

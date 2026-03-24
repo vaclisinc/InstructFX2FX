@@ -22,3 +22,7 @@ resampy
 scikit-learn
 plotly
 datasets
+frechet_audio_distance
+pyloudnorm
+numpy
+fxencoder_plusplus

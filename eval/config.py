@@ -40,7 +40,8 @@ DRY_AUDIO_DIR: str = os.path.join(ROOT, "dry_audio")
 # Expected structure: DRY_AUDIO_DIR/{instrument}/*.wav
 
 # ── Cache / output directories ──────────────────────────────────────────────
-GT_BANK_DIR: str = os.path.join(ROOT, "eval", "gt_cache", "sequential")
+GT_BANK_DIR_SEQUENTIAL: str = os.path.join(ROOT, "eval", "gt_cache", "sequential")
+GT_BANK_DIR_ONESHOT: str = os.path.join(ROOT, "eval", "gt_cache", "one-shot")
 SYSTEM_RESULTS_DIR: str = os.path.join(ROOT, "eval", "system_outputs")
 RESULTS_DIR: str = os.path.join(ROOT, "eval", "results")
 
@@ -60,7 +61,7 @@ GT_BANK_SAMPLES: int = 50   # random (i, j) pairs sampled per dry clip
 # ── System hyperparams ──────────────────────────────────────────────────────
 N_GRAD_ITER: int = 1000
 SAVE_INTERVAL: int = 50    # snapshot_interval for trajectory (Exp 2)
-NR_RUNS_PER_FILE: int = 20  # nr_of_experiments_per_file passed to run_experiments
+NR_RUNS_PER_FILE: int = 20  # nr_of_experiments_per_file passed to run_LLMLLM_vs_InstructFX2FX
 
 # ── Init mode ────────────────────────────────────────────────────────────────
 # True  (Option B): call LLM once per audio file before the runs loop;

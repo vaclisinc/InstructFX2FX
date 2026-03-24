@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv(ROOT / ".env", override=False)
 
 import eval.config as cfg
-from eval.exp2_trajectory import run_exp2
+from eval.exp.exp2_trajectory import run_exp2
 
 if __name__ == "__main__":
     print(f"pairs  : {len(cfg.WORD_PAIRS)}")

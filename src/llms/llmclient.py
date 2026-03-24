@@ -5,10 +5,14 @@ import openai
 import getpass
 from dotenv import load_dotenv
 from prompts.prompt import Prompt
-from utilities.parsing import extract_json
+from utilities.text_processing import extract_json
 # from anthropic import Anthropic
+from dataclasses import dataclass
 
+@dataclass
 class LLMClient:
+    model="gpt-4o"
+
     """LLM client for interacting with OpenRouter or Anthropic."""
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")
@@ -23,11 +27,11 @@ class LLMClient:
         print("✓ LLM client ready")
 
 
-    def generate_parameters(self, prompt: Prompt, model: str = "gpt-4o") -> dict:
+    def generate_parameters(self, prompt: Prompt) -> dict:
         """Generate parameters from the LLM based on the given prompt."""
 
         response = self.llm.chat.completions.create(
-            model=model,
+            model=self.model,
             max_tokens=1024,
             messages=[
                 {"role": "system", "content": prompt.sys_prompt},

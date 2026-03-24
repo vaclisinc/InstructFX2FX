@@ -326,9 +326,15 @@ def _estimate_f0(y: np.ndarray, sr: int) -> float:
     """Robust f0 estimate via librosa.pyin (median of voiced frames)."""
     import librosa
 
-    f0_arr, voiced, _ = librosa.pyin(
-        y, fmin=50, fmax=4000, sr=sr, frame_length=2048
-    )
+    try:
+        f0_arr, voiced, _ = librosa.pyin(
+            y, fmin=50, fmax=4000, sr=sr, frame_length=2048
+        )
+    except (SystemError, Exception):
+        # numpy/librosa Viterbi compatibility issue — fall back to yin
+        f0_arr = librosa.yin(y, fmin=50, fmax=4000, sr=sr, frame_length=2048)
+        voiced = (f0_arr > 0) & (f0_arr < 4000)
+
     voiced_f0 = f0_arr[voiced]
     if len(voiced_f0) == 0:
         return 0.0
