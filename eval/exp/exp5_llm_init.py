@@ -163,7 +163,7 @@ def run_exp5(
                     ),
                     initialization_method=ParameterInitializationMethod.LLM,
                     loss_function=LossFunction.GUIDED_SEMANTIC_LOSS,
-                    text_target="This sound is"
+                    text_target=f"This sound is {word}",
                     llmclient=llm_client,
                     fx_chain=fx_chain,
                     embedding=clap,
@@ -182,3 +182,5 @@ def run_exp5(
                     json.dump(params_dict, f, indent=2)
 
             print(f"[exp5] LLM {word}/{instrument}: {len(dry)} files saved")
+
+        # compare results
