@@ -28,7 +28,8 @@ from configurations.config import (
     LossFunction,
 )
 from prompts.prompt import Prompt, PromptFactory
-from training.trainer import ParameterEngine
+from src.utilities.fx_processing import fx_tensor_to_params_dict
+from training.parameterengine import ParameterEngine
 from effects.fx import FXChainFactory
 from llms.llmclient import LLMClient
 from embeddings.clap import CLAPWrapper
@@ -358,17 +359,18 @@ def run_InstructFX2FX(
         snapshot_interval=_snapshot_interval,
     )
 
-    refined_params_tensor, refined_params_dict, history = parameter_engine.get_params(
+    refined_params_tensor, history , audios = parameter_engine.get_params(
         audio,
         config_refinement,
         initial_params_dict=initial_params_dict,
         initial_params_tensor=initial_params_tensor,
     )
+    refined_params_dict = fx_tensor_to_params_dict(refined_params_tensor) # FIXME is this still in the right order when we don't have all effects in the tensor?
 
     # Save refinement stage
     if experiment_dir:
         audio_path, params_path = _save_audio_and_params(
-            audio, refined_params_tensor, refined_params_dict, fx_chain,
+            audio, refined_params_tensor, history, fx_chain,
             sample_rate, stages_dir, "02_refined"
         )
         stage_info["refinement"] = {"audio": audio_path, "params": params_path}
@@ -620,14 +622,15 @@ def run_experiments(
                 results.append(result)
 
                 # Save individual result
+                project_root = Path.cwd()
                 result_json_path = run_dir / f"{audio_filename}_run{run}_summary.json"
                 with open(result_json_path, "w") as f:
                     json.dump(
                         {
                             "method": result.method,
-                            "input_audio_path": result.audio_path,
-                            "final_output_audio_path": result.output_audio_path,
-                            "stages_directory": result.stages_dir,
+                            "input_audio_path": os.path.relpath(result.audio_path, project_root),
+                            "final_output_audio_path": os.path.relpath(result.output_audio_path, project_root),
+                            "stages_directory": os.path.relpath(result.stages_dir, project_root),
                             "final_parameters": result.parameters,
                             "timestamp": result.timestamp,
                         },
@@ -648,12 +651,12 @@ def run_experiments(
                             "sample_rate": sample_rate,
                             "instruction_init": instructionset_initialization.to_dict(),
                             "instruction_refine": instructionset_refinement.to_dict(),
-                            "original_audio_path": audio_path,
+                            "original_audio_path": os.path.relpath(audio_path, project_root),
                             "runs": [
                                 {
                                     "run": run,
-                                    "run_directory": str(run_dir),
-                                    "final_output_audio_path": r.output_audio_path,
+                                    "run_directory": os.path.relpath(str(run_dir), project_root),
+                                    "final_output_audio_path": os.path.relpath(r.output_audio_path, project_root),
                                 }
                                 for r in results
                             ],

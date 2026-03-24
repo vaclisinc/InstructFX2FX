@@ -41,7 +41,8 @@ import matplotlib.pyplot as plt
 import torch, torchaudio
 
 from utilities.audio_processing import resample_audio
-from utilities.fx_processing import fx_initial_params_to_tensor, ALL_PARAM_RANGES
+from utilities.fx_processing import fx_initial_params_to_tensor
+from effects.fx import ALL_PARAM_RANGES_PB
 
 # -------------------------------
 # Utility

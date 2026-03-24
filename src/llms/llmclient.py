@@ -23,11 +23,11 @@ class LLMClient:
         print("✓ LLM client ready")
 
 
-    def generate_parameters(self, prompt: Prompt) -> dict:
+    def generate_parameters(self, prompt: Prompt, model: str = "gpt-4o") -> dict:
         """Generate parameters from the LLM based on the given prompt."""
 
         response = self.llm.chat.completions.create(
-            model="gpt-4o",
+            model=model,
             max_tokens=1024,
             messages=[
                 {"role": "system", "content": prompt.sys_prompt},

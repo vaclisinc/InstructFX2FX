@@ -9,7 +9,7 @@ from effects.fx import FXChainFactory
 from FxSearcher.fxsearcher import fxsearcher
 from prompts.prompt import PromptFactory
 from session.session import Session
-from training.loss import refine_with_directional_loss
+from training.trainer import move_in_CLAP
 from utilities.fx_processing import fx_initial_params_to_tensor, fx_tensor_to_params_dict
 from effects.fx import ALL_PARAM_RANGES_DASP, ALL_PARAM_RANGES_PB
 
@@ -48,7 +48,7 @@ class Parser:
         3. Mixed → LLM-initialize the missing ones, merge, then optimize.
 
     Optimization (Sequential C):
-        DASP effects (eq, rev)  → gradient descent via refine_with_directional_loss
+        DASP effects (eq, rev)  → gradient descent via move_in_CLAP
         Pedalboard effects       → Bayesian BO via fxsearcher
         DASP runs first; its output audio is fed as input to the Pedalboard stage.
     """
@@ -158,7 +158,7 @@ class Parser:
         dasp_init_dict = {_DASP_DICT_KEY[fx]: init_params[fx] for fx in dasp_fxs if fx in init_params}
         init_tensor    = fx_initial_params_to_tensor(dasp_init_dict, device=self.device)
 
-        final_tensor, _, audios = refine_with_directional_loss(
+        final_tensor, _, audios = move_in_CLAP(
             audio=audio,
             fx_chain=fx_chain_obj,
             initial_params=init_tensor,
