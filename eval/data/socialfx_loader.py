@@ -38,7 +38,7 @@ def _get_original_dataset(fx_type: str):
 
 def load_word_ids(word: str, fx_type: str = "eq") -> List[str]:
     """
-    Get all sample IDs for a word from seungheondoh/socialfx-gen-eval.
+    Get all sample IDs for a word from seungheondoh/socialfx-original.
 
     The gen-eval dataset has columns `input` (text/word) and `output` (list of
     sample IDs). There is one row per word; `output` is a list of ID strings.
@@ -50,19 +50,21 @@ def load_word_ids(word: str, fx_type: str = "eq") -> List[str]:
     Output:
         ids: List[str]  e.g. ["eq_0", "eq_6", "eq_10", ...]
     """
-    ds = _get_gen_eval_dataset(fx_type)
+    ds = _get_original_dataset(fx_type)
+    output = []
     for row in ds:
-        if row["input"] == word:
-            output = row["output"]
-            # output is a list of ID strings (one row per word)
-            if isinstance(output, list):
-                return [str(s) for s in output]
-            # fallback: single string
-            return [str(output)]
-    raise ValueError(
-        f"No sample IDs found for word='{word}' in socialfx-gen-eval/{fx_type}. "
-        f"Check that the word is in the dataset."
-    )
+        if row["text"] == word:
+            id = row["id"]
+            output.append(id)
+
+    if not output:
+        raise ValueError(
+            f"No sample IDs found for word='{word}' in socialfx-original/{fx_type}. "
+            f"Check that the word is in the dataset."
+        )
+
+    return output
+
 
 
 def load_params_by_id(sample_id: str, fx_type: str = "eq") -> List[float]:
@@ -89,7 +91,7 @@ def load_params_by_id(sample_id: str, fx_type: str = "eq") -> List[float]:
 
 def load_all_params_for_word(word: str, fx_type: str = "eq") -> List[List[float]]:
     """
-    Load all available EQ parameter arrays for a word.
+    Load all available parameter arrays for a word and fx_type.
     Calls load_word_ids → load_params_by_id for each ID.
 
     Input:
