@@ -1,109 +1,155 @@
-import argparse
-import json
-import os
-import re
+from __future__ import annotations
 
-from src.metrics.clap_metric import compute_clap_score
+from dataclasses import dataclass
+from typing import Any, Tuple
 
+import numpy as np
 
-def _split_words(prompt: str) -> list[str]:
-    """Split prompt into words (for optional per-word CLAP breakdown)."""
-    return [w.strip() for w in prompt.split() if w.strip()]
+from .metric import Metric
 
 
-def _split_phrases(prompt: str) -> list[str]:
-    """Split prompt into phrases on commas and ' and ', for optional per-phrase CLAP breakdown."""
-    parts = re.split(r",|\s+and\s+", prompt, flags=re.IGNORECASE)
-    return [p.strip() for p in parts if p.strip()]
+_clap_model = None
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Compute CLAP score (audio vs input prompt) for a folder of audio. "
-        "See docs/EVALUATION_WITHOUT_GT.md."
+def _get_clap():
+    """
+    Lazy-load the laion_clap model once.
+    """
+    global _clap_model
+    if _clap_model is None:
+        import laion_clap
+
+        _clap_model = laion_clap.CLAP_Module(enable_fusion=False)
+        _clap_model.load_ckpt()
+    return _clap_model
+
+
+def compute_clap_score(audio_path: str, text_prompt: str) -> float:
+    """
+    CLAP cosine similarity S(audio, text).
+
+    Reference Text2FX numbers:
+      - Text2FX   ≈ 0.527
+      - FxSearcher≈ 0.447
+      - LLM2Fx    ≈ 0.232 (speech)
+    """
+    from scipy.spatial.distance import cosine
+
+    m = _get_clap()
+    a = m.get_audio_embedding_from_filelist(x=[audio_path], use_tensor=False)
+    t = m.get_text_embedding([f"this sound is {text_prompt}"], use_tensor=False)
+    return float(1.0 - cosine(a.flatten(), t.flatten()))
+
+
+def compute_clap_score_from_array(
+    audio: np.ndarray, sr: int, text_prompt: str
+) -> float:
+    """
+    CLAP score from in-memory audio.
+
+    Args:
+        audio: (samples,) or (channels, samples)
+        sr: sample rate
+    """
+    import tempfile
+    import soundfile as sf
+
+    if audio.ndim == 2:
+        audio = audio.mean(axis=0)
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as f:
+        sf.write(f.name, audio, sr)
+        return compute_clap_score(f.name, text_prompt)
+
+
+def compute_guided_clap_score(
+    audio_path: str,
+    target_prompt: str,
+    guide_prompt: str = "A harsh, distorted, muddy, unclear, oversaturated, unpleasant sound",
+) -> Tuple[float, float, float]:
+    """
+    Guided CLAP score used in FxSearcher / Text2FX:
+
+      S_final = S(audio, target_prompt) - S(audio, guide_prompt)
+
+    Returns:
+      (S_target, S_guide, S_final)
+    """
+    from scipy.spatial.distance import cosine
+
+    m = _get_clap()
+    a = m.get_audio_embedding_from_filelist(x=[audio_path], use_tensor=False).flatten()
+    tt = m.get_text_embedding(
+        [f"this sound is {target_prompt}"], use_tensor=False
+    ).flatten()
+    tg = m.get_text_embedding([guide_prompt], use_tensor=False).flatten()
+    st = float(1.0 - cosine(a, tt))
+    sg = float(1.0 - cosine(a, tg))
+    return st, sg, st - sg
+
+
+@dataclass
+class CLAPSimilarityScore(Metric):
+    """
+    CLAP text–audio similarity metric (higher is better).
+
+    Uses laion_clap under the hood but works on in-memory audio arrays
+    for easy integration inside experiments.
+    """
+
+    sr: int = 48000
+
+    def compute(
+        self,
+        original_audio: Any,
+        text_target: str,
+    ) -> float:
+        text = text_target
+        if not text:
+            return float("nan")
+        audio = np.asarray(original_audio)
+        if audio.ndim == 2:
+            audio = audio.mean(axis=0)
+        return compute_clap_score_from_array(audio, self.sr, text)
+
+
+@dataclass
+class GuidedCLAPSimilarityScore(Metric):
+    """
+    Guided CLAP (target - guide). Higher is better.
+    """
+
+    sr: int = 48000
+    guide_prompt: str = (
+        "A harsh, distorted, muddy, unclear, oversaturated, unpleasant sound"
     )
-    parser.add_argument(
-        "--pred_dir",
-        required=True,
-        help="Directory containing predicted / generated audio files",
-    )
-    parser.add_argument(
-        "--prompts",
-        help="Path to JSON file mapping filename -> text prompt",
-    )
-    parser.add_argument(
-        "--prompt",
-        help="Single text prompt to use for all audio files in pred_dir",
-    )
-    parser.add_argument(
-        "--outdir",
-        default="result-demo",
-        help="Directory to save the JSON result (default: result)",
-    )
-    parser.add_argument(
-        "--breakdown",
-        choices=("none", "word", "phrase"),
-        default="none",
-        help="Optional: also compute CLAP per word or per phrase for interpretability (default: none; use full-sentence as primary metric)",
-    )
-    args = parser.parse_args()
 
-    if not args.prompts and not args.prompt:
-        raise SystemExit("Provide either --prompts JSON or a single --prompt string.")
+    def compute(
+        self,
+        original_audio: Any,
+        text_target: str,
+    ) -> float:
+        import tempfile
+        import soundfile as sf
 
-    if args.prompts:
-        with open(args.prompts, "r") as f:
-            prompts = json.load(f)
-    else:
-        # Use the same prompt for every audio file in pred_dir
-        prompts = {}
-        exts = {".wav", ".mp3", ".flac", ".ogg"}
-        for fname in sorted(os.listdir(args.pred_dir)):
-            if os.path.splitext(fname)[1].lower() in exts:
-                prompts[fname] = args.prompt
+        text = text_target
+        if not text:
+            return float("nan")
 
-    scores: dict[str, float] = {}
-    clap_per_word: dict[str, dict[str, float]] = {}
-    clap_per_phrase: dict[str, dict[str, float]] = {}
-
-    for fname, prompt in prompts.items():
-        audio_path = os.path.join(args.pred_dir, fname)
-        if not os.path.exists(audio_path):
-            continue
-        scores[fname] = compute_clap_score(audio_path, prompt)
-
-        if args.breakdown == "word":
-            words = _split_words(prompt)
-            clap_per_word[fname] = {
-                w: compute_clap_score(audio_path, w) for w in words
-            }
-        elif args.breakdown == "phrase":
-            phrases = _split_phrases(prompt)
-            clap_per_phrase[fname] = {
-                p: compute_clap_score(audio_path, p) for p in phrases
-            }
-
-    os.makedirs(args.outdir, exist_ok=True)
-    out_path = os.path.join(args.outdir, "clap_results.json")
-
-    mean_clap = float(sum(scores.values()) / len(scores)) if scores else None
-
-    result: dict = {
-        "clap_per_file": scores,
-        "clap_mean": mean_clap,
-    }
-    if args.breakdown == "word" and clap_per_word:
-        result["clap_per_word"] = clap_per_word
-    if args.breakdown == "phrase" and clap_per_phrase:
-        result["clap_per_phrase"] = clap_per_phrase
-
-    with open(out_path, "w") as f:
-        json.dump(result, f, indent=2)
-
-    print(f"Saved CLAP results to {out_path}")
-    if args.breakdown != "none":
-        print(f"Breakdown by {args.breakdown} included (interpretability only; use full-sentence as primary metric).")
+        audio = np.asarray(original_audio)
+        if audio.ndim == 2:
+            audio = audio.mean(axis=0)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as f:
+            sf.write(f.name, audio, self.sr)
+            _, _, s_final = compute_guided_clap_score(
+                f.name, text, self.guide_prompt
+            )
+        return s_final
 
 
-if __name__ == "__main__":
-    main()
+__all__ = [
+    "compute_clap_score",
+    "compute_clap_score_from_array",
+    "compute_guided_clap_score",
+    "CLAPSimilarityScore",
+    "GuidedCLAPSimilarityScore",
+]

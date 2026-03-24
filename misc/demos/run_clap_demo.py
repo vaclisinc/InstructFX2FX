@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 
-from src.metrics.clap_metric import compute_clap_score, compute_guided_clap_score
+from src.metrics.clap_metrics import compute_clap_score, compute_guided_clap_score
 
 
 def main() -> None:
@@ -19,7 +19,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--outdir",
-        default="result-demo",
+        default="result",
         help="Directory to save the JSON result (default: result)",
     )
     args = parser.parse_args()

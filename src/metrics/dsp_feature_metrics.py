@@ -5,7 +5,6 @@ from typing import List, Tuple
 
 import numpy as np
 
-
 # 35-D feature definition (shared with LLM2Fx paper)
 FEATURE_NAMES = [
     "spectral_centroid_mean",
@@ -414,3 +413,45 @@ def extract_timbre_features_from_array(audio: np.ndarray, sr: int = 22050) -> np
         audio = np.mean(audio, axis=0)
     return _compute_timbre_features(audio.astype(np.float64), sr)
 
+
+def compute_dsp_feature_distance(gt: np.ndarray, pred: np.ndarray) -> float:
+    """
+    Euclidean distance between mean feature vectors.
+
+    Reference numbers (from LLM2Fx paper):
+      - LLM2Fx-Tools ~ 8.29
+      - No FX       ~ 14.82 # FIXME: this is complete hallucination: LLM2FX could not include LLM2FX-Tools
+    """
+    return float(np.linalg.norm(gt.mean(0) - pred.mean(0)))
+
+
+
+
+
+__all__ = ["compute_dsp_feature_distance", "run_dsp_distance_evaluation"]
+
+class DSPFeatureDistance():
+    def compute(gt_dir: str, pred_dir: str, sr: int = 22050) -> float: # FIXME why sr 22050?
+        """
+        Compute DSP feature distance between two folders of audio.
+
+        - Extract 35-D DSP features for each file in gt_dir and pred_dir.
+        - Average features per set.
+        - Return Euclidean distance between the two mean vectors.
+        """
+        print("\n==============================================================")
+        print("  DSP Feature Distance")
+        print("==============================================================")
+
+        print("\n[1/2] Extracting DSP features...")
+        gt_f, _ = extract_features_batch(gt_dir, sr=sr)
+        pr_f, _ = extract_features_batch(pred_dir, sr=sr)
+        print(f"  GT:   {gt_f.shape[0]} files x {gt_f.shape[1]} features")
+        print(f"  Pred: {pr_f.shape[0]} files x {pr_f.shape[1]} features")
+
+        print("\n[2/2] Computing DSP feature distance...")
+        dist = compute_dsp_feature_distance(gt_f, pr_f)
+        print(f"  DSP feature distance = {dist:.4f}")
+        print("  Lower is better; 0 would mean identical average features.")
+
+        return dist

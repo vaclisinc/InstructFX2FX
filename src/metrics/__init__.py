@@ -14,7 +14,7 @@ Simple API:
     score = cal_mmd_score(matrix_gt, matrix_ours)
 """
 
-from .dsp_features import extract_dsp_features as extract_dsp_feature
+from .dsp_feature_metrics import extract_dsp_features as extract_dsp_feature
 from .mmd_metric import compute_mmd as cal_mmd_score
 
 __all__ = ["extract_dsp_feature", "cal_mmd_score"]
