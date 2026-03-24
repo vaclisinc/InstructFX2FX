@@ -40,6 +40,10 @@ def build_word_gt_bank(
     Returns list of all cached WAV paths (len = len(params_list) * len(dry_paths)).
     """
     out_dir = os.path.join(cache_dir, word, instrument)
+
+    if os.path.exists(out_dir):
+        print(f"Output directory already exists. SKIP.")
+        return []
     os.makedirs(out_dir, exist_ok=True)
 
     paths: List[str] = []
