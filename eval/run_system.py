@@ -1,7 +1,7 @@
 """
 eval/run_system.py — Phase 3: System runner for the InstructFX2FX eval pipeline.
 
-Drives run_experiments() for every (word_A → word_B) pair × instrument,
+Drives run_LLMLLM_vs_InstructFX2FX() for every (word_A → word_B) pair × instrument,
 organises outputs on disk, and exposes helpers to collect result paths.
 """
 
@@ -17,11 +17,11 @@ from typing import Dict, List
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT / "src"))
 
-from experimentation.experiment import (
-    InstructionSet1,
+from runners.runners import (
     Method,
-    run_experiments,
+    run_LLMLLM_vs_InstructFX2FX,
 )
+from prompts.instruction import InstructionSet1
 
 from eval.config import (
     DEVICE,
@@ -54,13 +54,13 @@ def run_system_for_pair(
 ) -> str:
     """Run one (word_A → word_B) pair on all dry clips for one instrument.
 
-    Calls run_experiments() internally; saves all audio to disk.
+    Calls run_LLMLLM_vs_InstructFX2FX() internally; saves all audio to disk.
     Pass multiple methods (e.g. [Method.InstructFX2FX, Method.LLM_LLM]) to
     run them together in the same experiment directory, matching analysis.ipynb.
 
     Returns:
         pair_run_dir: str  — the experiment_{timestamp}/ directory created by
-                             run_experiments(), i.e. the root you should pass to
+                             run_LLMLLM_vs_InstructFX2FX(), i.e. the root you should pass to
                              collect_final_audio_paths / collect_trajectory_audio_paths.
     """
     if effects is None:
@@ -84,7 +84,7 @@ def run_system_for_pair(
         anchor=f"not {word_B}", target=word_B, context=f"{instrument} music"
     )
 
-    results, experiment_dir = run_experiments(
+    results, experiment_dir = run_LLMLLM_vs_InstructFX2FX(
         methods=methods,
         instructionset_initialization=instructionset_initialization,
         instructionset_refinement=instructionset_refinement,
@@ -104,7 +104,7 @@ def run_system_for_pair(
 
     if not results:
         raise RuntimeError(
-            f"run_experiments() returned no results for {word_A}_to_{word_B}/{instrument}"
+            f"run_LLMLLM_vs_InstructFX2FX() returned no results for {word_A}_to_{word_B}/{instrument}"
         )
 
     return experiment_dir
@@ -113,7 +113,7 @@ def run_system_for_pair(
 def collect_final_audio_paths(pair_run_dir: str, method: Method) -> List[str]:
     """Find all *_final_output.wav files under pair_run_dir for the given method.
 
-    Directory structure produced by run_experiments():
+    Directory structure produced by run_LLMLLM_vs_InstructFX2FX():
         pair_run_dir/{audio_stem}/{method.value}/run_*/{stem}_final_output.wav
 
     Returns paths sorted lexicographically (stable across runs).

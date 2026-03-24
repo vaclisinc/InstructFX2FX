@@ -44,7 +44,7 @@ INSTRUMENTS: List[str] = ["piano", "violin"]
 DRY_AUDIO_DIR: str = os.path.join(ROOT, "dry_audio")
 
 # ── Cache / output directories ──────────────────────────────────────────────
-GT_BANK_DIR: str = os.path.join(ROOT, "eval", "gt_cache_reverb")
+GT_BANK_DIR_REVERB: str = os.path.join(ROOT, "eval", "gt_cache_reverb")
 SYSTEM_RESULTS_DIR: str = os.path.join(ROOT, "eval", "system_outputs_reverb")
 RESULTS_DIR: str = os.path.join(ROOT, "eval", "results_reverb")
 

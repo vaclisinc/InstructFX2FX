@@ -8,7 +8,7 @@ from FxSearcher.fxsearcher import fxsearcher
 from dataclasses import dataclass
 import torch
 
-DEV = True
+DEV = False
 
 @dataclass
 class ParameterEngine:
@@ -75,10 +75,10 @@ class ParameterEngine:
         loss_fn_value = config.loss_function.value if config.loss_function else None
 
         if loss_fn_value is None:
-            return initial_params_tensor, initial_params_dict, None
+            return initial_params_tensor, initial_params_dict, None, [], {}
 
         if loss_fn_value == LossFunction.DIRECTIONAL_LOSS.value:
-            final_params, history, audios = move_in_CLAP(
+            final_params_tensor, final_audio, loss_history, audio_param_snapshots = move_in_CLAP(
                 audio=audio,
                 fx_chain=config.fx_chain,
                 initial_params=initial_params_tensor,
@@ -92,10 +92,10 @@ class ParameterEngine:
                 optimization_method=config.optimization_method,
                 loss_function=LossFunction.DIRECTIONAL_LOSS
             )
-            return final_params, history, audios
+            return final_params_tensor, None, final_audio, loss_history, audio_param_snapshots
 
         elif loss_fn_value == LossFunction.SEMANTIC_SIMILARITY_LOSS.value:
-            final_params, history, audios = move_in_CLAP(
+            final_params_tensor, final_audio, loss_history, audio_param_snapshots = move_in_CLAP(
                 audio=audio,
                 fx_chain=config.fx_chain,
                 initial_params=initial_params_tensor,
@@ -108,7 +108,7 @@ class ParameterEngine:
                 optimization_method=config.optimization_method,
                 loss_function=LossFunction.SEMANTIC_SIMILARITY_LOSS
             )
-            return final_params, history, audios
+            return final_params_tensor, None, final_audio, loss_history, audio_param_snapshots
 
         elif loss_fn_value == LossFunction.GUIDED_SEMANTIC_LOSS.value:
             return fxsearcher(

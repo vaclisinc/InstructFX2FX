@@ -86,10 +86,10 @@ def move_in_CLAP(
         audio_anchor_emb = torch.from_numpy(audio_anchor_emb).to(device)
 
     loss_history = []
-    audios = {}
+    audio_param_snapshots = {}
 
     # Save start snapshot (before any optimization)
-    audios["start"] = (audio_short.clone().cpu(), torch.sigmoid(params).detach().cpu())
+    audio_param_snapshots["start"] = (audio_short.clone().cpu(), torch.sigmoid(params).detach().cpu())
 
     print(f"\n🎯 Refining: '{text_anchor}' → '{text_target}'")
     if snapshot_interval:
@@ -135,7 +135,7 @@ def move_in_CLAP(
             if snapshot_interval is not None:
                 if (i + 1) % snapshot_interval == 0 or i == n_iterations - 1:
                     print(f"  Iter {i:3d}: loss = {loss.item():.4f}")
-                    audios[f"iter_{i+1}"] = (audio_effected.detach().cpu(), params.detach().cpu()) # FIXME: store NON-SIGMOID params for later analysis !
+                    audio_param_snapshots[f"iter_{i+1}"] = (audio_effected.detach().cpu(), params.detach().cpu()) # FIXME: store NON-SIGMOID params for later analysis !
 
     elif optimization_method.value == OptimizationMethod.BAYESIAN_OPTIMIZATION.value:
         # ---------------------------------------------------------------
@@ -206,7 +206,7 @@ def move_in_CLAP(
                     snap = torch.tensor(best_params_list, device=device, dtype=torch.float32).unsqueeze(0)
                     print(f"  Iter {iteration:3d}: loss = {current_best:.4f}")
                     audio_effected = fx_chain(audio_short.clone(), snap)
-                    audios[f"iter_{iteration}"] = (audio_effected.detach().cpu(), snap.cpu())
+                    audio_param_snapshots[f"iter_{iteration}"] = (audio_effected.detach().cpu(), snap.cpu())
 
             # Early stopping
             if current_best < best_loss_so_far - 1e-4:
@@ -253,8 +253,7 @@ def move_in_CLAP(
 
     # Compute and store final audio with final parameters
     with torch.no_grad():
-        final_audio = fx_chain(audio.clone(), final_params)
-        audios['end'] = (final_audio.detach().cpu(), final_params.detach().cpu())
+        final_audio = fx_chain(audio.clone(), final_params).detach().cpu()
+        audio_param_snapshots['end'] = (final_audio, final_params.detach().cpu())
 
-    return_value = final_params, loss_history, audios
-    return return_value
+    return final_params, final_audio, loss_history, audio_param_snapshots
