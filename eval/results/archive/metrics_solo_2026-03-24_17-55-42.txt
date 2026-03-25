@@ -1,0 +1,12 @@
+
+  ── llm ──
+    CLAP (overall): -0.1400
+    LUFS (overall): -25.3
+
+  ── clap_loss ──
+    CLAP (overall): -0.1229
+    LUFS (overall): -27.0
+
+  Comparison ordering (solo, higher CLAP is better):
+    1. clap_loss    | CLAP=-0.1229 | LUFS=-27.0
+    2. llm          | CLAP=-0.1400 | LUFS=-25.3

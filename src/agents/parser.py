@@ -163,7 +163,7 @@ class Parser:
             fx_chain=fx_chain_obj,
             initial_params=init_tensor,
             text_anchor="dry audio",
-            text_target=instruction,
+            target=instruction,
             clap_model=self.clap_model,
             n_iterations=self.n_iterations,
             lr=self.lr,

@@ -33,7 +33,7 @@ from training.parameterengine import ParameterEngine
 from effects.fx import FXChainFactory
 from llms.llmclient import LLMClient
 from embeddings.clap import CLAPWrapper
-from utilities.audio_processing import _save_audio_and_params, _ensure_bct
+from utilities.audio_processing import _process_and_save_audio_and_params, _ensure_bct, _process_and_save_audio_param_history
 
 from prompts.instruction import InstructionSet1
 
@@ -92,7 +92,7 @@ def run_LLM(
     stages_dir.mkdir(parents=True, exist_ok=True)
 
     # Save original audio
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, None, {}, fx_chain, sample_rate, stages_dir, "00_original"
     )
     stage_info["original"] = {"audio": audio_path, "params": params_path}
@@ -115,7 +115,7 @@ def run_LLM(
     init_details = {"sys_prompt": config_initialization.prompt.sys_prompt, "model": llm_client.model}
 
 
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, llm_params_tensor, llm_params_dict, fx_chain,
         sample_rate, stages_dir, "01_llm", init_details
     )
@@ -123,6 +123,105 @@ def run_LLM(
     print(f"✓ Saved llm stage to: {audio_path}")
 
     return llm_params_tensor, llm_params_dict, stage_info
+
+def run_CLAP(
+    audio: torch.Tensor,
+    fx_chain,
+    instructionset: InstructionSet1,
+    embedding: CLAPWrapper,
+    experiment_dir: Path,
+    sample_rate: int = 44100,
+    device: str = "cuda",
+    iterations: int = 100,
+    learning_rate: float = 0.01,
+    optimization_method: OptimizationMethod = OptimizationMethod.GRADIENT_DESCENT,
+    snapshot_interval: Optional[int] = None,
+    effects: List[str] = None,
+    initial_params_tensor: Optional[torch.Tensor] = None,
+    initial_params_dict: Optional[Dict] = None,
+    loss=LossFunction.GUIDED_SEMANTIC_LOSS,
+) -> Tuple[torch.Tensor, Dict[str, Any], Dict[str, Any]]:
+    """
+    Run CLAP-based optimization method for parameter refinement.
+
+    Args:
+        audio: Input audio tensor [batch, channels, time]
+        fx_chain: FX chain to process audio
+        instructionset: Instruction set for the LLM
+        llm_client: LLM client for parameter generation
+        embedding: CLAP embedding model
+        sample_rate: Sample rate for audio
+        device: Device to run computations on
+        iterations: Number of optimization iterations
+        learning_rate: Learning rate for gradient descent
+        optimization_method: Optimization method to use
+        experiment_dir: Directory to save intermediate results
+        snapshot_interval: Interval for saving intermediate checkpoints
+    """
+
+    parameter_engine = ParameterEngine()
+    stage_info = {}
+
+    stages_dir = Path(experiment_dir) / "intermediate"
+    stages_dir.mkdir(parents=True, exist_ok=True)
+
+    audio_path, params_path = _process_and_save_audio_and_params(
+        audio, None, {}, fx_chain, sample_rate, stages_dir, "00_original"
+    )
+    stage_info["original"] = {"audio": audio_path, "params": params_path}
+    print(f"✓ Saved original audio to: {audio_path}")
+
+    if initial_params_tensor is not None and initial_params_dict is not None:
+        ini_method = ParameterInitializationMethod.INPUT
+    else:
+        ini_method = ParameterInitializationMethod.RANDOM
+
+    config = Config(
+        initialization_method=ini_method,
+        loss_function=loss,
+        optimization_method=optimization_method,
+        text_anchor=instructionset.text_anchor,
+        text_target=instructionset.text_target,
+        llmclient=None,
+        fx_chain=fx_chain,
+        embedding=embedding,
+        device=device,
+        num_iterations=iterations,
+        learning_rate=learning_rate,
+        save_checkpoints=snapshot_interval is not None,
+        snapshot_interval=snapshot_interval if snapshot_interval is not None else max(1, iterations // 10),
+    )
+
+    refined_params_tensor, refined_params_dict, _, loss_history, audio_param_history = parameter_engine.get_params(
+        audio,
+        config,
+        initial_params_dict=initial_params_dict,
+        initial_params_tensor=initial_params_tensor
+    )
+
+    stage_info["config"] = {
+        "instruction": instructionset.instruction,
+        "loss_function": config.loss_function.value,
+    }
+
+    audio_path, params_path = _process_and_save_audio_and_params(
+        audio, initial_params_tensor, initial_params_dict, fx_chain,
+        sample_rate, stages_dir, "01_llm"
+    )
+
+    audio_path, params_path = _process_and_save_audio_and_params(
+        audio, refined_params_tensor, refined_params_dict, fx_chain,
+        sample_rate, stages_dir, "02_clap"
+    )
+
+    if audio_param_history:
+        _process_and_save_audio_param_history(audio_param_history=audio_param_history, stages_dir=stages_dir, audio=audio, fx_chain=fx_chain, sample_rate=sample_rate)
+
+    stage_info["refinement"] = {"audio": audio_path, "params": params_path}
+    print(f"✓ Saved CLAP refinement stage to: {audio_path}")
+
+    return refined_params_tensor, refined_params_dict, stage_info
+
 
 def run_LLM_CLAP(
     audio: torch.Tensor,
@@ -149,7 +248,7 @@ def run_LLM_CLAP(
     stages_dir = Path(experiment_dir) / "intermediate"
     stages_dir.mkdir(parents=True, exist_ok=True)
 
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, None, {}, fx_chain, sample_rate, stages_dir, "00_original"
     )
     stage_info["original"] = {"audio": audio_path, "params": params_path}
@@ -176,7 +275,7 @@ def run_LLM_CLAP(
         snapshot_interval=snapshot_interval if snapshot_interval is not None else max(1, iterations // 10),
     )
 
-    refined_params_tensor, refined_params_dict, _, history, _ = parameter_engine.get_params(
+    refined_params_tensor, refined_params_dict, _, loss_history, audio_param_history = parameter_engine.get_params(
         audio,
         config,
     )
@@ -188,8 +287,8 @@ def run_LLM_CLAP(
         "loss_function": config.loss_function.value,
     }
 
-    audio_path, params_path = _save_audio_and_params(
-        audio, refined_params_tensor, refined_params_dict if refined_params_dict is not None else history, fx_chain,
+    audio_path, params_path = _process_and_save_audio_and_params(
+        audio, refined_params_tensor, refined_params_dict, fx_chain,
         sample_rate, stages_dir, "02_clap_refined"
     )
     stage_info["refinement"] = {"audio": audio_path, "params": params_path}
@@ -240,7 +339,7 @@ def run_LLM_LLM(
     stages_dir.mkdir(parents=True, exist_ok=True)
 
     # Save original audio
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, None, {}, fx_chain, sample_rate, stages_dir, "00_original"
     )
     stage_info["original"] = {"audio": audio_path, "params": params_path}
@@ -272,7 +371,7 @@ def run_LLM_LLM(
     stage_info["initial_params_dict"] = initial_params_dict
 
 
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, initial_params_tensor, initial_params_dict, fx_chain,
         sample_rate, stages_dir, "01_initialized", init_details
     )
@@ -299,7 +398,7 @@ def run_LLM_LLM(
         audio, config_refinement
     )
 
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, refined_params_tensor, refined_params_dict, fx_chain,
         sample_rate, stages_dir, "02_refined", {"sys_prompt": config_refinement.prompt.sys_prompt}
     )
@@ -357,7 +456,7 @@ def run_InstructFX2FX(
     stages_dir.mkdir(parents=True, exist_ok=True)
 
     # Save original audio
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, None, {}, fx_chain, sample_rate, stages_dir, "00_original"
     )
     stage_info["original"] = {"audio": audio_path, "params": params_path}
@@ -382,7 +481,7 @@ def run_InstructFX2FX(
         )
 
     source = "reused from LLM_LLM" if stage_info.get("initialization") is None else "LLM init"
-    audio_path, params_path = _save_audio_and_params(
+    audio_path, params_path = _process_and_save_audio_and_params(
         audio, initial_params_tensor, initial_params_dict or {}, fx_chain,
         sample_rate, stages_dir, "01_initialized", {"source": source}
     )
@@ -410,7 +509,7 @@ def run_InstructFX2FX(
         snapshot_interval=_snapshot_interval,
     )
 
-    refined_params_tensor, _, _, history , _ = parameter_engine.get_params(
+    refined_params_tensor, _, _, loss_history , audio_param_history = parameter_engine.get_params(
         audio,
         config_refinement,
         initial_params_dict=initial_params_dict,
@@ -420,8 +519,8 @@ def run_InstructFX2FX(
 
     # Save refinement stage
 
-    audio_path, params_path = _save_audio_and_params(
-        audio, refined_params_tensor, history, fx_chain,
+    audio_path, params_path = _process_and_save_audio_and_params(
+        audio, refined_params_tensor, None, fx_chain,
         sample_rate, stages_dir, "02_refined"
     )
     stage_info["refinement"] = {"audio": audio_path, "params": params_path}
@@ -431,60 +530,8 @@ def run_InstructFX2FX(
     # Supports either:
     # - dict[str, tuple(audio_tensor, params_tensor)]
     # - list[tuple(audio_tensor, params_tensor)] / list[dict]
-    if history:
-        intermediate_dir = stages_dir / "optimization_steps"
-        intermediate_dir.mkdir(parents=True, exist_ok=True)
-
-        if isinstance(history, dict):
-            history_items = list(history.items())
-        else:
-            history_items = [(f"iter_{idx:04d}", item) for idx, item in enumerate(history)]
-
-        saved_count = 0
-        for item_key, item_value in history_items:
-            stage_name = str(item_key)
-            snap_params_tensor = None
-
-            if isinstance(item_value, tuple) and len(item_value) >= 2:
-                snap_params_tensor = item_value[1]
-            elif isinstance(item_value, dict):
-                snap_params_tensor = item_value.get("params")
-
-            if snap_params_tensor is None:
-                continue
-
-            if not isinstance(snap_params_tensor, torch.Tensor):
-                try:
-                    snap_params_tensor = torch.tensor(snap_params_tensor, dtype=audio.dtype, device=audio.device)
-                except Exception:
-                    continue
-
-            if snap_params_tensor.dim() == 1:
-                snap_params_tensor = snap_params_tensor.unsqueeze(0)
-            snap_params_tensor = snap_params_tensor.to(device=audio.device, dtype=audio.dtype)
-
-            try:
-                # Apply param tensor values directly to the original audio.
-                effected = fx_chain(audio, snap_params_tensor)
-            except Exception:
-                continue
-
-            effected_np = effected.squeeze().detach().cpu().numpy()
-            snap_path = intermediate_dir / f"{stage_name}.wav"
-            sf.write(snap_path, effected_np, sample_rate)
-
-            snap_params_path = intermediate_dir / f"{stage_name}_params.json"
-            with open(snap_params_path, "w") as f:
-                json.dump(
-                    {
-                        "params_tensor": snap_params_tensor.detach().cpu().tolist(),
-                    },
-                    f,
-                    indent=2,
-                )
-            saved_count += 1
-
-            print(f"✓ Saved {saved_count} intermediate snapshots")
+    if audio_param_history:
+        _process_and_save_audio_param_history(audio_param_history=audio_param_history, stages_dir=stages_dir, audio=audio, fx_chain=fx_chain, sample_rate=sample_rate)
 
     return refined_params_tensor, refined_params_dict, stage_info
 

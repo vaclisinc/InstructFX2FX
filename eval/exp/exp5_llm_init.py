@@ -72,7 +72,7 @@ def run_exp5(
         effects, sample_rate=cfg.SAMPLE_RATE, device=device,
     )
 
-    for word in unique_words[:1]:
+    for word in unique_words:
         for instrument in cfg.INSTRUMENTS:
             dry = _dry_paths(instrument)
             if not dry:
@@ -115,7 +115,8 @@ def run_exp5(
                         instructionset=instructionset,
                         llm_client=llm_client,
                         experiment_dir=os.path.join(llm_out_dir),
-                        sample_rate=sr,
+                        # audio_t is already resampled to cfg.SAMPLE_RATE
+                        sample_rate=cfg.SAMPLE_RATE,
                         device=device,
                         effects=effects,
                     )
@@ -129,7 +130,8 @@ def run_exp5(
                         instructionset=instructionset,
                         embedding=clap,
                         experiment_dir=os.path.join(clap_out_dir),
-                        sample_rate=sr,
+                        # audio_t is already resampled to cfg.SAMPLE_RATE
+                        sample_rate=cfg.SAMPLE_RATE,
                         device=device,
                         effects=effects,
                         iterations=n_clap_calls,
@@ -137,6 +139,7 @@ def run_exp5(
                         loss=LossFunction.GUIDED_SEMANTIC_LOSS,
                         initial_params_tensor=llm_params_tensor,
                         initial_params_dict=llm_params_dict,
+                        snapshot_interval=10,
                     )
                     _process_and_save_audio_and_params(
                         audio_tensor=audio_t, params_tensor=clap_params_tensor, params_dict=clap_params_dict, fx_chain=fx_chain, sample_rate=cfg.SAMPLE_RATE, output_dir=Path(clap_out_dir), name=f"{name}_{dry_idx}"

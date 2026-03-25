@@ -1,0 +1,12 @@
+{
+  "loud_warm": {
+    "clap_concat_metrics_wordA": {},
+    "clap_concat_metrics_wordB": {},
+    "clap_avg_metrics_wordA": {},
+    "clap_avg_metrics_wordB": {},
+    "clap_sequential_metrics_wordA": {},
+    "clap_sequential_metrics_wordB": {},
+    "llm_metrics_wordA": {},
+    "llm_metrics_wordB": {}
+  }
+}

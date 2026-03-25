@@ -1,0 +1,22 @@
+{
+  "llm": {
+    "clap_per_word": {
+      "bright": -0.14000130250386
+    },
+    "clap_overall": -0.14000130250386,
+    "lufs_per_word": {
+      "bright": -25.31704600418002
+    },
+    "lufs_overall": -25.31704600418002
+  },
+  "clap_loss": {
+    "clap_per_word": {
+      "bright": -0.12286236280230967
+    },
+    "clap_overall": -0.12286236280230967,
+    "lufs_per_word": {
+      "bright": -27.049051990201963
+    },
+    "lufs_overall": -27.049051990201963
+  }
+}

@@ -1,0 +1,16 @@
+
+  ── llm ──
+    CLAP (overall): -0.1400
+    LUFS (overall): -25.3
+
+  ── clap_loss ──
+    CLAP (overall): -0.1229
+    LUFS (overall): -27.0
+
+  Comparison ordering by metric (solo):
+    CLAP (higher is better):
+      1. clap_loss    | -0.1229
+      2. llm          | -0.1400
+    LUFS (closer to -14.0 is better):
+      1. llm          | -25.3 (|delta|=11.3)
+      2. clap_loss    | -27.0 (|delta|=13.0)
