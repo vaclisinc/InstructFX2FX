@@ -16,7 +16,7 @@ def move_in_CLAP(
     audio,
     fx_chain,
     initial_params,
-    text_target,
+    target: str | torch.Tensor,
     clap_model,
     loss_function,
     n_iterations=100,
@@ -56,12 +56,18 @@ def move_in_CLAP(
     params = torch.nn.Parameter(inverse_sigmoid_torch(initial_params).clone().detach().to(device).requires_grad_(True)) # INVERSE SIGMOID
     optimizer = torch.optim.Adam([params], lr=lr)
 
+    if loss_function.value == LossFunction.GUIDED_SEMANTIC_LOSS.value:
+        text_anchor="A harsh, distorted, muddy, unclear, oversaturated, unpleasant sound"
+
     # Get fixed embeddings (no gradients needed for these)
     if text_anchor:
-        text_anchor_emb = clap_model.get_text_embedding(text_anchor)
+        if isinstance(text_anchor, str):
+            text_anchor_emb = clap_model.get_text_embedding(text_anchor)
+        elif isinstance(text_anchor, torch.Tensor):
+            text_anchor_emb = text_anchor.detach()
     else:
         text_anchor_emb = None
-    text_target_emb = clap_model.get_text_embedding(text_target)
+
     # Use LLM-processed audio as anchor so it semantically aligns with text_anchor
 
     # Anchor embedding is from the original audio (before effects) to capture the "starting point" in CLAP space
@@ -75,10 +81,10 @@ def move_in_CLAP(
         else:
             text_anchor_emb = torch.from_numpy(text_anchor_emb).to(device)
 
-    if isinstance(text_target_emb, torch.Tensor):
-        text_target_emb = text_target_emb.detach()
+    if isinstance(target, torch.Tensor):
+        target_emb = target.detach()
     else:
-        text_target_emb = torch.from_numpy(text_target_emb).to(device)
+        target_emb = clap_model.get_text_embedding(target)
 
     if isinstance(audio_anchor_emb, torch.Tensor):
         audio_anchor_emb = audio_anchor_emb.detach()
@@ -89,9 +95,9 @@ def move_in_CLAP(
     audio_param_snapshots = {}
 
     # Save start snapshot (before any optimization)
-    audio_param_snapshots["start"] = (audio_short.clone().cpu(), torch.sigmoid(params).detach().cpu())
+    audio_param_snapshots["start"] = (fx_chain(audio_short.clone(), torch.sigmoid(params)).cpu(), torch.sigmoid(params).detach().cpu())
 
-    print(f"\n🎯 Refining: '{text_anchor}' → '{text_target}'")
+    print(f"\n🎯 Refining: '{text_anchor}' → '{target}'")
     if snapshot_interval:
         print(f"📸 Saving snapshots every {snapshot_interval} iterations")
 
@@ -116,13 +122,13 @@ def move_in_CLAP(
             if loss_function.value == LossFunction.DIRECTIONAL_LOSS.value:
                 loss = directional_loss(
                     audio_anchor_emb, audio_effected_emb,
-                    text_anchor_emb, text_target_emb
+                    text_anchor_emb, target_emb
                 )
             elif loss_function.value == LossFunction.SEMANTIC_SIMILARITY_LOSS.value:
-                loss = forward_loss(audio_effected_emb, text_target_emb)
+                loss = forward_loss(audio_effected_emb, target_emb)
 
             elif loss_function.value == LossFunction.GUIDED_SEMANTIC_LOSS.value:
-                loss = guided_forward_loss(audio_effected_emb, text_target_emb, text_anchor_emb)
+                loss = guided_forward_loss(audio_effected_emb, target_emb, text_anchor_emb)
 
 
             # Update
@@ -135,7 +141,7 @@ def move_in_CLAP(
             if snapshot_interval is not None:
                 if (i + 1) % snapshot_interval == 0 or i == n_iterations - 1:
                     print(f"  Iter {i:3d}: loss = {loss.item():.4f}")
-                    audio_param_snapshots[f"iter_{i+1}"] = (audio_effected.detach().cpu(), params.detach().cpu()) # FIXME: store NON-SIGMOID params for later analysis !
+                    audio_param_snapshots[f"iter_{i+1}"] = {"audio": audio_effected.detach().cpu(), "params": params.detach().cpu()} # FIXME: store NON-SIGMOID params for later analysis !
 
     elif optimization_method.value == OptimizationMethod.BAYESIAN_OPTIMIZATION.value:
         # ---------------------------------------------------------------
@@ -177,7 +183,7 @@ def move_in_CLAP(
 
                 loss = directional_loss(
                     audio_anchor_emb, audio_effected_emb,
-                    text_anchor_emb, text_target_emb,
+                    text_anchor_emb, target_emb,
                 )
 
             return float(loss.item())
@@ -219,7 +225,7 @@ def move_in_CLAP(
                 print(f"\n⏹ Early stopping: no improvement in {stall_limit} iterations.")
                 return True  # stops gp_minimize
 
-        print(f"\n🎯 Bayesian refinement: '{text_anchor}' → '{text_target}'")
+        print(f"\n🎯 Bayesian refinement: '{text_anchor}' → '{target}'")
         if snapshot_interval:
             print(f"📸 Saving snapshots every {snapshot_interval} iterations")
 

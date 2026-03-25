@@ -1,0 +1,28 @@
+{
+  "llm_clap": {
+    "average_iterations_to_improve": 25.0,
+    "median_iterations_to_improve": 25.0,
+    "std_iterations_to_improve": 15.0,
+    "improved_pairs": 2,
+    "total_pairs": 2,
+    "improvement_rate": 1.0,
+    "pair_details": {
+      "bright/piano": {
+        "baseline_clap": -0.16243432946307457,
+        "first_improved_iter": 10,
+        "first_improved_clap": -0.06772242082819835,
+        "best_iter": 60,
+        "best_clap": -0.04274026304483414,
+        "num_snapshots": 10
+      },
+      "bright/violin": {
+        "baseline_clap": -0.16914942860603333,
+        "first_improved_iter": 40,
+        "first_improved_clap": -0.16489160552297855,
+        "best_iter": 90,
+        "best_clap": -0.1438979635147426,
+        "num_snapshots": 10
+      }
+    }
+  }
+}

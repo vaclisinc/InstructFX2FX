@@ -1,0 +1,13 @@
+
+  ── llm_clap ──
+    Avg iterations to improve CLAP over baseline: 12.857142857142858
+    Median iterations to improve: 10.0
+    Improvement rate: 7/8 (0.875)
+    Baseline MMD (DSP): 0.4450
+    First iter improved MMD: None
+    Baseline DSP distance: 1599.4954
+    Baseline FXEnc distance: 0.2722
+    First iter improved FXEnc: 70
+
+  Ranking by average iterations to improve (lower is better):
+      1. llm_clap     | avg_iter=12.86, improve_rate=87.50%

@@ -31,6 +31,10 @@ WORD_PAIRS: List[Tuple[str, str]] = [
     ("loud",   "heavy"),
 ]
 
+_WORDS_PCA_SOCIAL_EQ: List[str] = [
+    "warm", "soft", "harsh", "calm", "loud", "bright", "heavy", "happy",
+]
+
 # ── Instruments & dry audio ─────────────────────────────────────────────────
 # Instrument names must match subdirectory names under DRY_AUDIO_DIR.
 # Only violin currently has WAV files in dry_audio/.

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Tuple
+from pathlib import Path
+import contextlib
+import io
 
 import numpy as np
 import torch
@@ -14,12 +17,12 @@ from embeddings.clap import CLAPWrapper
 
 _clap_wrapper: CLAPWrapper | None = None
 
-
 def _get_clap() -> CLAPWrapper:
     """Lazy-load a shared CLAPWrapper singleton."""
     global _clap_wrapper
     if _clap_wrapper is None:
-        _clap_wrapper = CLAPWrapper()
+        with contextlib.redirect_stdout(io.StringIO()):
+            _clap_wrapper = CLAPWrapper()
     return _clap_wrapper
 
 

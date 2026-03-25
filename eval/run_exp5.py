@@ -1,13 +1,14 @@
 """
-eval/run_exp3.py — Run Experiment 3 (Timbre PCA) end-to-end.
+eval/run_exp1.py — Run Experiment 1 (Sequential MMD) end-to-end.
 
 Usage:
-    python eval/exp/run_exp3.py
+    python eval/run_exp5.py
 
 Reads all config from eval/config.py.
-Results saved to eval/system_outputs/exp3/.
+Results saved to eval/results/exp5.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -19,17 +20,21 @@ sys.path.insert(0, str(ROOT / "eval"))
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env", override=False)
 
+import glob
+
 import eval.config as cfg
 from embeddings.clap import CLAPWrapper
+from runners.runners import Method
 from llms.llmclient import LLMClient
-
-from typing import List
-
-from eval.exp.exp3_pca import run_exp3
+from eval.exp.exp5_llm_init import run_exp5
 
 if __name__ == "__main__":
     print(f"device : {cfg.DEVICE}")
+    print(f"pairs  : {len(cfg.WORD_PAIRS)}")
     print(f"instr  : {cfg.INSTRUMENTS}")
+    dry_paths = {i: sorted(glob.glob(os.path.join(cfg.DRY_AUDIO_DIR, i, "*.wav"))) for i in cfg.INSTRUMENTS}
+    print(f"dry    : { {k: len(v) for k, v in dry_paths.items()} }")
+    print(f"n_iter : {cfg.N_GRAD_ITER}")
     print()
 
     print("Loading models …")
@@ -37,17 +42,14 @@ if __name__ == "__main__":
     clap = CLAPWrapper(device=cfg.DEVICE)
     print("Models loaded.\n")
 
-    results = run_exp3(
+    results = run_exp5(
         llm_client=llm,
         clap=clap,
-        fx_type="eq",
-        device=cfg.DEVICE,
-        words = cfg._WORDS_PCA_SOCIAL_EQ,
+        words=cfg._WORDS_PCA_SOCIAL_EQ,
+        device = cfg.DEVICE,
+        n_clap_calls = 100,
+        effects = ['eq']
     )
 
-    print("\n=== EXP 3 COMPLETE ===")
-    for source, info in results.get("sources", {}).items():
-        ev = info.get("explained_variance", [])
-        pc1 = f"{ev[0]*100:.1f}%" if ev else "?"
-        pc2 = f"{ev[1]*100:.1f}%" if len(ev) > 1 else "?"
-        print(f"  {source}: PC1={pc1}, PC2={pc2}")
+    print("\n=== FINAL RESULTS ===")
+    print(results)

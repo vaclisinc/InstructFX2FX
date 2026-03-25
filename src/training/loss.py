@@ -44,6 +44,7 @@ def forward_loss(audio_effected, text_target):
 
 def guided_forward_loss(audio_effected, text_target, text_anchor):
     """Compute guided forward loss in CLAP embedding space."""
+    assert text_anchor is not None, "text anchor should not be None"
     if not isinstance(audio_effected, torch.Tensor):
         audio_effected = torch.from_numpy(audio_effected)
     if not isinstance(text_target, torch.Tensor):

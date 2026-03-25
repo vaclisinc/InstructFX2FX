@@ -1,4 +1,6 @@
-from abc import ABC
+import os
+import io
+import contextlib
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -22,18 +24,46 @@ class EmbeddingWrapper(ABC):
 class CLAPWrapper(EmbeddingWrapper):
     """CLAP model for encoding audio and text using laion_clap."""
 
-    def __init__(self, device='cpu'):
+    _MODEL_CACHE: dict[tuple[str, str], laion_clap.CLAP_Module] = {}
+
+    @staticmethod
+    def _cache_key(device: str, ckpt_path: str | None) -> tuple[str, str]:
+        ckpt = "" if ckpt_path is None else str(Path(ckpt_path).expanduser().resolve())
+        return str(device), ckpt
+
+    def __init__(self, device='cpu', ckpt_path: str | None = None):
         self.device = device
+        key = self._cache_key(device, ckpt_path)
+
+        cached_model = self._MODEL_CACHE.get(key)
+        if cached_model is not None:
+            self.model = cached_model
+            self.sample_rate = 48000
+            return
+
         self.model = laion_clap.CLAP_Module(enable_fusion=False, device=device)
-        self.model.load_ckpt()  # Load default checkpoint
-        self.model.eval()
+
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            if ckpt_path:
+                ckpt = Path(ckpt_path).expanduser().resolve()
+                # if ckpt.exists() and ckpt.is_file():
+                #     self.model.load_ckpt(ckpt=str(ckpt), verbose=False)
+                # else:
+                #     # Treat path as a cache directory (existing or to-be-created).
+                #     ckpt.mkdir(parents=True, exist_ok=True)
+                #     os.environ["TORCH_HOME"] = str(ckpt)
+                #     self.model.load_ckpt(verbose=False)
+            else:
+                self.model.load_ckpt(verbose=False)  # falls back to download/cache behavior
 
         # Freeze CLAP parameters - we only optimize through it, not the model itself
+
+        self.model.eval()
         for p in self.model.parameters():
             p.requires_grad = False
 
         self.sample_rate = 48000
-        print("✓ CLAP model loaded")
+        # self._MODEL_CACHE[key] = self.model
 
     def get_audio_embedding(self, audio, enable_grad=False):
         """audio: [B, C, T] → embedding: [B, D]
@@ -50,8 +80,8 @@ class CLAPWrapper(EmbeddingWrapper):
             audio = audio.squeeze(1)
 
         # Resample if needed (laion_clap expects 48kHz)
-        if audio.shape[-1] > 480000:  # 10 seconds at 48kHz
-            audio = audio[..., :480000]
+        if audio.shape[-1] > self.sample_rate:  # 10 seconds at 48kHz
+            audio = audio[..., :self.sample_rate]
 
         # Use laion_clap's get_audio_embedding_from_data with use_tensor=True
         # This keeps everything as tensors and preserves gradients

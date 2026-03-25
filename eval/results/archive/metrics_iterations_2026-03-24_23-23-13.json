@@ -1,0 +1,77 @@
+{
+  "llm_clap": {
+    "baseline_clap_overall": -0.13677615957597988,
+    "baseline_dsp_distance_overall": null,
+    "average_iterations_to_improve": 12.857142857142858,
+    "median_iterations_to_improve": 10.0,
+    "std_iterations_to_improve": 6.998542122237652,
+    "first_iter_improved_clap_per_word": {
+      "bright": 10,
+      "calm": 10,
+      "happy": 10,
+      "harsh": 10,
+      "heavy": 10,
+      "loud": 30,
+      "soft": 10,
+      "warm": null
+    },
+    "first_iter_improved_dsp_distance_per_word": null,
+    "best_iter": 100,
+    "best_clap": -0.1127822714393193,
+    "improved_pairs": 7,
+    "total_pairs": 8,
+    "improvement_rate": 0.875,
+    "trajectory": [
+      {
+        "iteration": 10,
+        "clap_overall": -0.13318951272556512,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 20,
+        "clap_overall": -0.12847277887535852,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 30,
+        "clap_overall": -0.12461092315855997,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 40,
+        "clap_overall": -0.12003721807457396,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 50,
+        "clap_overall": -0.11692994641098339,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 60,
+        "clap_overall": -0.11488188520918391,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 70,
+        "clap_overall": -0.1143564984320489,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 80,
+        "clap_overall": -0.11404408508319884,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 90,
+        "clap_overall": -0.11395589320257105,
+        "dsp_distance_overall": null
+      },
+      {
+        "iteration": 100,
+        "clap_overall": -0.1127822714393193,
+        "dsp_distance_overall": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+
+  ── llm_clap ──
+    Avg iterations to improve CLAP over baseline: 10.0
+    Median iterations to improve: 10.0
+    Improvement rate: 8/8 (1.0)
+
+  Ranking by average iterations to improve (lower is better):
+      1. llm_clap     | avg_iter=10.00, improve_rate=100.00%

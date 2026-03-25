@@ -24,7 +24,7 @@ class ParameterEngine:
             initial_params_tensor = fx_initial_params_to_tensor(initial_params_dict, device=config.device, param_ranges=ALL_PARAM_RANGES_DASP)
 
         elif init_method_value == ParameterInitializationMethod.LLM.value:
-            print("🔄 Initializing parameters using LLM...")
+            print("  Initializing parameters using LLM...")
             if config.llmclient is None:
                 raise ValueError("LLM client must be provided in config for LLM-based initialization.")
 
@@ -60,7 +60,7 @@ class ParameterEngine:
         return initial_params_dict, initial_params_tensor
 
 
-    def get_params(self, audio, config, initial_params_dict = None, initial_params_tensor = None):
+    def get_params(self, audio, config, initial_params_dict = None, initial_params_tensor = None, target_embedding=None):
         """
         Return normalized, sigmoid, optimized parameters for the given audio and config.
         """
@@ -74,8 +74,26 @@ class ParameterEngine:
 
         loss_fn_value = config.loss_function.value if config.loss_function else None
 
+
         if loss_fn_value is None:
             return initial_params_tensor, initial_params_dict, None, [], {}
+
+        # Allow direct target embedding for CLAP averaging (used in exp4_composite)
+        if (loss_fn_value == LossFunction.SEMANTIC_SIMILARITY_LOSS.value or loss_fn_value == LossFunction.GUIDED_SEMANTIC_LOSS.value) and target_embedding is not None:
+            final_params_tensor, final_audio, loss_history, audio_param_snapshots = move_in_CLAP(
+                audio=audio,
+                fx_chain=config.fx_chain,
+                initial_params=initial_params_tensor,
+                target=target_embedding if target_embedding is not None else config.text_target,
+                clap_model=config.embedding,
+                n_iterations=config.num_iterations,
+                lr=config.learning_rate,
+                device=config.device,
+                snapshot_interval=config.snapshot_interval if config.save_checkpoints else None,
+                optimization_method=config.optimization_method,
+                loss_function=config.loss_function
+            )
+            return final_params_tensor, None, final_audio, loss_history, audio_param_snapshots
 
         if loss_fn_value == LossFunction.DIRECTIONAL_LOSS.value:
             final_params_tensor, final_audio, loss_history, audio_param_snapshots = move_in_CLAP(
@@ -83,7 +101,7 @@ class ParameterEngine:
                 fx_chain=config.fx_chain,
                 initial_params=initial_params_tensor,
                 text_anchor=config.text_anchor,
-                text_target=config.text_target,
+                target=target_embedding if target_embedding is not None else config.text_target,
                 clap_model=config.embedding,
                 n_iterations=config.num_iterations,
                 lr=config.learning_rate,
@@ -94,34 +112,21 @@ class ParameterEngine:
             )
             return final_params_tensor, None, final_audio, loss_history, audio_param_snapshots
 
-        elif loss_fn_value == LossFunction.SEMANTIC_SIMILARITY_LOSS.value:
+        elif loss_fn_value == LossFunction.SEMANTIC_SIMILARITY_LOSS.value or loss_fn_value == LossFunction.GUIDED_SEMANTIC_LOSS.value:
             final_params_tensor, final_audio, loss_history, audio_param_snapshots = move_in_CLAP(
                 audio=audio,
                 fx_chain=config.fx_chain,
                 initial_params=initial_params_tensor,
-                text_target=config.text_target,
+                target=target_embedding if target_embedding is not None else config.text_target,
                 clap_model=config.embedding,
                 n_iterations=config.num_iterations,
                 lr=config.learning_rate,
                 device=config.device,
                 snapshot_interval=config.snapshot_interval if config.save_checkpoints else None,
                 optimization_method=config.optimization_method,
-                loss_function=LossFunction.SEMANTIC_SIMILARITY_LOSS
+                loss_function=config.loss_function
             )
             return final_params_tensor, None, final_audio, loss_history, audio_param_snapshots
-
-        elif loss_fn_value == LossFunction.GUIDED_SEMANTIC_LOSS.value:
-            return fxsearcher(
-                audio = (audio, 44100),
-                prompt=config.prompt.instruction,
-                outdir = "../results/fxsearcher",
-                clap_model=config.embedding,
-                top_n = 1,
-                n_calls = config.num_iterations,
-                use_guide=True,
-                all_param_ranges=ALL_PARAM_RANGES_PB,
-                initial_params=initial_params_dict
-            )
 
         else:
             raise ValueError(f"Unknown loss function: {config.loss_function}")
