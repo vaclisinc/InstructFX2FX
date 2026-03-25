@@ -139,14 +139,14 @@ def _load_waveform_mono(x: Any) -> np.ndarray:
     return a
 
 
-def _save_audio_and_params(
+def _process_and_save_audio_and_params(
     audio_tensor: torch.Tensor,
     params_tensor: torch.Tensor,
     params_dict: Dict[str, Any],
     fx_chain,
     sample_rate: int,
     output_dir: Path,
-    stage_name: str,
+    name: str,
     details: Dict[str, Any] = None,
 ) -> Tuple[str, str]:
     """
@@ -165,15 +165,20 @@ def _save_audio_and_params(
         output_audio_np = audio_tensor.squeeze().detach().cpu().numpy()
 
     # Save audio
-    audio_path = output_dir / f"{stage_name}.wav"
+    audio_path = output_dir / f"{name}.wav"
     sf.write(audio_path, output_audio_np, sample_rate)
 
     # Save parameters
-    params_path = output_dir / f"{stage_name}_params.json"
+    params_path = output_dir / f"{name}_params.json"
     with open(params_path, "w") as f:
         json.dump(
-            {"params": params_dict or {},
-             "details": details or {}}, f, indent=2
+            {
+                "params_dict": params_dict or {},
+                "params_tensor": params_tensor.detach().cpu().numpy().tolist() if params_tensor is not None else [],
+                "details": details or {},
+            },
+            f,
+            indent=2,
         )
 
     return str(audio_path), str(params_path)
@@ -188,3 +193,67 @@ def _ensure_bct(audio_tensor: torch.Tensor) -> torch.Tensor:
     if audio_tensor.dim() == 3:
         return audio_tensor
     raise ValueError(f"Expected audio tensor with 1-3 dims, got shape {tuple(audio_tensor.shape)}")
+
+
+def _process_and_save_audio_param_history(audio_param_history, stages_dir, audio, fx_chain, sample_rate):
+    intermediate_dir = stages_dir / "optimization_steps"
+    intermediate_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"saving the intermediate audio and params for {len(audio_param_history)} optimization steps to: {intermediate_dir}")
+
+    if isinstance(audio_param_history, dict):
+        history_items = list(audio_param_history.items())
+    else:
+        history_items = [(f"iter_{idx:04d}", item) for idx, item in enumerate(audio_param_history)]
+
+    saved_count = 0
+    for item_key, item_value in history_items:
+        stage_name = str(item_key)
+        snap_params_tensor = None
+        effected = None
+
+        if isinstance(item_value, tuple) and len(item_value) >= 2:
+            if isinstance(item_value[0], torch.Tensor):
+                effected = item_value[0]
+            snap_params_tensor = item_value[1]
+        elif isinstance(item_value, dict):
+            if "audio" in item_value:
+                effected = item_value['audio']
+            snap_params_tensor = item_value.get("params")
+
+        if effected is None:
+            if snap_params_tensor is None:
+                continue
+
+            if not isinstance(snap_params_tensor, torch.Tensor):
+                try:
+                    snap_params_tensor = torch.tensor(snap_params_tensor, dtype=audio.dtype, device=audio.device)
+                except Exception:
+                    continue
+
+            if snap_params_tensor.dim() == 1:
+                snap_params_tensor = snap_params_tensor.unsqueeze(0)
+            snap_params_tensor = snap_params_tensor.to(device=audio.device, dtype=audio.dtype)
+
+            try:
+                # Apply param tensor values directly to the original audio.
+                effected = fx_chain(audio, snap_params_tensor)
+            except Exception:
+                continue
+
+        effected_np = effected.squeeze().detach().cpu().numpy()
+        snap_path = intermediate_dir / f"{stage_name}.wav"
+        sf.write(snap_path, effected_np, sample_rate)
+
+        snap_params_path = intermediate_dir / f"{stage_name}_params.json"
+        with open(snap_params_path, "w") as f:
+            json.dump(
+                {
+                    "params_tensor": snap_params_tensor.detach().cpu().tolist(),
+                },
+                f,
+                indent=2,
+            )
+        saved_count += 1
+
+        print(f"✓ Saved {saved_count} intermediate snapshots")
