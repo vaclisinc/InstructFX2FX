@@ -61,3 +61,65 @@ def guided_forward_loss(audio_effected, text_target, text_anchor):
 
     # Encourage similarity to target and dissimilarity to anchor
     return (1 - target_sim + anchor_sim).mean()
+
+
+# ========== Refinement Loss ==========
+
+def refinement_loss(audio_prev_emb, audio_new_emb, text_prev_emb, text_target_emb,
+                    params_prev, params_new, alpha=0.1):
+    """Anchored Refinement Loss for iterative audio effect optimization.
+
+    Designed for the sequential re-prompting scenario: given existing parameters
+    from a previous stage, refine them according to a new text instruction while
+    suppressing parameter changes that do not contribute to the instructed direction.
+
+    L = L_sufficiency + alpha * L_minimality
+
+    L_sufficiency = 1 - cos(delta_a, delta_t)
+        Drives the audio to move in the direction specified by the text,
+        relative to the previous state (not dry audio).
+
+    L_minimality  = ||delta_theta||^2 * (1 - |cos(delta_a, delta_t)|)
+        Penalizes parameter displacement, gated by alignment quality.
+        When audio moves in the correct direction, parameter changes are
+        unrestricted. When audio drifts in an unrelated direction, parameter
+        changes are penalized.
+
+    Args:
+        audio_prev_emb:  CLAP embedding of audio with previous params [B, D]
+        audio_new_emb:   CLAP embedding of audio with current params [B, D]
+        text_prev_emb:   CLAP embedding of previous instruction [B, D]
+        text_target_emb: CLAP embedding of current instruction [B, D]
+        params_prev:     previous parameters in normalized [0,1] space [B, P]
+        params_new:      current parameters in normalized [0,1] space [B, P]
+        alpha:           weight for minimality term (default 0.1)
+
+    Returns:
+        Scalar loss tensor with gradient.
+    """
+    # Ensure tensors
+    tensors = [audio_prev_emb, audio_new_emb, text_prev_emb, text_target_emb,
+               params_prev, params_new]
+    for i, t in enumerate(tensors):
+        if not isinstance(t, torch.Tensor):
+            tensors[i] = torch.from_numpy(t)
+    audio_prev_emb, audio_new_emb, text_prev_emb, text_target_emb, \
+        params_prev, params_new = tensors
+
+    # Deltas in embedding space
+    delta_a = audio_new_emb - audio_prev_emb      # audio direction
+    delta_t = text_target_emb - text_prev_emb      # text direction
+
+    # Sufficiency: directional alignment relative to previous state
+    delta_a_norm = F.normalize(delta_a, dim=-1)
+    delta_t_norm = F.normalize(delta_t, dim=-1)
+    cos_align = F.cosine_similarity(delta_a_norm, delta_t_norm, dim=-1)
+    L_suf = (1 - cos_align).mean()
+
+    # Minimality: gated parameter-space regularization
+    delta_theta = params_new - params_prev.detach()
+    param_displacement = (delta_theta ** 2).sum(dim=-1)  # ||delta_theta||^2 per batch
+    alignment_gate = (1 - cos_align.detach().abs())       # detach to not double-penalize
+    L_min = (param_displacement * alignment_gate).mean()
+
+    return L_suf + alpha * L_min

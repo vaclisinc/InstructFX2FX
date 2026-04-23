@@ -5,6 +5,7 @@ import tempfile
 
 import torch
 
+from configurations.config import LossFunction
 from effects.fx import FXChainFactory
 from FxSearcher.fxsearcher import fxsearcher
 from prompts.prompt import PromptFactory
@@ -53,12 +54,15 @@ class Parser:
         DASP runs first; its output audio is fed as input to the Pedalboard stage.
     """
 
-    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01):
+    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01,
+                 loss_function=LossFunction.DIRECTIONAL_LOSS, refinement_alpha=0.1):
         self.llm = llm_client
         self.clap_model = clap_model
         self.device = device
         self.n_iterations = n_iterations
         self.lr = lr
+        self.loss_function = loss_function
+        self.refinement_alpha = refinement_alpha
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -82,9 +86,16 @@ class Parser:
         existing = [fx for fx in fx_chain if session.fx_exists(fx)]
         missing  = [fx for fx in fx_chain if not session.fx_exists(fx)]
 
+        is_refinement = False
+        prev_instruction = None
+
         if not missing:
             # Case 1: all FX already have params
             init_params = {fx: session.current_params[fx] for fx in fx_chain}
+            # Only use refinement loss if we have a previous instruction to anchor against
+            if session.history:
+                is_refinement = True
+                prev_instruction = session.history[-1].prompt
         elif not existing:
             # Case 2: no FX have params yet
             init_params = self._llm_init(instruction, fx_chain)
@@ -93,7 +104,8 @@ class Parser:
             new_params  = self._llm_init(instruction, missing)
             init_params = {**{fx: session.current_params[fx] for fx in existing}, **new_params}
 
-        return self._optimize(instruction, fx_chain, init_params, audio)
+        return self._optimize(instruction, fx_chain, init_params, audio,
+                              is_refinement=is_refinement, prev_instruction=prev_instruction)
 
     # ------------------------------------------------------------------
     # LLM initialization
@@ -134,7 +146,8 @@ class Parser:
     # Optimization dispatch
     # ------------------------------------------------------------------
 
-    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio) -> dict:
+    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio,
+                  is_refinement=False, prev_instruction=None) -> dict:
         dasp_fxs = [fx for fx in fx_chain if fx in DASP_FX]
         pb_fxs   = [fx for fx in fx_chain if fx not in DASP_FX]
 
@@ -143,7 +156,8 @@ class Parser:
 
         # Stage 1: DASP gradient descent (eq, rev)
         if dasp_fxs:
-            current_audio = self._optimize_dasp(instruction, dasp_fxs, init_params, current_audio, result)
+            current_audio = self._optimize_dasp(instruction, dasp_fxs, init_params, current_audio, result,
+                                                 is_refinement=is_refinement, prev_instruction=prev_instruction)
 
         # Stage 2: Pedalboard BO on current_audio (DASP output if stage 1 ran)
         if pb_fxs:
@@ -151,23 +165,31 @@ class Parser:
 
         return result
 
-    def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result):
+    def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result,
+                       is_refinement=False, prev_instruction=None):
         registry_keys = [_DASP_REGISTRY_KEY[fx] for fx in dasp_fxs]
         fx_chain_obj  = FXChainFactory.create_fx_chain_from_effects(registry_keys)
 
         dasp_init_dict = {_DASP_DICT_KEY[fx]: init_params[fx] for fx in dasp_fxs if fx in init_params}
         init_tensor    = fx_initial_params_to_tensor(dasp_init_dict, device=self.device)
 
+        # Choose loss function: refinement loss for Case 1, configured loss otherwise
+        loss_fn = LossFunction.REFINEMENT_LOSS if is_refinement else self.loss_function
+
         final_tensor, _, audios = move_in_CLAP(
             audio=audio,
             fx_chain=fx_chain_obj,
             initial_params=init_tensor,
-            text_anchor="dry audio",
+            text_anchor=prev_instruction or "dry audio",
             target=instruction,
             clap_model=self.clap_model,
+            loss_function=loss_fn,
             n_iterations=self.n_iterations,
             lr=self.lr,
             device=self.device,
+            prev_params=init_tensor if is_refinement else None,
+            prev_instruction=prev_instruction,
+            refinement_alpha=self.refinement_alpha,
         )
 
         dasp_dict_keys  = [_DASP_DICT_KEY[fx] for fx in dasp_fxs]

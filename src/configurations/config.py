@@ -18,6 +18,7 @@ class LossFunction(Enum):
     DIRECTIONAL_LOSS = 'directional_loss'
     SEMANTIC_SIMILARITY_LOSS = 'semantic_similarity_loss'
     GUIDED_SEMANTIC_LOSS = 'guided_semantic_loss'
+    REFINEMENT_LOSS = 'refinement_loss'
 
 class ParameterInitializationMethod(Enum):
     RANDOM = 'random'

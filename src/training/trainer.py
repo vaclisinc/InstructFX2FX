@@ -10,7 +10,7 @@ from skopt.utils import use_named_args
 
 from configurations.config import OptimizationMethod, LossFunction
 from utilities.fx_processing import EQ_ORDER, COMP_ORDER, REVERB_ORDER
-from .loss import directional_loss, forward_loss, guided_forward_loss
+from .loss import directional_loss, forward_loss, guided_forward_loss, refinement_loss
 
 def move_in_CLAP(
     audio,
@@ -25,7 +25,9 @@ def move_in_CLAP(
     snapshot_interval=None,
     text_anchor=None,
     optimization_method=OptimizationMethod.GRADIENT_DESCENT,
-
+    prev_params=None,
+    prev_instruction=None,
+    refinement_alpha=0.1,
 ):
     """Refine parameters using gradient descent in CLAP space.
 
@@ -39,6 +41,12 @@ def move_in_CLAP(
 
     if loss_function.value == LossFunction.DIRECTIONAL_LOSS.value:
         assert text_anchor is not None, "text_anchor must be provided for directional loss"
+
+    if loss_function.value == LossFunction.REFINEMENT_LOSS.value:
+        assert prev_params is not None, "prev_params must be provided for refinement loss"
+        # prev_instruction defaults to text_anchor (e.g. "dry audio") if not given
+        if prev_instruction is None:
+            prev_instruction = text_anchor or "dry audio"
 
     def inverse_sigmoid_torch(y, eps=1e-6):
         y = torch.clamp(y, eps, 1 - eps)
@@ -91,6 +99,29 @@ def move_in_CLAP(
     else:
         audio_anchor_emb = torch.from_numpy(audio_anchor_emb).to(device)
 
+    # Refinement loss: compute prev-state embeddings
+    prev_audio_emb = None
+    prev_text_emb = None
+    prev_params_normalized = None
+    if loss_function.value == LossFunction.REFINEMENT_LOSS.value:
+        # Render audio with previous params to get the prev-state embedding
+        with torch.no_grad():
+            prev_params_tensor = prev_params.clone().detach().to(device)
+            # prev_params are already in [0,1] normalized space
+            audio_with_prev = fx_chain(audio_short.clone(), prev_params_tensor)
+            prev_audio_emb = clap_model.get_audio_embedding(audio_with_prev)
+            if isinstance(prev_audio_emb, torch.Tensor):
+                prev_audio_emb = prev_audio_emb.detach()
+            else:
+                prev_audio_emb = torch.from_numpy(prev_audio_emb).to(device)
+            prev_params_normalized = prev_params_tensor.detach()
+
+        prev_text_emb = clap_model.get_text_embedding(prev_instruction)
+        if isinstance(prev_text_emb, torch.Tensor):
+            prev_text_emb = prev_text_emb.detach()
+        else:
+            prev_text_emb = torch.from_numpy(prev_text_emb).to(device)
+
     loss_history = []
     audio_param_snapshots = {}
 
@@ -130,6 +161,16 @@ def move_in_CLAP(
             elif loss_function.value == LossFunction.GUIDED_SEMANTIC_LOSS.value:
                 loss = guided_forward_loss(audio_effected_emb, target_emb, text_anchor_emb)
 
+            elif loss_function.value == LossFunction.REFINEMENT_LOSS.value:
+                loss = refinement_loss(
+                    audio_prev_emb=prev_audio_emb,
+                    audio_new_emb=audio_effected_emb,
+                    text_prev_emb=prev_text_emb,
+                    text_target_emb=target_emb,
+                    params_prev=prev_params_normalized,
+                    params_new=torch.sigmoid(params),
+                    alpha=refinement_alpha,
+                )
 
             # Update
             loss.backward()
