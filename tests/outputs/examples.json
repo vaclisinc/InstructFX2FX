@@ -1,4 +1,4 @@
-window.TEST_PIPELINE_EXAMPLES = {
+{
   "examples": [
     {
       "case": "A",
@@ -258,4 +258,4 @@ window.TEST_PIPELINE_EXAMPLES = {
       }
     }
   ]
-};
+}
