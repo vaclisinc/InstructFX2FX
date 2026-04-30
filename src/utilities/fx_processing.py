@@ -111,7 +111,7 @@ def fx_tensor_to_params_dict(tensor, effect_keys, param_ranges=None):
     return result
 
 
-def fx_initial_params_to_tensor(config, device="cpu", dtype=torch.float32, param_ranges=None):
+def fx_initial_params_to_tensor(config, device="cuda" if torch.cuda.is_available() else "cpu", dtype=torch.float32, param_ranges=None):
     """Convert a grouped FX config dict into a normalized parameter tensor.
 
     Iterates over the effects present in `config` in canonical order
