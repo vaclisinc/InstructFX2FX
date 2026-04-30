@@ -1,0 +1,35 @@
+{
+  "prompt": "make it sound like a church",
+  "fx_chain": [
+    "rev"
+  ],
+  "params": {
+    "rev": {
+      "early_gain": 0.7,
+      "early_delay": 0.03,
+      "early_diffusion": 0.8,
+      "early_width": 0.9,
+      "early_lowcut": 100.0,
+      "early_highcut": 8000.0,
+      "early_mix": 0.5,
+      "late_gain": 0.9,
+      "decay_time": 6.5,
+      "late_diffusion": 0.85,
+      "density": 0.9,
+      "mod_rate": 0.2,
+      "mod_depth": 0.1,
+      "late_lowcut": 150.0,
+      "late_highcut": 7000.0,
+      "late_width": 0.95,
+      "late_mix": 0.8,
+      "pre_delay": 0.08,
+      "damping": 0.5,
+      "lowcut": 50.0,
+      "highcut": 12000.0,
+      "wet": 0.85,
+      "dry": 0.5,
+      "width": 1.0,
+      "mix": 0.7
+    }
+  }
+}
