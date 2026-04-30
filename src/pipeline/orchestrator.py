@@ -82,7 +82,16 @@ class Orchestrator:
                 "audio":    tensor,                       # rendered output audio
             }
         """
-        selected_fx = self.fx_selector.select(instruction, session.available_fx, session.history)
+        llm_model = None
+        if run_settings is not None:
+            llm_model = run_settings.get("llm_model") or None
+
+        selected_fx = self.fx_selector.select(
+            instruction,
+            session.available_fx,
+            session.history,
+            model=llm_model,
+        )
         print(f"[FXSelector] '{instruction}' → {selected_fx}")
 
         # Carry forward all accumulated session FX, then append any new ones the

@@ -5,6 +5,7 @@ const DEFAULT_SETTINGS = {
   n_iterations: 10,
   learning_rate: 0.01,
   snapshot_interval: 5,
+  llm_model: "",
 };
 
 async function fetchJson(path, options = {}) {
@@ -231,6 +232,7 @@ export default function App() {
             n_iterations: Number(settings.n_iterations),
             learning_rate: Number(settings.learning_rate),
             snapshot_interval: Number(settings.snapshot_interval),
+            llm_model: settings.llm_model.trim() || null,
           },
         }),
       });
@@ -463,6 +465,17 @@ export default function App() {
                 rows={3}
                 disabled={viewingHistory}
                 placeholder="make it sound like in a bathroom"
+              />
+            </label>
+
+            <label className="field">
+              <span>OpenRouter model</span>
+              <input
+                type="text"
+                value={settings.llm_model}
+                disabled={viewingHistory}
+                onChange={(event) => updateSetting("llm_model", event.target.value)}
+                placeholder="Optional override, e.g. google/gemini-2.5-pro or openai/gpt-4o"
               />
             </label>
 

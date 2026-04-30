@@ -10,6 +10,7 @@ class RunSettings(BaseModel):
     n_iterations: int = Field(default=10, ge=1, le=500)
     learning_rate: float = Field(default=0.01, gt=0.0, le=1.0)
     snapshot_interval: int | None = Field(default=5, ge=1, le=500)
+    llm_model: str | None = None
 
 
 class SessionCreateRequest(BaseModel):
