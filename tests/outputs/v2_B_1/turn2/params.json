@@ -1,0 +1,11 @@
+{
+  "prompt": "add some grit",
+  "fx_chain": [
+    "dist"
+  ],
+  "params": {
+    "dist": {
+      "drive_db": 8.0
+    }
+  }
+}
