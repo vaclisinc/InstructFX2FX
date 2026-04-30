@@ -58,10 +58,56 @@ Goal in `B/turn3` ("too harsh, soften it"): selector returns zero tool
 calls, orchestrator carries the existing chain into parser Case 1, BO
 re-tunes the existing distortion instead of stacking an EQ.
 
-### v4 — (planned) selector may also REMOVE existing FX
+### v4 — strip `__activation` dim from BO search space
 
-Not implemented yet. The idea is to give the selector a `remove_<fx>` tool
-(or otherwise express subtraction) so it can prune the chain when a
-reprompt suggests an earlier FX is no longer wanted. Requires plumbing
-changes in `Session` / `Parser` to actually drop FX from `current_params`,
-so it is intentionally deferred.
+Change in `src/FxSearcher/fxsearcher.py`:
+
+- `define_search_space` no longer adds a `<fx>__activation` Real(0,1) dim
+  for each non-EQ effect. The three places that branched on
+  `is_active = ... > 0.5` (vanilla objective, guide objective, best-params
+  extraction) were simplified to "every FX in initial_config is active".
+
+Why: the activation dim was a vestige of the original FXSearcher paper,
+where BO was the FX-selection mechanism and needed a continuous toggle to
+decide whether each candidate FX stayed on. In the current pipeline,
+Layer 1 already decides which FX exist before BO runs, so activation was
+dead weight — it wasted ~50% of BO calls evaluating an "off" config that
+always returns the same score (visible in v3 logs as repeated
+`active effects: []` iterations with identical CLAP scores).
+
+Combined effect: BO now spends every iteration in the actually-meaningful
+parameter region, so re-tune cases like `B/turn3` ("too harsh, soften it")
+should at least have a chance of moving distortion drive in the right
+direction. Whether CLAP itself gives a usable signal for "softer" is a
+separate problem (see v5/v6).
+
+### v5 / v6 — (planned) directional loss for refinement prompts
+
+Not implemented. Vanilla CLAP score against a literal phrase like
+`"too harsh, soften it"` barely discriminates softer-vs-harsher
+renderings (score range was ~1% in v3). The fix is a directional loss
+in CLAP space (StyleGAN-NADA-style):
+
+```
+Δaudio = emb(rendered) − emb(audio_before_this_turn)
+Δtext  = emb(target_word) − emb(anti_word)
+maximize cos(Δaudio, Δtext)
+```
+
+We're explicitly NOT going to parse `(target_word, anti_word)` from
+free-form text. Instead, the UI will expose two inputs: a target
+descriptor (required) and an optional "not ___" anti-descriptor.
+For "too harsh, soften it", the user would enter target=`soft`,
+anti=`harsh`. This sidesteps the brittle prompt-parsing step.
+
+`fxsearcher.py` already has a degenerate version of this in
+`objective_function_guide` (uses a hard-coded harsh/distorted/muddy
+anchor) — v5/v6 generalizes it to a per-turn user-supplied anti
+descriptor.
+
+### Also planned (no version assigned) — selector may also REMOVE existing FX
+
+Give Layer 1 a `remove_<fx>` tool (or equivalent) so it can prune the
+chain when a reprompt suggests an earlier FX is no longer wanted.
+Requires plumbing changes in `Session` / `Parser` to actually drop FX
+from `current_params`. Intentionally deferred.

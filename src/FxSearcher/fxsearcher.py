@@ -290,11 +290,12 @@ def define_search_space(config, PARAM_RANGES):
     search_space = []
     param_names = []
 
+    # Note: there used to be a per-fx `__activation` Real(0,1) dim here so BO
+    # could toggle each FX on/off. In the new pipeline Layer 1 (FXSelectorAgent)
+    # already decides which FX exist, so activation is fixed to "on" for every
+    # FX in the config — the dim was just wasting BO budget on always-the-same
+    # "off" evaluations.
     for fx_type, fx_params in config.items():
-        if fx_type != "EQ":
-            search_space.append(Real(0.0, 1.0, name=f"{fx_type}__activation"))
-            param_names.append(f"{fx_type}__activation")
-
         for p_name, p_info in PARAM_RANGES[fx_type].items():
             full_param_name = f"{fx_type}__{p_name}"
             param_names.append(full_param_name)
@@ -344,21 +345,16 @@ def refine_candidate_bayesian(args_dict, plot=False):
         active_config = {}
 
         for fx_type, fx_params in temp_config.items():
-            # always activate EQ
-            is_active = (fx_type == "EQ") or (params.get(f"{fx_type}__activation", 0.0) > 0.5)
-
-            if is_active:
-                # Update parameters of activated effects
-                for p_name, p_value in params.items():
-                    p_fx_type, param_key = p_name.split('__')
-                    if p_fx_type == fx_type and param_key != 'activation':
-                        keys = param_key.split('.')
-                        if len(keys) == 2:
-                            if keys[0] not in fx_params: fx_params[keys[0]] = {}
-                            fx_params[keys[0]][keys[1]] = p_value
-                        else:
-                            fx_params[param_key] = p_value
-                active_config[fx_type] = fx_params
+            for p_name, p_value in params.items():
+                p_fx_type, param_key = p_name.split('__')
+                if p_fx_type == fx_type:
+                    keys = param_key.split('.')
+                    if len(keys) == 2:
+                        if keys[0] not in fx_params: fx_params[keys[0]] = {}
+                        fx_params[keys[0]][keys[1]] = p_value
+                    else:
+                        fx_params[param_key] = p_value
+            active_config[fx_type] = fx_params
 
         print(f"    🔄 Rendering with active effects: {list(active_config.keys())}")
         print(f'      ├─ original audio shape: {audio.shape if isinstance(audio, tuple) else audio.shape}')
@@ -395,21 +391,16 @@ def refine_candidate_bayesian(args_dict, plot=False):
         active_config = {}
 
         for fx_type, fx_params in temp_config.items():
-            # always activate EQ
-            is_active = (fx_type == "EQ") or (params.get(f"{fx_type}__activation", 0.0) > 0.5)
-
-            if is_active:
-                # Update parameters of activated effects
-                for p_name, p_value in params.items():
-                    p_fx_type, param_key = p_name.split('__')
-                    if p_fx_type == fx_type and param_key != 'activation':
-                        keys = param_key.split('.')
-                        if len(keys) == 2:
-                            if keys[0] not in fx_params: fx_params[keys[0]] = {}
-                            fx_params[keys[0]][keys[1]] = p_value
-                        else:
-                            fx_params[param_key] = p_value
-                active_config[fx_type] = fx_params
+            for p_name, p_value in params.items():
+                p_fx_type, param_key = p_name.split('__')
+                if p_fx_type == fx_type:
+                    keys = param_key.split('.')
+                    if len(keys) == 2:
+                        if keys[0] not in fx_params: fx_params[keys[0]] = {}
+                        fx_params[keys[0]][keys[1]] = p_value
+                    else:
+                        fx_params[param_key] = p_value
+            active_config[fx_type] = fx_params
 
         print(f"    🔄 Rendering with active effects: {list(active_config.keys())}")
         processed_audio = render(audio, sr, active_config)
@@ -548,20 +539,17 @@ def refine_candidate_bayesian(args_dict, plot=False):
         benchmark_clap_score = scores_history.get(params_tuple, 0.0) if use_guide else -1.0 * score
 
         for fx_type, fx_params in initial_config.items():
-            is_active = (fx_type == "EQ") or (best_params.get(f"{fx_type}__activation", 0.0) > 0.5)
-
-            if is_active:
-                new_fx = {**fx_params}
-                for p_name, p_value in best_params.items():
-                    p_fx_type, p_key = p_name.split('__')
-                    if p_fx_type == fx_type and p_key != 'activation':
-                        keys = p_key.split('.')
-                        if len(keys) == 2:
-                            if keys[0] not in new_fx: new_fx[keys[0]] = {}
-                            new_fx[keys[0]][keys[1]] = p_value
-                        else:
-                            new_fx[p_key] = p_value
-                final_config[fx_type] = new_fx
+            new_fx = {**fx_params}
+            for p_name, p_value in best_params.items():
+                p_fx_type, p_key = p_name.split('__')
+                if p_fx_type == fx_type:
+                    keys = p_key.split('.')
+                    if len(keys) == 2:
+                        if keys[0] not in new_fx: new_fx[keys[0]] = {}
+                        new_fx[keys[0]][keys[1]] = p_value
+                    else:
+                        new_fx[p_key] = p_value
+            final_config[fx_type] = new_fx
 
         presets_to_sort.append({
             "composite_score": -1.0 * score,
