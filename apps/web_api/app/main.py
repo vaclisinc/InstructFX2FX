@@ -12,6 +12,7 @@ from .schemas import (
     FxMetadataResponse,
     RunCreateRequest,
     RunEnvelope,
+    SessionCheckpointRequest,
     SessionCreateRequest,
     SessionListResponse,
     SessionResponse,
@@ -38,6 +39,8 @@ def _session_to_response(record) -> SessionResponse:
         audio_uploaded=record.audio_path is not None,
         audio_filename=record.audio_path.name if record.audio_path else None,
         audio_artifact=artifact_url(record.audio_path) if record.audio_path else None,
+        active_anchor_run_id=record.active_anchor_run_id,
+        active_anchor_label=record.active_anchor_label,
         history_length=len(record.session.history),
         runs=service.session_runs_payload(record.session_id),
         created_at=record.created_at,
@@ -108,6 +111,20 @@ def delete_session(session_id: str) -> dict[str, str]:
         raise HTTPException(status_code=404, detail="Session not found")
     service.delete_session(session_id)
     return {"status": "deleted"}
+
+
+@app.post("/sessions/{session_id}/active-checkpoint", response_model=SessionResponse)
+def set_active_checkpoint(session_id: str, payload: SessionCheckpointRequest) -> SessionResponse:
+    record = service.get_session(session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        updated = service.set_session_head_from_checkpoint(session_id, payload.run_id, payload.checkpoint_label)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _session_to_response(updated)
 
 
 @app.post("/sessions/{session_id}/audio", response_model=AudioUploadResponse)

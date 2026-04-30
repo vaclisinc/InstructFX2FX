@@ -22,6 +22,11 @@ class SessionUpdateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
 
 
+class SessionCheckpointRequest(BaseModel):
+    run_id: str = Field(min_length=1)
+    checkpoint_label: str = Field(min_length=1)
+
+
 class SessionResponse(BaseModel):
     session_id: str
     name: str
@@ -29,6 +34,8 @@ class SessionResponse(BaseModel):
     audio_uploaded: bool
     audio_filename: str | None
     audio_artifact: str | None = None
+    active_anchor_run_id: str | None = None
+    active_anchor_label: str | None = None
     history_length: int
     runs: list[dict[str, Any]] = Field(default_factory=list)
     created_at: str | None = None

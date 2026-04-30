@@ -205,6 +205,15 @@ export default function App() {
   const uiMetadata = activeRun?.result?.metadata?.ui || {};
   const routeCase = activeRun?.result?.metadata?.route_case || null;
   const canBrowseTrajectory = Boolean(uiMetadata.can_browse_trajectory);
+  const selectedCheckpointIsSessionHead =
+    Boolean(
+      session?.active_anchor_run_id &&
+      session?.active_anchor_label &&
+      activeRun?.run_id &&
+      selectedCheckpoint?.label &&
+      session.active_anchor_run_id === activeRun.run_id &&
+      session.active_anchor_label === selectedCheckpoint.label
+    );
   const currentAudioSrc = canBrowseTrajectory && selectedCheckpoint?.audio_artifact
     ? `${API_BASE}${selectedCheckpoint.audio_artifact}`
     : activeRun?.result?.artifacts?.final_audio
@@ -313,6 +322,29 @@ export default function App() {
     setSelectedRunId(runId);
     setSelectedCheckpointIndex(0);
     setError("");
+  }
+
+  async function handleUseCheckpointAsSessionHead() {
+    if (!session || !activeRun || !selectedCheckpoint) {
+      return;
+    }
+
+    try {
+      setError("");
+      const updated = await fetchJson(`/sessions/${session.session_id}/active-checkpoint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          run_id: activeRun.run_id,
+          checkpoint_label: selectedCheckpoint.label,
+        }),
+      });
+      const listed = await fetchJson("/sessions");
+      setSession(updated);
+      setSessionCatalog(listed.sessions || []);
+    } catch (err) {
+      setError(String(err));
+    }
   }
 
   async function handleSelectSession(sessionId) {
@@ -803,6 +835,16 @@ export default function App() {
                         ? "final"
                         : `iter ${selectedCheckpoint.iteration}`}
                     </span>
+                  </div>
+                  <div className="checkpoint-actions">
+                    <button
+                      type="button"
+                      className="secondary-inline-action"
+                      onClick={handleUseCheckpointAsSessionHead}
+                      disabled={selectedCheckpointIsSessionHead}
+                    >
+                      {selectedCheckpointIsSessionHead ? "Current session head" : "Use this checkpoint for next prompt"}
+                    </button>
                   </div>
                   <p className="muted">
                     The slider only stops on real saved checkpoints. If your interval is `5`, you should see `iter_5`, `iter_10`, `iter_15`, and so on.
