@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const FX_LABELS = {
+  eq: "EQ",
+  comp: "compressor",
+  rev: "reverb",
+  dist: "distortion",
+  delay: "delay",
+  pitchshift: "pitch shift",
+  bitcrush: "bitcrush",
+};
 const DEFAULT_SETTINGS = {
   n_iterations: 10,
   learning_rate: 0.01,
@@ -19,6 +28,14 @@ async function fetchJson(path, options = {}) {
 
 function formatPercent(value) {
   return `${Math.round(value || 0)}%`;
+}
+
+function formatFxLabel(fx) {
+  return FX_LABELS[fx] || fx;
+}
+
+function formatFxChain(fxChain) {
+  return (fxChain || []).map(formatFxLabel).join(" -> ");
 }
 
 export default function App() {
@@ -589,7 +606,7 @@ export default function App() {
                       <span className="history-status">{item.status}</span>
                     </div>
                     <div className="history-subline">
-                      <span>{item.fx_chain?.join(" -> ") || "Awaiting output"}</span>
+                      <span>{formatFxChain(item.fx_chain) || "Awaiting output"}</span>
                       <span>{formatPercent(item.progress)}</span>
                     </div>
                     <div className="history-subline">
@@ -791,34 +808,36 @@ export default function App() {
                     The slider only stops on real saved checkpoints. If your interval is `5`, you should see `iter_5`, `iter_10`, `iter_15`, and so on.
                   </p>
                 </div>
-              ) : activeRun.result ? (
+              ) : activeRun.result && !uiMetadata.initialization_only ? (
                 <div className="info-box subtle">
                   {uiMetadata.trajectory_reason || "No trajectory slider is available for this run."}
                 </div>
               ) : null}
 
-              <div className="stack compact">
-                <h3>FX chain</h3>
-                <div className="chips">
-                  {(activeRun.result?.fx_chain || []).map((fx) => (
-                    <span key={fx} className="chip">{fx}</span>
-                  ))}
+              <div className="run-summary-grid">
+                <div className="detail-card">
+                  <h3>FX chain</h3>
+                  <div className="chips">
+                    {(activeRun.result?.fx_chain || []).map((fx) => (
+                      <span key={fx} className="chip">{formatFxLabel(fx)}</span>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="stack compact">
-                <h3>Run settings</h3>
-                <div className="chips">
-                  <span className="chip">{activeRun.settings?.llm_model || "default model"}</span>
-                  <span className="chip">{`${activeRun.settings?.n_iterations ?? "?"} iter`}</span>
-                  <span className="chip">{`lr ${activeRun.settings?.learning_rate ?? "?"}`}</span>
-                  <span className="chip">{`snap ${activeRun.settings?.snapshot_interval ?? "off"}`}</span>
+                <div className="detail-card">
+                  <h3>Run settings</h3>
+                  <div className="chips">
+                    <span className="chip">{activeRun.settings?.llm_model || "default model"}</span>
+                    <span className="chip">{`${activeRun.settings?.n_iterations ?? "?"} iter`}</span>
+                    <span className="chip">{`lr ${activeRun.settings?.learning_rate ?? "?"}`}</span>
+                    <span className="chip">{`snap ${activeRun.settings?.snapshot_interval ?? "off"}`}</span>
+                  </div>
                 </div>
               </div>
 
               <div className="param-card">
                 <h3>Parameters</h3>
-                <pre>{JSON.stringify(selectedParams, null, 2)}</pre>
+                <pre className="param-json">{JSON.stringify(selectedParams, null, 2)}</pre>
               </div>
             </>
           ) : (
