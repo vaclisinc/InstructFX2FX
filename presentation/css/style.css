@@ -1,0 +1,278 @@
+/* ── Variables ── */
+:root {
+  --primary: #2196F3;
+  --primary-light: #E3F2FD;
+  --accent: #FF9800;
+  --accent-light: #FFF3E0;
+  --emphasis: #F44336;
+  --green: #4CAF50;
+  --green-light: #E8F5E9;
+  --bg: #FAFAFA;
+  --card-bg: #FFFFFF;
+  --text: #111111;
+  --text-secondary: #555555;
+  --border: #E0E0E0;
+  --dot-red: #FF5F56;
+  --dot-yellow: #FFBD2E;
+  --dot-green: #27C93F;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+}
+
+/* ── Reset ── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #222;
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+/* ── Slide framework ── */
+.slide-container {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.slide {
+  width: 1000px; height: 562.5px;
+  background: var(--bg);
+  background-image:
+    linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+  background-size: 50px 50px;
+  position: relative;
+  display: none;
+  padding: 40px 50px;
+  overflow: hidden;
+}
+
+.slide.active { display: flex; flex-direction: column; }
+
+.slide::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.slide-header {
+  position: absolute; top: 10px; left: 20px; right: 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: var(--text-secondary); font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.slide-counter {
+  position: fixed; bottom: 16px; right: 24px;
+  font-family: var(--font); font-size: 13px;
+  z-index: 100;
+  background: rgba(0,0,0,0.6); color: #ccc;
+  padding: 4px 10px; border-radius: 4px;
+}
+
+/* ── Card component ── */
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  background: #F7F7F7;
+  border-bottom: 1px solid var(--border);
+}
+
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot-r { background: var(--dot-red); }
+.dot-y { background: var(--dot-yellow); }
+.dot-g { background: var(--dot-green); }
+
+.card-body { padding: 16px 20px; }
+
+/* ── Typography ── */
+.slide-title {
+  font-size: 30px; font-weight: 700; color: var(--text);
+  margin-bottom: 16px; line-height: 1.2;
+}
+
+.slide-subtitle {
+  font-size: 18px; font-weight: 400; color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.body-text { font-size: 15px; color: var(--text); line-height: 1.6; }
+
+.highlight     { color: var(--primary); font-weight: 600; }
+.highlight-accent { color: var(--accent); font-weight: 600; }
+.highlight-red { color: var(--emphasis); font-weight: 600; }
+.highlight-green { color: var(--green); font-weight: 600; }
+
+.mono  { font-family: var(--mono); font-size: 13px; }
+.small { font-size: 12px; }
+.bold  { font-weight: 600; }
+
+ul.bullets { list-style: none; padding: 0; }
+ul.bullets li {
+  padding: 4px 0 4px 18px;
+  position: relative; font-size: 15px; color: var(--text); line-height: 1.5;
+}
+ul.bullets li::before {
+  content: ''; position: absolute; left: 0; top: 11px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--primary);
+}
+
+/* ── Layout helpers ── */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-1 { flex: 1; }
+.items-center   { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.text-center { text-align: center; }
+.mt-auto { margin-top: auto; }
+.mt-8  { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.gap-8  { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+.gap-24 { gap: 24px; }
+
+/* ── Architecture boxes ── */
+.arch-box {
+  padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; text-align: center;
+  border: 2px solid; min-width: 100px;
+}
+.arch-box.blue   { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+.arch-box.orange { background: var(--accent-light);  border-color: var(--accent);  color: #E65100; }
+.arch-box.green  { background: var(--green-light);   border-color: var(--green);   color: #2E7D32; }
+.arch-box.gray   { background: #F5F5F5; border-color: #BDBDBD; color: var(--text-secondary); }
+.arch-box.dark   { background: #263238; border-color: #263238; color: #fff; }
+
+.arch-arrow {
+  width: 2px; height: 20px; background: #999; margin: 0 auto;
+  position: relative;
+}
+.arch-arrow::after {
+  content: ''; position: absolute; bottom: -4px; left: -4px;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 6px solid #999;
+}
+
+/* ── FX chip ── */
+.fx-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary);
+}
+.fx-chip.selected { background: var(--primary); color: #fff; }
+
+/* ── Tag ── */
+.tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600;
+}
+.tag.blue   { background: var(--primary-light); color: var(--primary); }
+.tag.orange { background: var(--accent-light);  color: #E65100; }
+.tag.green  { background: var(--green-light);   color: #2E7D32; }
+.tag.red    { background: #FFEBEE; color: var(--emphasis); }
+
+/* ── Case flow row ── */
+.case-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-radius: 8px; font-size: 13px;
+}
+.case-row .arrow-right {
+  width: 24px; height: 2px; background: #999; position: relative; flex-shrink: 0;
+}
+.case-row .arrow-right::after {
+  content: ''; position: absolute; right: -1px; top: -4px;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  border-left: 6px solid #999;
+}
+
+/* ── Loss card ── */
+.loss-card { flex: 1; }
+.loss-card .card-body { padding: 10px 14px; }
+.loss-card svg { display: block; margin: 0 auto 6px; }
+
+/* ── Word pair grid ── */
+.pair-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+  font-size: 12px;
+}
+.pair-cell {
+  padding: 4px 6px; border-radius: 4px; text-align: center;
+  background: var(--primary-light); color: var(--primary); font-weight: 500;
+}
+
+/* ── Results bar chart ── */
+.bar-row   { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.bar-label { width: 90px; font-size: 12px; text-align: right; color: var(--text-secondary); }
+.bar-track { flex: 1; height: 18px; background: #ECEFF1; border-radius: 4px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 6px; font-size: 10px; color: #fff; font-weight: 600; }
+.bar-fill.ours     { background: var(--primary); }
+.bar-fill.baseline { background: #B0BEC5; }
+
+/* ── PCA dot visualization ── */
+.pca-viz {
+  width: 100%; height: 140px; position: relative;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  overflow: hidden;
+}
+.pca-dot {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Demo button ── */
+.demo-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 32px; border-radius: 12px;
+  background: var(--primary); color: #fff;
+  font-size: 18px; font-weight: 600;
+  text-decoration: none; border: none; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(33,150,243,0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.demo-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(33,150,243,0.4);
+}
+
+/* ── Title slide ── */
+.title-slide { justify-content: center; align-items: center; text-align: center; }
+.title-slide .main-title    { font-size: 36px; font-weight: 800; color: var(--text); line-height: 1.15; margin-bottom: 12px; }
+.title-slide .main-subtitle { font-size: 18px; color: var(--text-secondary); font-weight: 400; margin-bottom: 28px; line-height: 1.4; }
+.title-slide .meta           { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
+
+/* ── Timeline ── */
+.timeline      { display: flex; align-items: flex-start; gap: 0; position: relative; }
+.timeline-step { flex: 1; text-align: center; position: relative; padding-top: 24px; }
+.timeline-step::before {
+  content: ''; position: absolute; top: 8px; left: 0; right: 0;
+  height: 3px; background: var(--border);
+}
+.timeline-step:first-child::before { left: 50%; }
+.timeline-step:last-child::before  { right: 50%; }
+.timeline-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--primary); border: 3px solid #fff;
+  box-shadow: 0 0 0 2px var(--primary);
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  z-index: 1;
+}
+
+/* ── Convergence curve ── */
+.curve-container {
+  width: 100%; height: 160px; position: relative;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px;
+}
