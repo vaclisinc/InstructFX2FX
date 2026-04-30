@@ -32,8 +32,6 @@ from session.session import Session
 
 AUDIO_PATH = os.path.join(os.path.dirname(__file__), "..", "dry_audio", "piano", "piano.wav")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
-VIEWER_JSON_PATH = os.path.join(OUTPUT_DIR, "examples.json")
-VIEWER_BUNDLE_PATH = os.path.join(OUTPUT_DIR, "examples.js")
 N_ITERATIONS = 10
 ALL_FX = ["eq", "comp", "rev", "dist", "delay", "pitchshift", "bitcrush"]
 
@@ -51,19 +49,6 @@ def save_audio(tensor: torch.Tensor, path: str):
     audio_np = tensor.squeeze().cpu().numpy()
     sf.write(path, audio_np.T if audio_np.ndim == 2 else audio_np, 44100)
     print(f"  Saved: {path}")
-
-
-def write_examples_bundle(examples: list[dict]) -> None:
-    bundle = {"examples": examples}
-    with open(VIEWER_JSON_PATH, "w") as f:
-        json.dump(bundle, f, indent=2)
-
-    with open(VIEWER_BUNDLE_PATH, "w") as f:
-        f.write("window.TEST_PIPELINE_EXAMPLES = ")
-        json.dump(bundle, f, indent=2)
-        f.write(";\n")
-
-    print(f"Viewer bundle saved: {VIEWER_BUNDLE_PATH}")
 
 
 def validate_output(result: dict, turn: str, session: Session) -> list[str]:
@@ -86,7 +71,7 @@ def run_case(
     turns: list[tuple[str, list[str]]],
     orch: Orchestrator,
     audio: torch.Tensor,
-) -> tuple[list[str], list[dict]]:
+) -> list[str]:
     """Run a multi-turn test case.
 
     Each turn is (instruction, expected_fx) where expected_fx is a minimum
@@ -96,7 +81,6 @@ def run_case(
     print(f"Case {name}")
     print(f"{'='*60}")
     errors = []
-    examples = []
     session = Session(available_fx=ALL_FX)
     case_dir = os.path.join(OUTPUT_DIR, name)
     os.makedirs(case_dir, exist_ok=True)
@@ -130,19 +114,6 @@ def run_case(
             json.dump(params_payload, f, indent=2)
         print(f"  Params saved: {turn_dir}/params.json")
 
-        examples.append({
-            "case": name,
-            "turn": i,
-            "prompt": instruction,
-            "reprompt": instruction,
-            "expected_fx": expected_fx,
-            "fx_chain": result["fx_chain"],
-            "params_path": f"outputs/{name}/turn{i}/params.json",
-            "before_audio_path": f"outputs/{name}/turn{i}/before.wav",
-            "after_audio_path": f"outputs/{name}/turn{i}/after.wav",
-            "params": result["params"],
-        })
-
         if result.get("audio") is not None:
             save_audio(result["audio"], os.path.join(turn_dir, "after.wav"))
 
@@ -155,7 +126,7 @@ def run_case(
 
     # Check session accumulation
     print(f"\n  Session accumulated params: {list(session.current_params.keys())}")
-    return errors, examples
+    return errors
 
 
 def main():
@@ -178,39 +149,33 @@ def main():
     orch = Orchestrator(llm, clap, device=device, n_iterations=N_ITERATIONS)
 
     all_errors = []
-    all_examples = []
 
     # Case A — EQ only (DASP path)
     # Turn 1: "bright" should select at least eq
     # Turn 2: "warmer" with eq already in session → Case 1 (reuse + re-optimize)
-    errs, examples = run_case("A", [
+    errs = run_case("A", [
         ("bright", ["eq"]),
         ("warmer", ["eq"]),
     ], orch, audio)
     all_errors.extend(errs)
-    all_examples.extend(examples)
 
     # Case B — Mixed DASP + Pedalboard
     # Turn 1: "make it sound like a church" should select at least rev
     # Turn 2: "add some grit" should add dist (Case 3: new + existing)
     # Turn 3: "too harsh, soften it" should reuse existing FX (Case 1)
-    errs, examples = run_case("B", [
+    errs = run_case("B", [
         ("make it sound like a church", ["rev"]),
         ("add some grit", ["dist"]),
         ("too harsh, soften it", []),
     ], orch, audio)
     all_errors.extend(errs)
-    all_examples.extend(examples)
 
     # Case C — Pedalboard only
     # "distorted and crushed" should select at least dist
-    errs, examples = run_case("C", [
+    errs = run_case("C", [
         ("distorted and crushed", ["dist"]),
     ], orch, audio)
     all_errors.extend(errs)
-    all_examples.extend(examples)
-
-    write_examples_bundle(all_examples)
 
     print(f"\n{'='*60}")
     if all_errors:

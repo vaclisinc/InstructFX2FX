@@ -51,7 +51,7 @@
 
     .toolbar {
       display: grid;
-      grid-template-columns: 1.2fr 180px auto;
+      grid-template-columns: auto 1.2fr 180px auto;
       gap: 12px;
       margin-bottom: 24px;
       align-items: center;
@@ -99,6 +99,20 @@
       justify-self: end;
       color: var(--muted);
       font-size: 0.95rem;
+    }
+
+    .status {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .picker-button {
+      white-space: nowrap;
+    }
+
+    .hidden-input {
+      display: none;
     }
 
     .grid {
@@ -236,9 +250,12 @@
     <p class="lede">
       Browse saved `tests/test_pipeline.py` examples, compare dry and processed audio,
       inspect parameters, and tweak a reprompt field you can copy back into the next run.
+      Load the `tests/outputs` folder directly from disk.
     </p>
 
     <section class="toolbar">
+      <button id="pick-folder" class="picker-button" type="button">Choose outputs folder</button>
+      <input id="folder-input" class="hidden-input" type="file" webkitdirectory multiple />
       <input id="search" type="search" placeholder="Filter by prompt, FX, or case" />
       <select id="case-filter">
         <option value="all">All cases</option>
@@ -246,17 +263,22 @@
       <div class="count" id="count"></div>
     </section>
 
+    <p class="status" id="status">
+      Pick `tests/outputs` to render the saved cases. The page reads `params.json`, `before.wav`, and `after.wav` directly from the selected folder.
+    </p>
+
     <section class="grid" id="examples"></section>
   </main>
 
-  <script src="./outputs/examples.js"></script>
   <script>
-    const bundle = window.TEST_PIPELINE_EXAMPLES || { examples: [] };
-    const examples = Array.isArray(bundle.examples) ? bundle.examples : [];
+    let examples = [];
 
+    const pickFolderButton = document.getElementById("pick-folder");
+    const folderInput = document.getElementById("folder-input");
     const searchInput = document.getElementById("search");
     const caseFilter = document.getElementById("case-filter");
     const count = document.getElementById("count");
+    const status = document.getElementById("status");
     const root = document.getElementById("examples");
 
     function uniqueCases(items) {
@@ -285,14 +307,144 @@
       }
     }
 
+    function naturalCompare(a, b) {
+      return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    function setStatus(message) {
+      status.textContent = message;
+    }
+
+    function updateCaseFilter(items) {
+      const previousValue = caseFilter.value;
+      caseFilter.innerHTML = `<option value="all">All cases</option>`;
+
+      uniqueCases(items).forEach((caseName) => {
+        const option = document.createElement("option");
+        option.value = caseName;
+        option.textContent = `Case ${caseName}`;
+        caseFilter.appendChild(option);
+      });
+
+      caseFilter.value = [...caseFilter.options].some((option) => option.value === previousValue)
+        ? previousValue
+        : "all";
+    }
+
+    function inferTurnNumber(turnName) {
+      const match = String(turnName).match(/turn(\d+)/i);
+      return match ? Number(match[1]) : Number.NaN;
+    }
+
+    function normalizePayload(payload) {
+      const wrapped = payload && typeof payload === "object" ? payload : {};
+      const hasWrappedParams = wrapped.params && typeof wrapped.params === "object" && !Array.isArray(wrapped.params);
+      return {
+        prompt: typeof wrapped.prompt === "string" ? wrapped.prompt : "",
+        fx_chain: Array.isArray(wrapped.fx_chain) ? wrapped.fx_chain : Object.keys(hasWrappedParams ? wrapped.params : wrapped),
+        params: hasWrappedParams ? wrapped.params : wrapped,
+      };
+    }
+
+    function buildExampleFromGroup(group) {
+      if (!group.paramsFile) {
+        return null;
+      }
+
+      let payload;
+      try {
+        payload = JSON.parse(group.paramsFile.text);
+      } catch (_) {
+        return null;
+      }
+
+      const normalized = normalizePayload(payload);
+      const turnNumber = inferTurnNumber(group.turn);
+
+      return {
+        case: group.case,
+        turn: Number.isFinite(turnNumber) ? turnNumber : group.turn,
+        turn_label: group.turn,
+        prompt: normalized.prompt,
+        reprompt: normalized.prompt,
+        fx_chain: normalized.fx_chain,
+        params: normalized.params,
+        beforeAudioUrl: group.beforeFile ? URL.createObjectURL(group.beforeFile.file) : "",
+        afterAudioUrl: group.afterFile ? URL.createObjectURL(group.afterFile.file) : "",
+      };
+    }
+
+    async function readText(file) {
+      return file.text();
+    }
+
+    async function loadFromFileList(fileList) {
+      examples.forEach((example) => {
+        if (example.beforeAudioUrl) {
+          URL.revokeObjectURL(example.beforeAudioUrl);
+        }
+        if (example.afterAudioUrl) {
+          URL.revokeObjectURL(example.afterAudioUrl);
+        }
+      });
+
+      const files = Array.from(fileList || []);
+      const grouped = new Map();
+
+      await Promise.all(files.map(async (file) => {
+        const relativePath = file.webkitRelativePath || file.name;
+        const parts = relativePath.split("/").filter(Boolean);
+        if (parts.length < 3) {
+          return;
+        }
+
+        const fileName = parts[parts.length - 1];
+        const turnName = parts[parts.length - 2];
+        const caseName = parts[parts.length - 3];
+        const key = `${caseName}/${turnName}`;
+
+        if (!grouped.has(key)) {
+          grouped.set(key, { case: caseName, turn: turnName });
+        }
+
+        const group = grouped.get(key);
+        if (fileName === "params.json") {
+          group.paramsFile = { file, text: await readText(file) };
+        } else if (fileName === "before.wav") {
+          group.beforeFile = { file };
+        } else if (fileName === "after.wav") {
+          group.afterFile = { file };
+        }
+      }));
+
+      examples = [...grouped.values()]
+        .map(buildExampleFromGroup)
+        .filter(Boolean)
+        .sort((a, b) => {
+          const caseOrder = naturalCompare(a.case, b.case);
+          if (caseOrder !== 0) {
+            return caseOrder;
+          }
+          return naturalCompare(a.turn, b.turn);
+        });
+
+      updateCaseFilter(examples);
+      setStatus(
+        examples.length
+          ? `Loaded ${examples.length} example${examples.length === 1 ? "" : "s"} from the selected outputs folder.`
+          : "No valid turn folders found. Select `tests/outputs` and make sure each turn contains `params.json`."
+      );
+      applyFilters();
+    }
+
     function render(items) {
       count.textContent = `${items.length} example${items.length === 1 ? "" : "s"}`;
 
       if (!items.length) {
         root.innerHTML = `
           <div class="empty">
-            No examples matched. If the page is empty after a fresh run,
-            rerun <code>.venv/bin/python tests/test_pipeline.py</code> to rebuild <code>tests/outputs/examples.js</code>.
+            No examples matched. Load <code>tests/outputs</code> from the picker above,
+            or rerun <code>.venv/bin/python tests/test_pipeline.py</code> to regenerate the turn folders.
           </div>
         `;
         return;
@@ -319,11 +471,11 @@
             <div class="audio-row">
               <section class="panel">
                 <h3>Before</h3>
-                <audio controls preload="none" src="./${escapeHtml(example.before_audio_path)}"></audio>
+                <audio controls preload="none" src="${escapeHtml(example.beforeAudioUrl || "")}"></audio>
               </section>
               <section class="panel">
                 <h3>After</h3>
-                <audio controls preload="none" src="./${escapeHtml(example.after_audio_path)}"></audio>
+                <audio controls preload="none" src="${escapeHtml(example.afterAudioUrl || "")}"></audio>
               </section>
             </div>
 
@@ -396,11 +548,17 @@
       render(filtered);
     }
 
-    uniqueCases(examples).forEach((caseName) => {
-      const option = document.createElement("option");
-      option.value = caseName;
-      option.textContent = `Case ${caseName}`;
-      caseFilter.appendChild(option);
+    pickFolderButton.addEventListener("click", () => {
+      folderInput.click();
+    });
+
+    folderInput.addEventListener("change", async (event) => {
+      const files = event.target.files;
+      if (!files || !files.length) {
+        return;
+      }
+      setStatus("Loading selected folder...");
+      await loadFromFileList(files);
     });
 
     searchInput.addEventListener("input", applyFilters);
