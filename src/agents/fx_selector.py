@@ -12,13 +12,27 @@ FX_DESCRIPTIONS = {
     # "panner":    "Panner — controls stereo placement and width",
 }
 
-_SYSTEM_PROMPT = """You are an expert audio engineer. Given a sound descriptor and the existing effect chain from prior turns in the session, decide which effect(s), if any, to ADD to the chain.
+_MODEL = "google/gemini-3.1-pro-preview"
+
+# Used on the FIRST turn of a session (no history yet). The agent's only job is
+# to map a fresh descriptor to an FX chain — no notion of "refinement" or
+# "existing chain" should leak in, since nothing exists yet.
+_SYSTEM_PROMPT_INITIAL = """You are an expert audio engineer. Given a sound descriptor, select the appropriate audio effects (FX) and decide their order in the signal chain.
+
+Rules:
+- Call each tool in the ORDER you want effects applied to the audio signal (first call = first in chain).
+- Call each tool AT MOST ONCE.
+- Only select effects that are necessary to achieve the described sound — do not add effects "just in case." Prefer the smallest chain that gets the job done."""
+
+# Used on later turns when there is prior history. The agent decides what to
+# ADD on top of the existing chain, or returns no tool calls so the existing
+# chain gets re-tuned for the new descriptor.
+_SYSTEM_PROMPT_REFINEMENT = """You are an expert audio engineer. Given a sound descriptor and the existing effect chain from prior turns in the session, decide which effect(s), if any, to ADD to the chain.
 
 Rules:
 - Call each tool in the ORDER you want any new effects applied (first call = first in chain among the new effects).
 - Call each tool AT MOST ONCE, and do NOT call a tool for an effect that is already in the existing chain.
-- If the existing chain already contains the right effects for the new request, return NO tool calls — the existing effects will be re-tuned (parameters re-optimized) for the new descriptor. For example, if the chain already has distortion and the user says "too harsh, soften it", the right move is usually to re-tune the existing distortion (return no tools), not to stack an EQ on top.
-- If the existing chain is empty, you must select at least one effect that fits the request."""
+- If the existing chain already contains the right effects for the new request, return NO tool calls — the existing effects will be re-tuned (parameters re-optimized) for the new descriptor. For example, if the chain already has distortion and the user says "too harsh, soften it", the right move is usually to re-tune the existing distortion (return no tools), not to stack an EQ on top."""
 
 
 def _format_history(history: list) -> str:
@@ -77,26 +91,30 @@ class FXSelectorAgent:
         if not tools:
             return []
 
-        history_text = _format_history(history)
-        if history_text:
+        is_refinement = bool(history)
+        if is_refinement:
+            system_prompt = _SYSTEM_PROMPT_REFINEMENT
             user_msg = (
-                f"{history_text}\n\n"
+                f"{_format_history(history)}\n\n"
                 f"Current chain: {existing_chain}\n"
                 f"New request: {instruction}\n\n"
                 "Decide what effect(s) to ADD. If the existing chain already has the right "
                 "effects for this request, return no tool calls — they will be re-tuned."
             )
+            tool_choice = "auto"
         else:
+            system_prompt = _SYSTEM_PROMPT_INITIAL
             user_msg = f"Select effects for: {instruction}"
+            tool_choice = "required"
 
         response = self.llm.llm.chat.completions.create(
-            model="gpt-4o",
+            model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_msg},
             ],
             tools=tools,
-            tool_choice="auto",
+            tool_choice=tool_choice,
         )
 
         message = response.choices[0].message
