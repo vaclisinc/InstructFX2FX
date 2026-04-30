@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from functools import partial
 from typing import Callable, Optional
 
 import dasp_pytorch
@@ -248,12 +249,16 @@ class Compressor(DASPEffectAdapter):
 
 
 class Reverb(DASPEffectAdapter):
-    def __init__(self, sample_rate=44100):
+    def __init__(self, sample_rate=44100, num_samples=8192):
         super().__init__(
             effect_name="Reverb",
             dict_key="Reverb",
             effect_cls=dasp_pytorch.NoiseShapedReverb,
             sample_rate=sample_rate,
+        )
+        # Default 65536 (~1.5s IR) causes OOM on CPU; 8192 (~0.19s) is ~8x cheaper
+        self.effect.process_fn = partial(
+            dasp_pytorch.noise_shaped_reverberation, num_samples=num_samples
         )
 
 
@@ -353,15 +358,21 @@ class FXChainFactory:
             raise ValueError(f"Unknown effects for {backend}: {unknown}. Valid: {list(registry)}")
 
         if backend == FXFamily.DASP:
-            effect_objects = [
-                DASPEffectAdapter(
-                    effect_name=registry[effect_name].dict_key,
-                    dict_key=registry[effect_name].dict_key,
-                    effect_cls=registry[effect_name].effect_cls,
-                    sample_rate=sample_rate,
-                )
-                for effect_name in effects
-            ]
+            effect_objects = []
+            for effect_name in effects:
+                if effect_name in EFFECT_REGISTRY:
+                    effect_objects.append(
+                        EFFECT_REGISTRY[effect_name]["class"](sample_rate=sample_rate)
+                    )
+                else:
+                    effect_objects.append(
+                        DASPEffectAdapter(
+                            effect_name=registry[effect_name].dict_key,
+                            dict_key=registry[effect_name].dict_key,
+                            effect_cls=registry[effect_name].effect_cls,
+                            sample_rate=sample_rate,
+                        )
+                    )
             fx_chain = DASPFXChain(effect_objects)
             print(f"✓ DASP FX chain {effects} created: {fx_chain.num_params} parameters")
             return fx_chain
