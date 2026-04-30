@@ -716,6 +716,19 @@ h3 {
   accent-color: #9c7343;
 }
 
+.checkpoint-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.secondary-inline-action {
+  border-radius: 999px;
+  padding: 0.7rem 0.95rem;
+  background: rgba(255, 252, 247, 0.82);
+  color: #5f4830;
+  border: 1px solid rgba(185, 144, 88, 0.18);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

@@ -61,6 +61,11 @@ def artifact_url(path: Path) -> str:
     return f"/artifacts/{relative.as_posix()}"
 
 
+def artifact_path_from_url(url: str) -> Path:
+    relative = url.removeprefix("/artifacts/").lstrip("/")
+    return ARTIFACTS_ROOT / relative
+
+
 def load_audio_tensor(path: Path) -> torch.Tensor:
     data, sr = sf.read(path, always_2d=True)
     waveform = torch.from_numpy(data.T).float()
@@ -124,6 +129,9 @@ class SessionRecord:
     name: str
     session: Session
     audio_path: Path | None
+    active_audio_path: Path | None
+    active_anchor_run_id: str | None
+    active_anchor_label: str | None
     created_at: str
     updated_at: str
 
@@ -179,6 +187,12 @@ class WebDemoService:
             "current_params": dict(session_record.session.current_params),
             "history": session_history_payload(session_record.session),
             "audio_path": str(session_record.audio_path.relative_to(ARTIFACTS_ROOT)) if session_record.audio_path else None,
+            "active_audio_path": (
+                str(session_record.active_audio_path.relative_to(ARTIFACTS_ROOT))
+                if session_record.active_audio_path else None
+            ),
+            "active_anchor_run_id": session_record.active_anchor_run_id,
+            "active_anchor_label": session_record.active_anchor_label,
             "created_at": session_record.created_at,
             "updated_at": session_record.updated_at,
         }
@@ -230,6 +244,7 @@ class WebDemoService:
                 for item in payload.get("history", [])
             ]
             audio_path = payload.get("audio_path")
+            active_audio_path = payload.get("active_audio_path")
             record = SessionRecord(
                 session_id=payload["session_id"],
                 name=payload.get("name") or (
@@ -239,6 +254,9 @@ class WebDemoService:
                 ),
                 session=session,
                 audio_path=(ARTIFACTS_ROOT / audio_path) if audio_path else None,
+                active_audio_path=(ARTIFACTS_ROOT / active_audio_path) if active_audio_path else None,
+                active_anchor_run_id=payload.get("active_anchor_run_id"),
+                active_anchor_label=payload.get("active_anchor_label"),
                 created_at=payload.get("created_at", utc_now_iso()),
                 updated_at=payload.get("updated_at", utc_now_iso()),
             )
@@ -316,21 +334,9 @@ class WebDemoService:
             "history": session_history_payload(session_record.session),
         }
 
-    def _previous_run(self, session_id: str, run_id: str) -> RunRecord | None:
-        with self.lock:
-            runs = [item for item in self.runs.values() if item.session_id == session_id]
-        runs.sort(key=lambda item: item.created_at)
-        for index, item in enumerate(runs):
-            if item.run_id == run_id:
-                return runs[index - 1] if index > 0 else None
-        return None
-
     def _comparison_input_audio(self, session_record: SessionRecord, run: RunRecord) -> str | None:
-        previous_run = self._previous_run(session_record.session_id, run.run_id)
-        if previous_run and previous_run.result:
-            previous_audio = previous_run.result.get("artifacts", {}).get("final_audio")
-            if previous_audio:
-                return previous_audio
+        if session_record.active_audio_path is not None:
+            return artifact_url(session_record.active_audio_path)
         return artifact_url(session_record.audio_path) if session_record.audio_path else None
 
     def session_runs_payload(self, session_id: str) -> list[dict[str, Any]]:
@@ -444,6 +450,9 @@ class WebDemoService:
             name=(name or "Untitled session").strip() or "Untitled session",
             session=Session(available_fx=available_fx),
             audio_path=None,
+            active_audio_path=None,
+            active_anchor_run_id=None,
+            active_anchor_label=None,
             created_at=now,
             updated_at=now,
         )
@@ -492,6 +501,31 @@ class WebDemoService:
         with self.lock:
             self._persist_session(record)
         return record
+
+    def set_session_head_from_checkpoint(self, session_id: str, run_id: str, checkpoint_label: str) -> SessionRecord:
+        with self.lock:
+            record = self.sessions[session_id]
+            run = self.runs.get(run_id)
+            if run is None or run.session_id != session_id or not run.result:
+                raise KeyError("Run not found for this session")
+
+            trajectory = run.result.get("trajectory", [])
+            checkpoint = next((item for item in trajectory if item.get("label") == checkpoint_label), None)
+            if checkpoint is None:
+                raise KeyError("Checkpoint not found")
+
+            checkpoint_params = checkpoint.get("params") or {}
+            checkpoint_audio = checkpoint.get("audio_artifact")
+            if not checkpoint_params or not checkpoint_audio:
+                raise ValueError("Checkpoint cannot be used as a session head")
+
+            record.session.current_params = dict(checkpoint_params)
+            record.active_audio_path = artifact_path_from_url(checkpoint_audio)
+            record.active_anchor_run_id = run_id
+            record.active_anchor_label = checkpoint_label
+            record.updated_at = utc_now_iso()
+            self._persist_session(record)
+            return record
 
     def submit_run(self, session_id: str, instruction: str, settings: dict[str, Any]) -> RunRecord:
         run_id = uuid.uuid4().hex
@@ -559,6 +593,9 @@ class WebDemoService:
                 run.progress = 100.0
                 run.current_iteration = run.total_iterations or run.current_iteration
                 run.updated_at = utc_now_iso()
+                session_record.active_audio_path = final_audio_path
+                session_record.active_anchor_run_id = run.run_id
+                session_record.active_anchor_label = "end"
                 session_record.updated_at = utc_now_iso()
                 self._update_progress_payload(run)
                 self._persist_run(run)
