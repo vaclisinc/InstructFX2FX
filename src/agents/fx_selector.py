@@ -64,7 +64,7 @@ class FXSelectorAgent:
                 {"role": "user", "content": f"Select effects for: {instruction}"},
             ],
             tools=tools,
-            tool_choice="auto",
+            tool_choice="required",
         )
 
         message = response.choices[0].message

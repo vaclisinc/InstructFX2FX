@@ -7,7 +7,7 @@ import torch
 
 from configurations.config import LossFunction
 from effects.fx import FXChainFactory
-from FxSearcher.fxsearcher import fxsearcher
+from FxSearcher.fxsearcher import fxsearcher, render as pb_render
 from prompts.prompt import PromptFactory
 from session.session import Session
 from training.trainer import move_in_CLAP
@@ -53,9 +53,9 @@ class Parser:
     """Layer 2: routes to the correct initialization/optimization path.
 
     Cases:
-        1. All FX in fx_chain already exist in session → optimize from existing params.
-        2. None exist → LLM-initialize all, then optimize.
-        3. Mixed → LLM-initialize the missing ones, merge, then optimize.
+        1. All FX in fx_chain already exist in session → re-optimize from existing params.
+        2. None exist → LLM-initialize only (no optimization).
+        3. Mixed → LLM-initialize the missing ones, merge with existing, then optimize all.
 
     Optimization (Sequential C):
         DASP effects (eq, rev)  → gradient descent via move_in_CLAP
@@ -95,18 +95,19 @@ class Parser:
         missing  = [fx for fx in fx_chain if not session.fx_exists(fx)]
 
         if not missing:
-            # Case 1: all FX already have params
+            # Case 1: all FX already have params → re-optimize from session init
             init_params = {fx: session.current_params[fx] for fx in fx_chain}
+            return self._optimize(instruction, fx_chain, init_params, audio)
         elif not existing:
-            # Case 2: no FX have params yet
+            # Case 2: no FX have params yet → LLM-initialize, then single render pass (no optimization loop)
             init_params = self._llm_init(instruction, fx_chain)
+            rendered = self._render_once(init_params, audio)
+            return init_params, rendered
         else:
-            # Case 3: some exist, some don't
+            # Case 3: some exist, some don't → LLM-init missing, merge, then optimize
             new_params  = self._llm_init(instruction, missing)
             init_params = {**{fx: session.current_params[fx] for fx in existing}, **new_params}
-
-        params, rendered_audio = self._optimize(instruction, fx_chain, init_params, audio)
-        return params, rendered_audio
+            return self._optimize(instruction, fx_chain, init_params, audio)
 
     # ------------------------------------------------------------------
     # LLM initialization
@@ -144,6 +145,37 @@ class Parser:
 
         return result
 
+    def _render_once(self, init_params: dict, audio) -> torch.Tensor:
+        """Apply LLM-initialized params to audio in a single forward pass (no optimization loop).
+
+        DASP FX (eq, rev) use the DASP FX chain; PB FX use pedalboard.
+        Audio flows DASP → PB, matching the _optimize stage order.
+        """
+        dasp_fxs = [fx for fx in init_params if fx in DASP_FX]
+        pb_fxs   = [fx for fx in init_params if fx not in DASP_FX and fx in _PB_DICT_KEY]
+        current_audio = audio
+
+        if dasp_fxs:
+            registry_keys  = [_DASP_REGISTRY_KEY[fx] for fx in dasp_fxs]
+            fx_chain_obj   = FXChainFactory.create_fx_chain_from_effects(registry_keys)
+            dasp_init_dict = {_DASP_DICT_KEY[fx]: init_params[fx] for fx in dasp_fxs}
+            init_tensor    = fx_initial_params_to_tensor(dasp_init_dict, device=self.device)
+            with torch.no_grad():
+                current_audio = fx_chain_obj(
+                    current_audio.to(self.device), torch.sigmoid(init_tensor)
+                ).cpu()
+
+        if pb_fxs:
+            render_config = {_PB_DICT_KEY[fx]: init_params[fx] for fx in pb_fxs}
+            if isinstance(current_audio, torch.Tensor):
+                audio_np = current_audio.squeeze(0).cpu().numpy()
+            else:
+                audio_np = current_audio
+            rendered_np   = pb_render(audio_np, 44100, render_config)
+            current_audio = torch.from_numpy(rendered_np).unsqueeze(0)
+
+        return current_audio
+
     # ------------------------------------------------------------------
     # Optimization dispatch
     # ------------------------------------------------------------------
@@ -173,6 +205,9 @@ class Parser:
 
         dasp_init_dict = {_DASP_DICT_KEY[fx]: init_params[fx] for fx in dasp_fxs if fx in init_params}
         init_tensor    = fx_initial_params_to_tensor(dasp_init_dict, device=self.device)
+
+        if isinstance(audio, torch.Tensor):
+            audio = audio.to(self.device)
 
         final_tensor, _, _, audios = move_in_CLAP(
             audio=audio,

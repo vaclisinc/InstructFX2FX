@@ -38,16 +38,25 @@ class Orchestrator:
 
         Returns:
             {
-                "fx_chain": ["eq", "rev"],          # Layer 1 output
-                "params":   {"eq": {...}, "rev": {...}}  # optimized params
+                "fx_chain": ["eq", "rev"],               # full accumulated chain
+                "params":   {"eq": {...}, "rev": {...}},  # optimized params for all FX
+                "audio":    tensor,                       # rendered output audio
             }
         """
-        fx_chain = self.fx_selector.select(instruction, session.available_fx)
-        print(f"[FXSelector] '{instruction}' → {fx_chain}")
+        selected_fx = self.fx_selector.select(instruction, session.available_fx)
+        print(f"[FXSelector] '{instruction}' → {selected_fx}")
 
-        params, rendered_audio = self.parser.route(instruction, fx_chain, session, audio)
+        # Carry forward all accumulated session FX, then append any new ones the
+        # selector added. This ensures e.g. reverb from turn 1 stays in the chain
+        # when distortion is added in turn 2.
+        session_fx = list(session.current_params.keys())
+        full_chain = session_fx + [fx for fx in selected_fx if fx not in session.current_params]
+        if full_chain != selected_fx:
+            print(f"[Orchestrator] Merged with session FX → {full_chain}")
 
-        session.update(instruction, fx_chain, params)
+        params, rendered_audio = self.parser.route(instruction, full_chain, session, audio)
+
+        session.update(instruction, full_chain, params)
         print(f"[Orchestrator] Session updated. Current FX: {list(session.current_params.keys())}")
 
-        return {"fx_chain": fx_chain, "params": params, "audio": rendered_audio}
+        return {"fx_chain": full_chain, "params": params, "audio": rendered_audio}
