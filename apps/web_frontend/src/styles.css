@@ -661,6 +661,14 @@ h3 {
   margin: 1rem 0;
 }
 
+.run-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.detail-card,
 .audio-card,
 .param-card {
   padding: 1rem;
@@ -670,10 +678,22 @@ h3 {
     linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(251, 246, 240, 0.88));
 }
 
+.detail-card h3,
 .audio-card h3,
 .param-card h3 {
   margin-bottom: 0.8rem;
   font-size: 1.02rem;
+}
+
+.detail-card {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  min-height: 7.25rem;
+}
+
+.detail-card .chips {
+  align-content: start;
 }
 
 .slider-block {
@@ -707,6 +727,24 @@ h3 {
   color: #664724;
   border: 1px solid rgba(185, 144, 88, 0.14);
   font-size: 0.84rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.param-card {
+  display: grid;
+  min-height: 0;
+}
+
+.param-json {
+  max-height: 28rem;
+  overflow: auto;
+  padding: 1rem 1.05rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 251, 246, 0.78);
+  border: 1px solid rgba(185, 144, 88, 0.1);
 }
 
 .info-box,
@@ -749,7 +787,8 @@ h3 {
   }
 
   .settings-grid,
-  .audio-grid {
+  .audio-grid,
+  .run-summary-grid {
     grid-template-columns: 1fr;
   }
 }
