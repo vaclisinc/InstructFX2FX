@@ -16,12 +16,17 @@ async function fetchJson(path, options = {}) {
   return response.json();
 }
 
+function formatPercent(value) {
+  return `${Math.round(value || 0)}%`;
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [audioFile, setAudioFile] = useState(null);
   const [instruction, setInstruction] = useState("");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [run, setRun] = useState(null);
+  const [activeRun, setActiveRun] = useState(null);
+  const [selectedRunId, setSelectedRunId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [selectedCheckpointIndex, setSelectedCheckpointIndex] = useState(0);
@@ -52,22 +57,59 @@ export default function App() {
     };
   }, []);
 
+  const runs = session?.runs || [];
+  const liveRunSummary = runs.length > 0 ? runs[runs.length - 1] : null;
+  const liveRunId = liveRunSummary?.run_id || null;
+  const viewingHistory = Boolean(selectedRunId && liveRunId && selectedRunId !== liveRunId);
+  const isInitialPrompt = !viewingHistory && (session?.history_length || 0) === 0;
+  const promptModeLabel = (session?.history_length || 0) > 0 ? "Refinement prompt" : "Initial prompt";
+
   useEffect(() => {
-    if (!run || run.status === "completed" || run.status === "failed") {
+    if (!selectedRunId && liveRunId) {
+      setSelectedRunId(liveRunId);
+    }
+  }, [selectedRunId, liveRunId]);
+
+  useEffect(() => {
+    if (!selectedRunId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    async function loadRun() {
+      try {
+        const fetched = await fetchJson(`/runs/${selectedRunId}`);
+        if (!cancelled) {
+          setActiveRun(fetched);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(String(err));
+        }
+      }
+    }
+
+    loadRun();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRunId]);
+
+  useEffect(() => {
+    if (!activeRun || activeRun.status === "completed" || activeRun.status === "failed") {
       return undefined;
     }
 
     const timer = window.setInterval(async () => {
       try {
-        const nextRun = await fetchJson(`/runs/${run.run_id}`);
-        setRun(nextRun);
+        const [nextRun, refreshedSession] = await Promise.all([
+          fetchJson(`/runs/${activeRun.run_id}`),
+          fetchJson(`/sessions/${activeRun.session_id}`),
+        ]);
+        setActiveRun(nextRun);
+        setSession(refreshedSession);
         if (nextRun.status === "completed") {
           setBusy(false);
-          setSelectedCheckpointIndex(0);
-          if (session) {
-            const refreshedSession = await fetchJson(`/sessions/${session.session_id}`);
-            setSession(refreshedSession);
-          }
         }
         if (nextRun.status === "failed") {
           setBusy(false);
@@ -80,25 +122,29 @@ export default function App() {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [run, session]);
+  }, [activeRun]);
 
-  const checkpoints = run?.result?.trajectory || [];
+  useEffect(() => {
+    if (activeRun?.status === "running") {
+      const checkpointCount = activeRun.result?.trajectory?.length || 0;
+      if (checkpointCount > 0) {
+        setSelectedCheckpointIndex(checkpointCount - 1);
+      }
+    }
+  }, [activeRun?.status, activeRun?.result?.trajectory?.length]);
+
+  const checkpoints = activeRun?.result?.trajectory || [];
   const selectedCheckpoint = checkpoints[selectedCheckpointIndex] || null;
-  const sessionHistory = run?.result?.session_snapshot?.history || [];
-  const uiMetadata = run?.result?.metadata?.ui || {};
-  const routeCase = run?.result?.metadata?.route_case || null;
-  const hasCompletedHistory =
-    (run?.result?.session_snapshot?.history?.length || 0) > 0 || (session?.history_length || 0) > 0;
-  const promptModeLabel = hasCompletedHistory ? "Refinement prompt" : "Initial prompt";
+  const uiMetadata = activeRun?.result?.metadata?.ui || {};
+  const routeCase = activeRun?.result?.metadata?.route_case || null;
   const canBrowseTrajectory = Boolean(uiMetadata.can_browse_trajectory);
-  const initializationOnly = Boolean(uiMetadata.initialization_only);
   const currentAudioSrc = canBrowseTrajectory && selectedCheckpoint?.audio_artifact
     ? `${API_BASE}${selectedCheckpoint.audio_artifact}`
-    : run?.result?.artifacts?.final_audio
-      ? `${API_BASE}${run.result.artifacts.final_audio}`
+    : activeRun?.result?.artifacts?.final_audio
+      ? `${API_BASE}${activeRun.result.artifacts.final_audio}`
       : "";
-  const inputAudioSrc = run?.result?.artifacts?.input_audio
-    ? `${API_BASE}${run.result.artifacts.input_audio}`
+  const inputAudioSrc = activeRun?.result?.artifacts?.input_audio
+    ? `${API_BASE}${activeRun.result.artifacts.input_audio}`
     : "";
 
   const selectedParams =
@@ -106,7 +152,20 @@ export default function App() {
     selectedCheckpoint?.params &&
     Object.keys(selectedCheckpoint.params).length > 0
       ? selectedCheckpoint.params
-      : run?.result?.params || {};
+      : activeRun?.result?.params || {};
+
+  let statusText = "No run selected";
+  if (activeRun) {
+    if (activeRun.status === "running") {
+      statusText = `Running ${activeRun.current_iteration || 0}/${activeRun.total_iterations || "?"}`;
+    } else if (activeRun.status === "completed") {
+      statusText = "Completed";
+    } else if (activeRun.status === "failed") {
+      statusText = "Failed";
+    } else {
+      statusText = activeRun.status;
+    }
+  }
 
   async function uploadSelectedAudio() {
     if (!session || !audioFile) {
@@ -126,6 +185,11 @@ export default function App() {
   async function handleRun(event) {
     event.preventDefault();
     setError("");
+
+    if (viewingHistory) {
+      setError("History entries are read-only. Return to the live session to submit a new refinement prompt.");
+      return;
+    }
 
     if (!instruction.trim()) {
       setError("Enter a prompt before running.");
@@ -152,11 +216,21 @@ export default function App() {
           },
         }),
       });
-      setRun(createdRun);
+      setActiveRun(createdRun);
+      setSelectedRunId(createdRun.run_id);
+      const refreshedSession = await fetchJson(`/sessions/${session.session_id}`);
+      setSession(refreshedSession);
+      setSelectedCheckpointIndex(0);
     } catch (err) {
       setBusy(false);
       setError(String(err));
     }
+  }
+
+  async function handleSelectRun(runId) {
+    setSelectedRunId(runId);
+    setSelectedCheckpointIndex(0);
+    setError("");
   }
 
   function updateSetting(key, value) {
@@ -164,18 +238,18 @@ export default function App() {
   }
 
   function renderRunModeMessage() {
-    if (!run?.result) {
+    if (!activeRun?.result) {
       return (
         <p className="muted">
-          Initial prompts create the first FX chain. Later prompts refine the existing session.
+          Initial prompts create the first FX chain. Later prompts refine the live session head.
         </p>
       );
     }
 
-    if (initializationOnly) {
+    if (uiMetadata.initialization_only) {
       return (
         <div className="info-box">
-          This run was an initial LLM initialization for newly selected FX. No optimization trajectory exists, so slider browsing is disabled.
+          This run only performed LLM initialization for new FX. No optimization trajectory exists, so slider browsing is disabled.
         </div>
       );
     }
@@ -183,7 +257,7 @@ export default function App() {
     if (routeCase === "reuse_all") {
       return (
         <div className="info-box">
-          This run refined an existing chain. Optimization checkpoints are available only when the backend path exposes them.
+          This run refined the existing chain. Checkpoints appear only at saved snapshot intervals.
         </div>
       );
     }
@@ -191,7 +265,7 @@ export default function App() {
     if (routeCase === "reuse_and_initialize") {
       return (
         <div className="info-box">
-          This run mixed refinement with new FX initialization. Existing FX were optimized; newly added FX were initialized and merged into the result.
+          This run mixed refinement with new FX initialization. Existing FX were optimized while newly added FX were initialized and merged.
         </div>
       );
     }
@@ -200,25 +274,82 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="hero">
-        <p className="eyebrow">Phase 2 Demo</p>
-        <h1>text2preset Web Client</h1>
-        <p className="lede">
-          Thin frontend over the current orchestration pipeline. Sessions, uploads, prompt runs, and checkpoint browsing stay linked to the same engine repo.
-        </p>
-      </header>
+    <div className="workspace">
+      <aside className="sidebar">
+        <div className="sidebar-card session-card">
+          <p className="eyebrow">Session</p>
+          <h1>text2preset</h1>
+          <p className="sidebar-note">
+            Prompt-guided tone design for musicians, with session memory, checkpoint playback, and refinement history.
+          </p>
+          <div className="session-meta">
+            <div><strong>ID</strong> {session?.session_id || "Bootstrapping..."}</div>
+            <div><strong>Audio</strong> {session?.audio_uploaded ? "uploaded" : "missing"}</div>
+            <div><strong>Mode</strong> {promptModeLabel}</div>
+          </div>
+        </div>
 
-      <main className="layout">
-        <section className="panel">
-          <h2>Run</h2>
-          <div className="mode-pill">{promptModeLabel}</div>
+        <div className="sidebar-card history-card">
+          <div className="section-head">
+            <h2>History</h2>
+            <span>{runs.length}</span>
+          </div>
+          <div className="history-stack">
+            {runs.length === 0 ? (
+              <p className="muted">No prompts submitted yet.</p>
+            ) : (
+              [...runs].reverse().map((item) => {
+                const isActive = item.run_id === selectedRunId;
+                return (
+                  <button
+                    key={item.run_id}
+                    type="button"
+                    className={`history-button${isActive ? " active" : ""}`}
+                    onClick={() => handleSelectRun(item.run_id)}
+                  >
+                    <div className="history-topline">
+                      <strong>{item.instruction}</strong>
+                      <span>{item.status}</span>
+                    </div>
+                    <div className="history-subline">
+                      <span>{item.fx_chain?.join(" -> ") || "Awaiting output"}</span>
+                      <span>{formatPercent(item.progress)}</span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </aside>
+
+      <main className="main-column">
+        <section className="composer-card">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Live Session</p>
+              <h2>{viewingHistory ? "History View" : promptModeLabel}</h2>
+            </div>
+            {viewingHistory ? (
+              <button type="button" onClick={() => handleSelectRun(liveRunId)} disabled={!liveRunId}>
+                Return to live
+              </button>
+            ) : null}
+          </div>
+
+          {viewingHistory ? (
+            <div className="info-box">
+              You are viewing a historical run. This view is read-only; refining from history is disabled for now.
+            </div>
+          ) : null}
+
           <form onSubmit={handleRun} className="stack">
             <label className="field">
               <span>Dry audio</span>
               <input
                 type="file"
                 accept=".wav,audio/wav"
+                disabled={viewingHistory}
                 onChange={(event) => setAudioFile(event.target.files?.[0] || null)}
               />
             </label>
@@ -228,137 +359,148 @@ export default function App() {
               <textarea
                 value={instruction}
                 onChange={(event) => setInstruction(event.target.value)}
-                rows={4}
-                placeholder="bright but soft, like a warm room"
+                rows={3}
+                disabled={viewingHistory}
+                placeholder="make it sound like in a bathroom"
               />
             </label>
 
-            <div className="settings-grid">
-              <label className="field">
-                <span>Iterations</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={settings.n_iterations}
-                  onChange={(event) => updateSetting("n_iterations", event.target.value)}
-                />
-              </label>
+            {isInitialPrompt ? (
+              <div className="info-box subtle">
+                This is an initial prompt. Optimization controls become available after the first run, once the session has something to refine.
+              </div>
+            ) : (
+              <div className="settings-grid">
+                <label className="field">
+                  <span>Iterations</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    disabled={viewingHistory}
+                    value={settings.n_iterations}
+                    onChange={(event) => updateSetting("n_iterations", event.target.value)}
+                  />
+                </label>
 
-              <label className="field">
-                <span>Learning rate</span>
-                <input
-                  type="number"
-                  min="0.0001"
-                  max="1"
-                  step="0.0001"
-                  value={settings.learning_rate}
-                  onChange={(event) => updateSetting("learning_rate", event.target.value)}
-                />
-              </label>
+                <label className="field">
+                  <span>Learning rate</span>
+                  <input
+                    type="number"
+                    min="0.0001"
+                    max="1"
+                    step="0.0001"
+                    disabled={viewingHistory}
+                    value={settings.learning_rate}
+                    onChange={(event) => updateSetting("learning_rate", event.target.value)}
+                  />
+                </label>
 
-              <label className="field">
-                <span>Snapshot interval</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={settings.snapshot_interval}
-                  onChange={(event) => updateSetting("snapshot_interval", event.target.value)}
-                />
-              </label>
-            </div>
+                <label className="field">
+                  <span>Snapshot interval</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    disabled={viewingHistory}
+                    value={settings.snapshot_interval}
+                    onChange={(event) => updateSetting("snapshot_interval", event.target.value)}
+                  />
+                </label>
+              </div>
+            )}
 
-            <button type="submit" disabled={busy || !session}>
-              {busy ? "Running..." : "Run prompt"}
+            <button type="submit" className="primary-action" disabled={busy || !session || viewingHistory}>
+              {busy ? "Running..." : "Submit prompt"}
             </button>
           </form>
-
-            <div className="status-card">
-              <strong>Session</strong>
-              <div>{session?.session_id || "Bootstrapping..."}</div>
-              <div>Audio uploaded: {session?.audio_uploaded ? "yes" : "no"}</div>
-              <div>Run status: {run?.status || "idle"}</div>
-            </div>
-
-            {renderRunModeMessage()}
 
           {error ? <div className="error-box">{error}</div> : null}
         </section>
 
-        <section className="panel">
-          <h2>Preview</h2>
-          <div className="audio-grid">
+        <section className="run-card">
+          <div className="section-head">
             <div>
-              <h3>Input</h3>
-              <audio controls src={inputAudioSrc} />
+              <p className="eyebrow">Selected Run</p>
+              <h2>{activeRun?.instruction || "No run selected"}</h2>
             </div>
-            <div>
-              <h3>{canBrowseTrajectory && selectedCheckpoint ? `Checkpoint: ${selectedCheckpoint.label}` : "Final"}</h3>
-              <audio controls src={currentAudioSrc} />
-            </div>
+            <div className={`status-pill status-${activeRun?.status || "idle"}`}>{statusText}</div>
           </div>
 
-          {canBrowseTrajectory && checkpoints.length > 0 ? (
-            <div className="slider-block">
-              <label htmlFor="trajectory-slider">Trajectory checkpoint</label>
-              <input
-                id="trajectory-slider"
-                type="range"
-                min="0"
-                max={Math.max(checkpoints.length - 1, 0)}
-                step="1"
-                value={selectedCheckpointIndex}
-                onChange={(event) => setSelectedCheckpointIndex(Number(event.target.value))}
-              />
-              <div className="checkpoint-meta">
-                <span>{selectedCheckpoint?.label}</span>
-                <span>
-                  {selectedCheckpoint?.iteration === null || selectedCheckpoint?.iteration === undefined
-                    ? "final"
-                    : `iter ${selectedCheckpoint.iteration}`}
-                </span>
+          {activeRun ? (
+            <>
+              <div className="progress-block">
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${activeRun.progress || 0}%` }} />
+                </div>
+                <div className="progress-meta">
+                  <span>{formatPercent(activeRun.progress)}</span>
+                  <span>
+                    {activeRun.current_iteration || 0}
+                    {activeRun.total_iterations ? ` / ${activeRun.total_iterations}` : ""}
+                  </span>
+                </div>
               </div>
-              <p className="muted">
-                Each slider stop is one saved checkpoint. The label shows the actual saved iteration, not every integer step.
-              </p>
-            </div>
-          ) : run?.result ? (
-            <div className="info-box subtle">
-              {uiMetadata.trajectory_reason || "No trajectory slider is available for this run."}
-            </div>
+
+              {renderRunModeMessage()}
+
+              <div className="audio-grid">
+                <div className="audio-card">
+                  <h3>Input</h3>
+                  <audio controls src={inputAudioSrc} />
+                </div>
+                <div className="audio-card">
+                  <h3>{canBrowseTrajectory && selectedCheckpoint ? `Checkpoint: ${selectedCheckpoint.label}` : "Current output"}</h3>
+                  <audio controls src={currentAudioSrc} />
+                </div>
+              </div>
+
+              {canBrowseTrajectory && checkpoints.length > 0 ? (
+                <div className="slider-block">
+                  <label htmlFor="trajectory-slider">Trajectory checkpoint</label>
+                  <input
+                    id="trajectory-slider"
+                    type="range"
+                    min="0"
+                    max={Math.max(checkpoints.length - 1, 0)}
+                    step="1"
+                    value={selectedCheckpointIndex}
+                    onChange={(event) => setSelectedCheckpointIndex(Number(event.target.value))}
+                  />
+                  <div className="checkpoint-meta">
+                    <span>{selectedCheckpoint?.label}</span>
+                    <span>
+                      {selectedCheckpoint?.iteration === null || selectedCheckpoint?.iteration === undefined
+                        ? "final"
+                        : `iter ${selectedCheckpoint.iteration}`}
+                    </span>
+                  </div>
+                  <p className="muted">
+                    The slider only stops on real saved checkpoints. If your interval is `5`, you should see `iter_5`, `iter_10`, `iter_15`, and so on.
+                  </p>
+                </div>
+              ) : activeRun.result ? (
+                <div className="info-box subtle">
+                  {uiMetadata.trajectory_reason || "No trajectory slider is available for this run."}
+                </div>
+              ) : null}
+
+              <div className="stack compact">
+                <h3>FX chain</h3>
+                <div className="chips">
+                  {(activeRun.result?.fx_chain || []).map((fx) => (
+                    <span key={fx} className="chip">{fx}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="param-card">
+                <h3>Parameters</h3>
+                <pre>{JSON.stringify(selectedParams, null, 2)}</pre>
+              </div>
+            </>
           ) : (
-            <p className="muted">No checkpoints yet.</p>
-          )}
-
-          <div className="stack compact">
-            <h3>FX chain</h3>
-            <div className="chips">
-              {(run?.result?.fx_chain || []).map((fx) => (
-                <span key={fx} className="chip">{fx}</span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="panel">
-          <h2>Parameters</h2>
-          <pre>{JSON.stringify(selectedParams, null, 2)}</pre>
-        </section>
-
-        <section className="panel wide">
-          <h2>Session history</h2>
-          {sessionHistory.length === 0 ? (
-            <p className="muted">No runs completed yet.</p>
-          ) : (
-            <div className="history-list">
-              {sessionHistory.map((item, index) => (
-                <article key={`${item.prompt}-${index}`} className="history-item">
-                  <strong>{item.prompt}</strong>
-                  <div>{item.fx_chain.join(" -> ")}</div>
-                </article>
-              ))}
-            </div>
+            <p className="muted">Select a run from the history or submit a new prompt.</p>
           )}
         </section>
       </main>

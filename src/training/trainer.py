@@ -25,6 +25,7 @@ def move_in_CLAP(
     snapshot_interval=None,
     text_anchor=None,
     optimization_method=OptimizationMethod.GRADIENT_DESCENT,
+    progress_callback=None,
 
 ):
     """Refine parameters using gradient descent in CLAP space.
@@ -96,7 +97,21 @@ def move_in_CLAP(
     audio_param_snapshots = {}
 
     # Save start snapshot (before any optimization)
-    audio_param_snapshots["start"] = (fx_chain(audio_short.clone(), torch.sigmoid(params)).cpu(), torch.sigmoid(params).detach().cpu())
+    start_audio = fx_chain(audio_short.clone(), torch.sigmoid(params)).cpu()
+    start_params = torch.sigmoid(params).detach().cpu()
+    audio_param_snapshots["start"] = (start_audio, start_params)
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "type": "checkpoint",
+                "label": "start",
+                "iteration": 0,
+                "total_iterations": n_iterations,
+                "audio": start_audio,
+                "params": start_params,
+                "loss": None,
+            }
+        )
 
     print(f"\n🎯 Refining: '{text_anchor}' → '{target}'")
     if snapshot_interval:
@@ -137,12 +152,38 @@ def move_in_CLAP(
             optimizer.step()
 
             loss_history.append({'iteration': i, 'loss': loss.item()})
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "type": "progress",
+                        "iteration": i + 1,
+                        "total_iterations": n_iterations,
+                        "loss": loss.item(),
+                    }
+                )
 
             # Save snapshot at intervals and at the last iteration
             if snapshot_interval is not None:
                 if (i + 1) % snapshot_interval == 0 or i == n_iterations - 1:
                     print(f"  Iter {i:3d}: loss = {loss.item():.4f}")
-                    audio_param_snapshots[f"iter_{i+1}"] = {"audio": audio_effected.detach().cpu(), "params": params.detach().cpu()} # FIXME: store NON-SIGMOID params for later analysis !
+                    normalized_params = torch.sigmoid(params).detach().cpu()
+                    checkpoint_audio = audio_effected.detach().cpu()
+                    audio_param_snapshots[f"iter_{i+1}"] = {
+                        "audio": checkpoint_audio,
+                        "params": params.detach().cpu(),
+                    } # FIXME: store NON-SIGMOID params for later analysis !
+                    if progress_callback is not None:
+                        progress_callback(
+                            {
+                                "type": "checkpoint",
+                                "label": f"iter_{i+1}",
+                                "iteration": i + 1,
+                                "total_iterations": n_iterations,
+                                "audio": checkpoint_audio,
+                                "params": normalized_params,
+                                "loss": loss.item(),
+                            }
+                        )
 
     elif optimization_method.value == OptimizationMethod.BAYESIAN_OPTIMIZATION.value:
         # ---------------------------------------------------------------
@@ -205,6 +246,15 @@ def move_in_CLAP(
 
             # Record loss_history & parameter_snapshots
             loss_history.append({"iteration": iteration, "loss": current_best})
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "type": "progress",
+                        "iteration": iteration,
+                        "total_iterations": n_iterations,
+                        "loss": current_best,
+                    }
+                )
 
             if snapshot_interval is not None:
                 if (iteration) % snapshot_interval == 0 or iteration == n_iterations:
@@ -214,6 +264,18 @@ def move_in_CLAP(
                     print(f"  Iter {iteration:3d}: loss = {current_best:.4f}")
                     audio_effected = fx_chain(audio_short.clone(), snap)
                     audio_param_snapshots[f"iter_{iteration}"] = (audio_effected.detach().cpu(), snap.cpu())
+                    if progress_callback is not None:
+                        progress_callback(
+                            {
+                                "type": "checkpoint",
+                                "label": f"iter_{iteration}",
+                                "iteration": iteration,
+                                "total_iterations": n_iterations,
+                                "audio": audio_effected.detach().cpu(),
+                                "params": snap.detach().cpu(),
+                                "loss": current_best,
+                            }
+                        )
 
             # Early stopping
             if current_best < best_loss_so_far - 1e-4:
@@ -262,5 +324,17 @@ def move_in_CLAP(
     with torch.no_grad():
         final_audio = fx_chain(audio.clone().to(device), final_params).detach().cpu()
         audio_param_snapshots['end'] = (final_audio, final_params.detach().cpu())
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "type": "checkpoint",
+                    "label": "end",
+                    "iteration": n_iterations,
+                    "total_iterations": n_iterations,
+                    "audio": final_audio,
+                    "params": final_params.detach().cpu(),
+                    "loss": loss_history[-1]["loss"] if loss_history else None,
+                }
+            )
 
     return final_params, final_audio, loss_history, audio_param_snapshots

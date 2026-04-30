@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -133,6 +134,9 @@ class RunRecord:
     status: str
     created_at: str
     updated_at: str
+    progress: float = 0.0
+    current_iteration: int = 0
+    total_iterations: int | None = None
     result: dict[str, Any] | None = None
     error: str | None = None
 
@@ -144,6 +148,125 @@ class WebDemoService:
         self.runs: dict[str, RunRecord] = {}
         self.lock = threading.RLock()
         self.executor = ThreadPoolExecutor(max_workers=2)
+
+    @staticmethod
+    def _ui_state_for(route_case: str | None, trajectory: list[dict[str, Any]]) -> dict[str, Any]:
+        has_intermediate_checkpoints = any(
+            item.get("iteration") not in (None, 0)
+            for item in trajectory
+        )
+        initialization_only = route_case == "initialize_all"
+        optimization_performed = route_case in {"reuse_all", "reuse_and_initialize"}
+        can_browse_trajectory = optimization_performed and has_intermediate_checkpoints
+
+        if initialization_only:
+            trajectory_reason = (
+                "This run only used LLM initialization for newly added FX, so no optimization trajectory is available."
+            )
+        elif optimization_performed and not can_browse_trajectory:
+            trajectory_reason = (
+                "Optimization is running or this backend path does not currently expose intermediate checkpoints for slider browsing."
+            )
+        elif can_browse_trajectory:
+            trajectory_reason = "Trajectory slider is available for this optimized run."
+        else:
+            trajectory_reason = "No trajectory is available for this run."
+
+        return {
+            "initialization_only": initialization_only,
+            "optimization_performed": optimization_performed,
+            "can_browse_trajectory": can_browse_trajectory,
+            "trajectory_reason": trajectory_reason,
+        }
+
+    def _build_session_snapshot(self, session_record: SessionRecord) -> dict[str, Any]:
+        return {
+            "available_fx": list(session_record.session.available_fx),
+            "current_params": dict(session_record.session.current_params),
+            "history": session_history_payload(session_record.session),
+        }
+
+    def session_runs_payload(self, session_id: str) -> list[dict[str, Any]]:
+        with self.lock:
+            runs = [run for run in self.runs.values() if run.session_id == session_id]
+
+        runs.sort(key=lambda item: item.created_at)
+        payload = []
+        for run in runs:
+            result = run.result or {}
+            metadata = result.get("metadata", {})
+            ui = metadata.get("ui", {})
+            artifacts = result.get("artifacts", {})
+            payload.append(
+                {
+                    "run_id": run.run_id,
+                    "instruction": run.instruction,
+                    "status": run.status,
+                    "created_at": run.created_at,
+                    "updated_at": run.updated_at,
+                    "progress": run.progress,
+                    "current_iteration": run.current_iteration,
+                    "total_iterations": run.total_iterations,
+                    "route_case": metadata.get("route_case"),
+                    "fx_chain": result.get("fx_chain", []),
+                    "final_audio": artifacts.get("final_audio"),
+                    "can_browse_trajectory": ui.get("can_browse_trajectory", False),
+                }
+            )
+        return payload
+
+    def _initial_run_payload(self, session_record: SessionRecord, run: RunRecord) -> dict[str, Any]:
+        trajectory: list[dict[str, Any]] = []
+        return {
+            "fx_chain": [],
+            "params": {},
+            "artifacts": {
+                "input_audio": artifact_url(session_record.audio_path) if session_record.audio_path else None,
+                "final_audio": None,
+            },
+            "trajectory": trajectory,
+            "settings_used": dict(run.settings),
+            "metadata": {
+                "route_case": None,
+                "stages": {},
+                "ui": self._ui_state_for(None, trajectory),
+                "progress": {
+                    "current_iteration": 0,
+                    "total_iterations": run.total_iterations,
+                    "percent": 0.0,
+                    "status": run.status,
+                },
+            },
+            "session_snapshot": self._build_session_snapshot(session_record),
+        }
+
+    def _update_progress_payload(self, run: RunRecord) -> None:
+        if run.result is None:
+            return
+        progress_meta = run.result.setdefault("metadata", {}).setdefault("progress", {})
+        progress_meta.update(
+            {
+                "current_iteration": run.current_iteration,
+                "total_iterations": run.total_iterations,
+                "percent": run.progress,
+                "status": run.status,
+            }
+        )
+
+    def _upsert_checkpoint(
+        self,
+        trajectory: list[dict[str, Any]],
+        checkpoint: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        filtered = [item for item in trajectory if item.get("label") != checkpoint.get("label")]
+        filtered.append(checkpoint)
+        filtered.sort(
+            key=lambda item: (
+                10**9 if item.get("iteration") is None else item.get("iteration", 0),
+                item.get("label", ""),
+            )
+        )
+        return filtered
 
     def create_session(self, available_fx: list[str] | None = None) -> SessionRecord:
         available_fx = available_fx or list(DEFAULT_AVAILABLE_FX)
@@ -187,6 +310,7 @@ class WebDemoService:
             status="queued",
             created_at=now,
             updated_at=now,
+            total_iterations=int(settings.get("n_iterations", 0)) or None,
         )
         with self.lock:
             self.runs[run_id] = record
@@ -203,6 +327,8 @@ class WebDemoService:
             session_record = self.sessions[run.session_id]
             run.status = "running"
             run.updated_at = utc_now_iso()
+            run.result = self._initial_run_payload(session_record, run)
+            self._update_progress_payload(run)
 
         try:
             if session_record.audio_path is None:
@@ -217,25 +343,88 @@ class WebDemoService:
                 lr=float(run.settings.get("learning_rate", 0.01)),
             )
             audio = load_audio_tensor(session_record.audio_path)
+            run_dir = ARTIFACTS_ROOT / "sessions" / session_record.session_id / "runs" / run.run_id
+            run_dir.mkdir(parents=True, exist_ok=True)
+
+            def progress_callback(event: dict[str, Any]) -> None:
+                self._handle_progress_event(run_id, run_dir, event)
+
             raw_result = orchestrator.run_with_metadata(
                 run.instruction,
                 session_record.session,
                 audio,
-                run_settings=run.settings,
+                run_settings={**run.settings, "progress_callback": progress_callback},
             )
 
-            run_dir = ARTIFACTS_ROOT / "sessions" / session_record.session_id / "runs" / run.run_id
             payload = self._materialize_run_payload(session_record, run, raw_result, run_dir)
             with self.lock:
                 run.result = payload
                 run.status = "completed"
+                run.progress = 100.0
+                run.current_iteration = run.total_iterations or run.current_iteration
                 run.updated_at = utc_now_iso()
                 session_record.updated_at = utc_now_iso()
+                self._update_progress_payload(run)
         except Exception as exc:
             with self.lock:
                 run.error = str(exc)
                 run.status = "failed"
                 run.updated_at = utc_now_iso()
+                self._update_progress_payload(run)
+
+    def _handle_progress_event(self, run_id: str, run_dir: Path, event: dict[str, Any]) -> None:
+        with self.lock:
+            run = self.runs[run_id]
+            session_record = self.sessions[run.session_id]
+            if run.result is None:
+                run.result = self._initial_run_payload(session_record, run)
+
+            payload = run.result
+            metadata = payload.setdefault("metadata", {})
+
+            if event.get("type") == "route":
+                route_case = event.get("route_case")
+                payload["fx_chain"] = list(event.get("fx_chain", []))
+                metadata["route_case"] = route_case
+                metadata["ui"] = self._ui_state_for(route_case, payload.get("trajectory", []))
+
+            elif event.get("type") == "progress":
+                iteration = int(event.get("iteration", 0))
+                total_iterations = int(event.get("total_iterations", run.total_iterations or 0)) or None
+                run.current_iteration = iteration
+                run.total_iterations = total_iterations
+                run.progress = (
+                    min(100.0, (iteration / total_iterations) * 100.0)
+                    if total_iterations
+                    else run.progress
+                )
+
+            elif event.get("type") == "checkpoint":
+                label = str(event.get("label"))
+                checkpoint_audio = event.get("audio")
+                checkpoint_path = run_dir / "trajectory" / f"{label}.wav"
+                save_audio_tensor(checkpoint_audio, checkpoint_path)
+                checkpoint = {
+                    "label": label,
+                    "iteration": event.get("iteration"),
+                    "audio_artifact": artifact_url(checkpoint_path),
+                    "params": event.get("params", {}),
+                    "loss": event.get("loss"),
+                }
+                payload["trajectory"] = self._upsert_checkpoint(payload.get("trajectory", []), checkpoint)
+                route_case = metadata.get("route_case")
+                metadata["ui"] = self._ui_state_for(route_case, payload["trajectory"])
+
+                iteration = event.get("iteration")
+                total_iterations = event.get("total_iterations")
+                if iteration is not None and total_iterations:
+                    run.current_iteration = int(iteration)
+                    run.total_iterations = int(total_iterations)
+                    run.progress = min(100.0, (run.current_iteration / run.total_iterations) * 100.0)
+
+            payload["session_snapshot"] = self._build_session_snapshot(session_record)
+            run.updated_at = utc_now_iso()
+            self._update_progress_payload(run)
 
     def _apply_pedalboard_chain(
         self,
@@ -347,29 +536,7 @@ class WebDemoService:
             }
             if "trajectory" in stage_data:
                 stage_summaries[stage_name]["trajectory_count"] = len(stage_data["trajectory"])
-
-        has_intermediate_checkpoints = any(
-            item.get("iteration") not in (None, 0)
-            for item in trajectory
-        )
-        initialization_only = route_case == "initialize_all"
-        optimization_performed = route_case in {"reuse_all", "reuse_and_initialize"}
-        can_browse_trajectory = optimization_performed and has_intermediate_checkpoints
-
-        if initialization_only:
-            trajectory_reason = (
-                "This run only used LLM initialization for newly added FX, so no optimization trajectory is available."
-            )
-        elif optimization_performed and not can_browse_trajectory:
-            trajectory_reason = (
-                "Optimization ran, but this backend path does not currently expose intermediate checkpoints for slider browsing."
-            )
-        elif can_browse_trajectory:
-            trajectory_reason = "Trajectory slider is available for this optimized run."
-        else:
-            trajectory_reason = "No trajectory is available for this run."
-
-        return {
+        payload = {
             "fx_chain": raw_result["fx_chain"],
             "params": raw_result["params"],
             "artifacts": {
@@ -381,19 +548,20 @@ class WebDemoService:
             "metadata": {
                 "route_case": route_case,
                 "stages": stage_summaries,
-                "ui": {
-                    "initialization_only": initialization_only,
-                    "optimization_performed": optimization_performed,
-                    "can_browse_trajectory": can_browse_trajectory,
-                    "trajectory_reason": trajectory_reason,
+                "ui": self._ui_state_for(route_case, trajectory),
+                "progress": {
+                    "current_iteration": run.current_iteration,
+                    "total_iterations": run.total_iterations,
+                    "percent": run.progress,
+                    "status": run.status,
                 },
             },
-            "session_snapshot": {
-                "available_fx": list(session_record.session.available_fx),
-                "current_params": dict(session_record.session.current_params),
-                "history": session_history_payload(session_record.session),
-            },
+            "session_snapshot": self._build_session_snapshot(session_record),
         }
+        result_json_path = run_dir / "result.json"
+        with result_json_path.open("w") as handle:
+            json.dump(payload, handle, indent=2)
+        return payload
 
 
 service = WebDemoService()

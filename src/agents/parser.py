@@ -175,6 +175,7 @@ class Parser:
             (params_dict, rendered_audio) where params_dict is keyed by canonical FX name
         """
         settings = self._resolve_run_settings(run_settings)
+        progress_callback = run_settings.get("progress_callback") if run_settings else None
         metadata = {
             "route_case": None,
             "settings_used": settings,
@@ -194,12 +195,15 @@ class Parser:
             # Case 1: all FX already have params → re-optimize from session init
             init_params = {fx: session.current_params[fx] for fx in fx_chain}
             metadata["route_case"] = "reuse_all"
+            if progress_callback is not None:
+                progress_callback({"type": "route", "route_case": "reuse_all", "fx_chain": list(fx_chain)})
             params, rendered_audio, optimize_meta = self._optimize(
                 instruction,
                 fx_chain,
                 init_params,
                 audio,
                 settings,
+                progress_callback,
             )
             metadata["stages"] = optimize_meta
             if return_metadata:
@@ -210,6 +214,14 @@ class Parser:
             init_params = self._llm_init(instruction, fx_chain)
             rendered = self._render_once(init_params, audio)
             metadata["route_case"] = "initialize_all"
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "type": "route",
+                        "route_case": "initialize_all",
+                        "fx_chain": list(fx_chain),
+                    }
+                )
             if return_metadata:
                 return init_params, rendered, metadata
             return init_params, rendered
@@ -218,12 +230,15 @@ class Parser:
             new_params  = self._llm_init(instruction, missing)
             init_params = {**{fx: session.current_params[fx] for fx in existing}, **new_params}
             metadata["route_case"] = "reuse_and_initialize"
+            if progress_callback is not None:
+                progress_callback({"type": "route", "route_case": "reuse_and_initialize", "fx_chain": list(fx_chain)})
             params, rendered_audio, optimize_meta = self._optimize(
                 instruction,
                 fx_chain,
                 init_params,
                 audio,
                 settings,
+                progress_callback,
             )
             metadata["stages"] = optimize_meta
             if return_metadata:
@@ -301,7 +316,7 @@ class Parser:
     # Optimization dispatch
     # ------------------------------------------------------------------
 
-    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio, settings: dict):
+    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio, settings: dict, progress_callback=None):
         dasp_fxs = [fx for fx in fx_chain if fx in DASP_FX]
         pb_fxs   = [fx for fx in fx_chain if fx not in DASP_FX]
 
@@ -318,6 +333,7 @@ class Parser:
                 current_audio,
                 result,
                 settings,
+                progress_callback,
             )
             stage_metadata["dasp"] = dasp_meta
 
@@ -330,6 +346,7 @@ class Parser:
                 current_audio,
                 result,
                 settings,
+                progress_callback,
             )
             stage_metadata["pedalboard"] = pb_meta
             if pb_audio is not None:
@@ -337,7 +354,7 @@ class Parser:
 
         return result, current_audio, stage_metadata
 
-    def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result, settings):
+    def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result, settings, progress_callback=None):
         registry_keys = [_DASP_REGISTRY_KEY[fx] for fx in dasp_fxs]
         fx_chain_obj  = FXChainFactory.create_fx_chain_from_effects(registry_keys)
 
@@ -346,6 +363,33 @@ class Parser:
 
         if isinstance(audio, torch.Tensor):
             audio = audio.to(self.device)
+
+        def _trainer_progress(event: dict):
+            if progress_callback is None:
+                return
+
+            if event.get("type") == "checkpoint":
+                checkpoint_params = self._build_canonical_dasp_params(
+                    event.get("params"),
+                    dasp_dict_keys=[_DASP_DICT_KEY[fx] for fx in dasp_fxs],
+                    dasp_fxs=dasp_fxs,
+                )
+                progress_callback(
+                    {
+                        "type": "checkpoint",
+                        "stage": "dasp",
+                        "label": event.get("label"),
+                        "iteration": event.get("iteration"),
+                        "total_iterations": event.get("total_iterations"),
+                        "audio": event.get("audio"),
+                        "params": checkpoint_params,
+                        "loss": event.get("loss"),
+                    }
+                )
+            else:
+                forwarded = dict(event)
+                forwarded["stage"] = "dasp"
+                progress_callback(forwarded)
 
         final_tensor, final_audio, loss_history, audios = move_in_CLAP(
             audio=audio,
@@ -359,6 +403,7 @@ class Parser:
             lr=settings["learning_rate"],
             snapshot_interval=settings["snapshot_interval"],
             device=self.device,
+            progress_callback=_trainer_progress,
         )
 
         dasp_dict_keys  = [_DASP_DICT_KEY[fx] for fx in dasp_fxs]
@@ -377,7 +422,7 @@ class Parser:
         }
         return final_audio, stage_metadata
 
-    def _optimize_pb(self, instruction, pb_fxs, init_params, audio, result, settings):
+    def _optimize_pb(self, instruction, pb_fxs, init_params, audio, result, settings, progress_callback=None):
         pb_init = {
             _PB_DICT_KEY[fx]: init_params[fx]
             for fx in pb_fxs

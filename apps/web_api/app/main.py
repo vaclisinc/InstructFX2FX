@@ -35,6 +35,7 @@ def _session_to_response(record) -> SessionResponse:
         audio_uploaded=record.audio_path is not None,
         audio_filename=record.audio_path.name if record.audio_path else None,
         history_length=len(record.session.history),
+        runs=service.session_runs_payload(record.session_id),
     )
 
 
@@ -45,6 +46,9 @@ def _run_to_response(record) -> RunEnvelope:
         status=record.status,
         instruction=record.instruction,
         settings=record.settings,
+        progress=record.progress,
+        current_iteration=record.current_iteration,
+        total_iterations=record.total_iterations,
         result=record.result,
         error=record.error,
     )

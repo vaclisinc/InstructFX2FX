@@ -22,6 +22,7 @@ class SessionResponse(BaseModel):
     audio_uploaded: bool
     audio_filename: str | None
     history_length: int
+    runs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AudioUploadResponse(BaseModel):
@@ -42,6 +43,9 @@ class RunEnvelope(BaseModel):
     status: str
     instruction: str
     settings: dict[str, Any]
+    progress: float = 0.0
+    current_iteration: int = 0
+    total_iterations: int | None = None
     result: dict[str, Any] | None = None
     error: str | None = None
 
