@@ -23,12 +23,51 @@ class Orchestrator:
 
     def __init__(self, llm_client, clap_model, device=_DEFAULT_DEVICE, n_iterations=100, lr=0.01,
                  loss_function=LossFunction.SEMANTIC_SIMILARITY_LOSS):
+        self.llm_client = llm_client
+        self.clap_model = clap_model
+        self.device = device
+        self.n_iterations = n_iterations
+        self.lr = lr
+        self.loss_function = loss_function
         self.fx_selector = FXSelectorAgent(llm_client)
         self.parser      = Parser(llm_client, clap_model, device=device,
                                   n_iterations=n_iterations, lr=lr,
                                   loss_function=loss_function)
 
     def run(self, instruction: str, session: Session, audio) -> dict:
+        return self._run_internal(instruction, session, audio, run_settings=None, return_metadata=False)
+
+    def run_with_metadata(
+        self,
+        instruction: str,
+        session: Session,
+        audio,
+        run_settings: dict | None = None,
+    ) -> dict:
+        """Variant of run() that exposes optimization metadata for API clients."""
+        return self._run_internal(instruction, session, audio, run_settings=run_settings, return_metadata=True)
+
+    def _make_parser(self, run_settings: dict | None = None) -> Parser:
+        run_settings = run_settings or {}
+        n_iterations = int(run_settings.get("n_iterations", self.n_iterations))
+        lr = float(run_settings.get("learning_rate", self.lr))
+        return Parser(
+            self.llm_client,
+            self.clap_model,
+            device=self.device,
+            n_iterations=n_iterations,
+            lr=lr,
+            loss_function=self.loss_function,
+        )
+
+    def _run_internal(
+        self,
+        instruction: str,
+        session: Session,
+        audio,
+        run_settings: dict | None,
+        return_metadata: bool,
+    ) -> dict:
         """Process one user prompt end-to-end.
 
         Args:
@@ -54,9 +93,30 @@ class Orchestrator:
         if full_chain != selected_fx:
             print(f"[Orchestrator] Merged with session FX → {full_chain}")
 
-        params, rendered_audio = self.parser.route(instruction, full_chain, session, audio)
+        parser = self._make_parser(run_settings)
+        if return_metadata:
+            params, rendered_audio, metadata = parser.route(
+                instruction,
+                full_chain,
+                session,
+                audio,
+                run_settings=run_settings,
+                return_metadata=True,
+            )
+        else:
+            params, rendered_audio = parser.route(
+                instruction,
+                full_chain,
+                session,
+                audio,
+                run_settings=run_settings,
+                return_metadata=False,
+            )
 
         session.update(instruction, full_chain, params)
         print(f"[Orchestrator] Session updated. Current FX: {list(session.current_params.keys())}")
 
-        return {"fx_chain": full_chain, "params": params, "audio": rendered_audio}
+        result = {"fx_chain": full_chain, "params": params, "audio": rendered_audio}
+        if return_metadata:
+            result["metadata"] = metadata
+        return result

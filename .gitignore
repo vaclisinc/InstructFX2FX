@@ -37,6 +37,10 @@ output/
 webapp/frontend/node_modules/
 webapp/frontend/dist/
 webapp/frontend/.vite/
+apps/web_frontend/node_modules/
+apps/web_frontend/dist/
+apps/web_frontend/.vite/
+apps/web_api/artifacts/
 
 # Misc
 =1.1.0
