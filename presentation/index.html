@@ -109,12 +109,12 @@
         </div>
       </div>
     </div>
-    <div class="card" style="border:2px solid var(--primary)">
-      <div class="card-header" style="background:var(--primary-light)"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:var(--primary)">InstructFX2FX (Ours)</span></div>
+    <div class="card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">FxSearcher</span></div>
       <div class="card-body">
         <div class="body-text">
-          <span class="bold highlight">Iterative refinement</span> via LLM + CLAP<br>
-          <span class="tag blue" style="margin-top:6px">Sequential reprompting</span>
+          <span class="bold">Bayesian optimization</span> over CLAP for <span class="bold">non-differentiable</span> VST/AU plugins<br>
+          <span class="tag orange" style="margin-top:6px">Gradient-free, single prompt</span>
         </div>
       </div>
     </div>
@@ -181,48 +181,74 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 5 — System Architecture
+     SLIDE 5 — Introducing InstructFX2FX
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide slide-intro-system">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title" style="margin-bottom:10px;">Introducing InstructFX2FX</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:16px;">Iterative text-to-preset refinement with persistent session state</div>
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; min-height:0;">
+    <div class="card" style="width:92%; max-width:720px; border:3px solid var(--primary); box-shadow: 0 8px 28px rgba(33,150,243,0.15); overflow:visible;">
+      <div class="card-header" style="justify-content:center; padding:14px 16px;"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:14px;font-weight:800;color:var(--primary);letter-spacing:-0.02em;">InstructFX2FX</span></div>
+      <div class="card-body" style="padding:26px 32px 30px;">
+        <div class="body-text" style="text-align:center; font-size:16px; line-height:1.55; margin-bottom:18px;">
+          <span class="highlight">Multi-turn refinement</span> of audio FX presets: an <span class="highlight">LLM</span> picks the FX chain and sensible starting parameters;
+          <span class="highlight">CLAP-guided optimization</span> adjusts the sound to match natural language step by step &mdash;
+          built for <span class="highlight-accent">sequential prompting</span>, not one-shot generation.
+        </div>
+        <ul class="bullets" style="font-size:14px; max-width:580px; margin:0 auto;">
+          <li>LLM selects &amp; orders effects; differentiable FX use gradient descent</li>
+          <li>Other effects use Bayesian optimization (same stack as FxSearcher-style search)</li>
+          <li>Session keeps <span class="bold">accumulated parameters</span> across user instructions</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 6 — System Architecture
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
   <div class="slide-title">System Architecture</div>
-  <div class="flex gap-24" style="flex:1; align-items:center">
-    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
-      <div class="arch-box dark" style="width:240px; padding:10px 16px;">
+  <div class="flex gap-24" style="flex:1; align-items:flex-start; padding-top:8px;">
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;">
+      <div class="arch-box dark" style="width:240px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Input</div>
         User Instruction
       </div>
-      <div class="arch-arrow"></div>
-      <div class="arch-box blue" style="width:240px; padding:10px 16px;">
+      <div class="arch-arrow" style="height:10px"></div>
+      <div class="arch-box blue" style="width:240px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Layer 1</div>
         FX Selector Agent
-        <div style="font-size:10px; font-weight:400; margin-top:2px;">GPT-4o Tool Calling</div>
+        <div style="font-size:10px; font-weight:400; margin-top:1px;">GPT-4o Tool Calling</div>
       </div>
-      <div class="arch-arrow"></div>
-      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">FX Chain Order</div>
       <div class="arch-arrow" style="height:10px"></div>
-      <div class="arch-box blue" style="width:240px; padding:10px 16px;">
+      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">FX Chain Order</div>
+      <div class="arch-arrow" style="height:8px"></div>
+      <div class="arch-box blue" style="width:240px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Layer 2</div>
         Parser
-        <div style="font-size:10px; font-weight:400; margin-top:2px;">3-Case Session Router</div>
+        <div style="font-size:10px; font-weight:400; margin-top:1px;">3-Case Session Router</div>
       </div>
-      <div class="arch-arrow"></div>
-      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">Init Params</div>
       <div class="arch-arrow" style="height:10px"></div>
+      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">Init Params</div>
+      <div class="arch-arrow" style="height:8px"></div>
       <div class="flex gap-12" style="width:280px">
-        <div class="arch-box blue" style="flex:1; padding:8px 10px; font-size:11px;">
+        <div class="arch-box blue" style="flex:1; padding:6px 10px; font-size:11px;">
           <div style="opacity:0.7; font-size:10px;">Layer 3a</div>
           CLAP GD
-          <div style="font-size:9px; font-weight:400; margin-top:2px;">EQ, Reverb</div>
+          <div style="font-size:9px; font-weight:400; margin-top:1px;">EQ, Reverb</div>
         </div>
-        <div class="arch-box orange" style="flex:1; padding:8px 10px; font-size:11px;">
+        <div class="arch-box orange" style="flex:1; padding:6px 10px; font-size:11px;">
           <div style="opacity:0.7; font-size:10px;">Layer 3b</div>
           Bayesian BO
-          <div style="font-size:9px; font-weight:400; margin-top:2px;">Comp, Dist, ...</div>
+          <div style="font-size:9px; font-weight:400; margin-top:1px;">Comp, Dist, ...</div>
         </div>
       </div>
-      <div class="arch-arrow"></div>
-      <div class="arch-box green" style="width:240px; padding:10px 16px;">
+      <div class="arch-arrow" style="height:10px"></div>
+      <div class="arch-box green" style="width:240px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Output</div>
         Optimized Parameters
       </div>
@@ -261,7 +287,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 6 — Layer 1: FX Selector Agent
+     SLIDE 7 — Layer 1: FX Selector Agent
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -312,7 +338,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 7 — Layer 2: Parser
+     SLIDE 8 — Layer 2: Parser
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -367,7 +393,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 8 — Layer 3: Optimization
+     SLIDE 9 — Layer 3: Optimization
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -442,7 +468,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 9 — Loss Functions
+     SLIDE 10 — Loss Functions
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -513,7 +539,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 10 — Session Management
+     SLIDE 11 — Session Management
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -576,7 +602,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 11 — Evaluation Setup
+     SLIDE 12 — Evaluation Setup
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -652,7 +678,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 12 — Exp 1: Sequential MMD
+     SLIDE 13 — Exp 1: Sequential MMD
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -695,55 +721,42 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 13 — Exp 2: Trajectory
+     SLIDE 14 — Exp 2: Trajectory
      ════════════════════════════════════════════════════════════════ -->
-<div class="slide">
+<div class="slide slide-exp2-traj">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
-  <div class="slide-title">Exp 2: MMD Convergence Trajectory</div>
-  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">How MMD evolves during gradient descent optimization</div>
-  <div class="flex gap-20" style="flex:1">
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">Trajectory: warm &rarr; bright (example)</span></div>
-      <div class="card-body">
-        <div class="curve-container">
-          <svg width="100%" height="100%" viewBox="0 0 500 140" preserveAspectRatio="none">
-            <line x1="40" y1="10" x2="40" y2="120" stroke="#ccc" stroke-width="1"/>
-            <line x1="40" y1="120" x2="480" y2="120" stroke="#ccc" stroke-width="1"/>
-            <text x="260" y="138" font-size="10" fill="#999" text-anchor="middle">Iterations</text>
-            <text x="12" y="70" font-size="10" fill="#999" text-anchor="middle" transform="rotate(-90,12,70)">MMD</text>
-            <line x1="40" y1="40" x2="480" y2="40" stroke="#B0BEC5" stroke-width="2" stroke-dasharray="6,4"/>
-            <text x="485" y="43" font-size="9" fill="#B0BEC5">LLM+LLM</text>
-            <path d="M40,55 Q80,50 120,45 Q200,38 280,32 Q360,28 440,25 L480,24" fill="none" stroke="#2196F3" stroke-width="2.5"/>
-            <text x="485" y="27" font-size="9" fill="#2196F3" font-weight="600">Ours</text>
-            <text x="40" y="132" font-size="8" fill="#999">0</text>
-            <text x="128" y="132" font-size="8" fill="#999">200</text>
-            <text x="216" y="132" font-size="8" fill="#999">400</text>
-            <text x="304" y="132" font-size="8" fill="#999">600</text>
-            <text x="392" y="132" font-size="8" fill="#999">800</text>
-            <text x="466" y="132" font-size="8" fill="#999">1000</text>
-          </svg>
+  <div class="slide-title" style="margin-bottom:14px;font-size:28px;">Exp 2: MMD Convergence Trajectory</div>
+  <div class="flex" style="flex:1; min-height:0; align-items:center; justify-content:flex-start; gap:20px; width:100%; box-sizing:border-box;">
+    <div class="exp2-traj-plots" style="min-width:0; flex:1 1 auto; margin-left:0; padding-right:0; display:flex; flex-direction:column; justify-content:center; gap:10px;">
+      <div style="border:1px solid var(--border); border-radius:10px; border-top:3px solid var(--green); background:var(--card-bg); overflow:visible;">
+        <div style="padding:6px 10px 0; font-size:11px; font-weight:700; color:var(--green); text-align:center;">Good case — loud &rarr; heavy (both instruments stay below baseline)</div>
+        <div style="padding:4px 8px 8px;">
+          <img src="img/exp2/loud_to_heavy.png" alt="loud to heavy trajectory" class="exp2-traj-img">
+        </div>
+      </div>
+      <div style="border:1px solid var(--border); border-radius:10px; border-top:3px solid var(--emphasis); background:var(--card-bg); overflow:visible;">
+        <div style="padding:6px 10px 0; font-size:11px; font-weight:700; color:var(--emphasis); text-align:center;">Messy case — calm &rarr; loud (violin: above baseline on <em>loud</em> panel ~0&ndash;400 iters)</div>
+        <div style="padding:4px 8px 8px;">
+          <img src="img/exp2/calm_to_loud.png" alt="calm to loud trajectory" class="exp2-traj-img">
         </div>
       </div>
     </div>
-    <div style="width:240px; display:flex; flex-direction:column; gap:12px;">
-      <div class="card">
-        <div class="card-body">
-          <div class="bold" style="font-size:13px; margin-bottom:6px;">Key Observations</div>
-          <ul class="bullets" style="font-size:12px;">
-            <li>Rapid improvement in first <span class="highlight">~100 iterations</span></li>
-            <li>Diminishing returns after ~200</li>
-            <li>Consistently <span class="highlight-green">below baseline</span></li>
-            <li>Smooth, stable convergence</li>
+    <div style="flex:0 0 232px; flex-shrink:0; display:flex; flex-direction:column; justify-content:center; gap:10px; min-height:0; padding-left:4px;">
+      <div class="card" style="overflow:visible;">
+        <div class="card-body" style="padding:10px 12px;font-size:12px;">
+          <div class="bold" style="font-size:12px; margin-bottom:4px;">What works</div>
+          <ul class="bullets" style="font-size:11px;">
+            <li>Sharp drop early; often below LLM+LLM baseline</li>
           </ul>
         </div>
       </div>
-      <div class="card">
-        <div class="card-body" style="font-size:12px; color:var(--text-secondary);">
-          <div class="bold" style="color:var(--text); margin-bottom:4px;">10 trajectory plots available:</div>
-          All word pairs show convergence pattern. Snapshots every 50 iterations.
-          <div style="margin-top:6px; padding:4px 8px; background:#F5F5F5; border-radius:4px; font-size:11px;">
-            See: eval/results/exp2/*.png
-          </div>
+      <div class="card" style="border-left:3px solid var(--emphasis); overflow:visible;">
+        <div class="card-body" style="padding:10px 12px;font-size:12px;">
+          <div class="bold" style="font-size:12px; margin-bottom:4px;">Where it struggles</div>
+          <ul class="bullets" style="font-size:11px;">
+            <li>Overshoot / drift later in optimization</li>
+            <li>CLAP objectives don’t match DSP-feature MMD</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -751,7 +764,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 14 — Exp 3: PCA
+     SLIDE 15 — Exp 3: PCA
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -811,7 +824,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 15 — Exp 5: LLM Init Ablation
+     SLIDE 16 — Exp 5: LLM Init Ablation
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -862,7 +875,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 16 — Demo
+     SLIDE 17 — Demo
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide" style="justify-content:center; align-items:center; text-align:center;">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -880,7 +893,60 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 17 — Limitations & Future Work
+     SLIDE 18 — Project Timeline (Last Semester → This Semester)
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">How We Got Here: Project Timeline</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:14px;">From a flawed judge-then-reprompt loop &rarr; today's iterative LLM + CLAP system</div>
+
+  <div style="display:grid; grid-template-columns: 110px 1fr; row-gap:10px; column-gap:14px; flex:1; align-content:start;">
+
+    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--primary); padding-top:6px;">Fall&nbsp;2025</div>
+    <div class="card" style="border-left:3px solid var(--primary);">
+      <div class="card-body" style="padding:8px 14px; font-size:12px;">
+        <div class="bold" style="font-size:13px; margin-bottom:2px;">v1 &mdash; LLM + Judge System</div>
+        LLM generates FX parameters from a tone description; a separate "judge" scores the output and we reprompt with the score.
+      </div>
+    </div>
+
+    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--emphasis); padding-top:6px;">&nbsp;</div>
+    <div class="card" style="border-left:3px solid var(--emphasis); background:#FFF3E0;">
+      <div class="card-body" style="padding:8px 14px; font-size:12px; color:#5D4037;">
+        <div class="bold" style="font-size:13px; margin-bottom:2px; color:var(--emphasis);">Problems found</div>
+        SocialFX descriptors are noisy &mdash; no fair score for "warm" or "airy". LLM reprompting <span class="bold">does not converge</span>. Hard judge is fundamentally unstable.
+      </div>
+    </div>
+
+    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--text-secondary); padding-top:6px;">&nbsp;</div>
+    <div class="card" style="border-left:3px solid var(--text-secondary);">
+      <div class="card-body" style="padding:8px 14px; font-size:12px;">
+        <div class="bold" style="font-size:13px; margin-bottom:2px;">Reframe the question</div>
+        From <span style="font-style:italic;">"how do we judge a sound?"</span> &rarr; <span class="bold highlight">"how do we move a sound toward the user's intention?"</span>
+      </div>
+    </div>
+
+    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--accent); padding-top:6px;">Late&nbsp;Fall&nbsp;'25</div>
+    <div class="card" style="border-left:3px solid var(--accent);">
+      <div class="card-body" style="padding:8px 14px; font-size:12px;">
+        <div class="bold" style="font-size:13px; margin-bottom:2px;">v2 &mdash; Human-in-the-Loop Optimization</div>
+        Inspired by <span class="bold">Text2FX</span> + <span class="bold">InstructPix2Pix</span>: tone <em>editing</em> via natural-language feedback, optimization replaces the hard judge. Single-FX, single-turn.
+      </div>
+    </div>
+
+    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--green); padding-top:6px;">Spring&nbsp;2026</div>
+    <div class="card" style="border-left:3px solid var(--green); background:var(--green-light);">
+      <div class="card-body" style="padding:8px 14px; font-size:12px;">
+        <div class="bold" style="font-size:13px; margin-bottom:2px; color:var(--green);">This semester &mdash; InstructFX2FX</div>
+        <span class="bold">LLM agent</span> for FX selection &amp; chain order; <span class="bold">parser</span> with 3-case session routing; <span class="bold">CLAP gradient descent + Bayesian optimization</span>; full <span class="bold">multi-turn refinement</span>; quantitative evaluation against SocialFX (MMD, PCA, ablations).
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 19 — Limitations &amp; Future Work
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -914,7 +980,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 18 — Thank You
+     SLIDE 20 — Thank You
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide title-slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -930,7 +996,7 @@
 
 </div><!-- .slide-container -->
 
-<div class="slide-counter">1 / 18</div>
+<div class="slide-counter">1 / 20</div>
 
 <script src="js/slides.js"></script>
 </body>

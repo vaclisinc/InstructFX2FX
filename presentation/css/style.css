@@ -270,9 +270,21 @@ ul.bullets li::before {
   z-index: 1;
 }
 
-/* ── Convergence curve ── */
-.curve-container {
-  width: 100%; height: 160px; position: relative;
-  background: #fff; border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px;
+/* ── Intro slide — single centered system card ── */
+.slide-intro-system.slide.active {
+  justify-content: flex-start;
 }
+
+/* ── Exp 2 trajectory — real PNGs sized to avoid slide/clipping ── */
+.slide-exp2-traj .exp2-traj-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 156px;
+  object-fit: contain;
+}
+
+@media (max-height: 650px) {
+  .slide-exp2-traj .exp2-traj-img { max-height: 136px; }
+}
+
