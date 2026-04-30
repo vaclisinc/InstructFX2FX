@@ -72,11 +72,97 @@ class Parser:
         self.lr = lr
         self.loss_function = loss_function
 
+    def _resolve_run_settings(self, run_settings: dict | None) -> dict:
+        run_settings = run_settings or {}
+        snapshot_interval = run_settings.get("snapshot_interval")
+        return {
+            "n_iterations": int(run_settings.get("n_iterations", self.n_iterations)),
+            "learning_rate": float(run_settings.get("learning_rate", self.lr)),
+            "snapshot_interval": int(snapshot_interval) if snapshot_interval is not None else None,
+            "loss_function": self.loss_function.value,
+        }
+
+    @staticmethod
+    def _iteration_from_label(label: str) -> int | None:
+        if label == "start":
+            return 0
+        if label == "end":
+            return None
+        if label.startswith("iter_"):
+            try:
+                return int(label.split("_", 1)[1])
+            except ValueError:
+                return None
+        return None
+
+    def _build_canonical_dasp_params(self, params_tensor, dasp_dict_keys: list[str], dasp_fxs: list[str]) -> dict:
+        if params_tensor is None:
+            return {}
+
+        if not isinstance(params_tensor, torch.Tensor):
+            params_tensor = torch.tensor(params_tensor, dtype=torch.float32)
+        if params_tensor.dim() == 1:
+            params_tensor = params_tensor.unsqueeze(0)
+
+        params_dict = fx_tensor_to_params_dict(params_tensor, dasp_dict_keys)
+        return {
+            fx: params_dict[_DASP_DICT_KEY[fx]]
+            for fx in dasp_fxs
+            if _DASP_DICT_KEY[fx] in params_dict
+        }
+
+    def _build_dasp_trajectory(self, snapshots: dict, dasp_dict_keys: list[str], dasp_fxs: list[str]) -> list[dict]:
+        trajectory = []
+        for label, snapshot in snapshots.items():
+            audio_tensor = None
+            params_tensor = None
+            needs_sigmoid = False
+
+            if isinstance(snapshot, tuple) and len(snapshot) >= 2:
+                audio_tensor, params_tensor = snapshot[0], snapshot[1]
+            elif isinstance(snapshot, dict):
+                audio_tensor = snapshot.get("audio")
+                params_tensor = snapshot.get("params")
+                needs_sigmoid = True
+
+            if params_tensor is None:
+                continue
+
+            if not isinstance(params_tensor, torch.Tensor):
+                params_tensor = torch.tensor(params_tensor, dtype=torch.float32)
+            if params_tensor.dim() == 1:
+                params_tensor = params_tensor.unsqueeze(0)
+
+            normalized_tensor = torch.sigmoid(params_tensor) if needs_sigmoid else params_tensor
+            canonical_params = self._build_canonical_dasp_params(
+                normalized_tensor,
+                dasp_dict_keys=dasp_dict_keys,
+                dasp_fxs=dasp_fxs,
+            )
+            trajectory.append(
+                {
+                    "label": label,
+                    "iteration": self._iteration_from_label(label),
+                    "audio": audio_tensor.detach().cpu() if isinstance(audio_tensor, torch.Tensor) else audio_tensor,
+                    "params": canonical_params,
+                }
+            )
+
+        return trajectory
+
     # ------------------------------------------------------------------
     # Public entry point
     # ------------------------------------------------------------------
 
-    def route(self, instruction: str, fx_chain: list, session: Session, audio) -> dict:
+    def route(
+        self,
+        instruction: str,
+        fx_chain: list,
+        session: Session,
+        audio,
+        run_settings: dict | None = None,
+        return_metadata: bool = False,
+    ) -> dict:
         """Return optimized params dict keyed by canonical FX name.
 
         Args:
@@ -88,7 +174,17 @@ class Parser:
         Returns:
             (params_dict, rendered_audio) where params_dict is keyed by canonical FX name
         """
+        settings = self._resolve_run_settings(run_settings)
+        metadata = {
+            "route_case": None,
+            "settings_used": settings,
+            "stages": {},
+        }
+
         if not fx_chain:
+            metadata["route_case"] = "empty_chain"
+            if return_metadata:
+                return {}, audio, metadata
             return {}, audio
 
         existing = [fx for fx in fx_chain if session.fx_exists(fx)]
@@ -97,17 +193,42 @@ class Parser:
         if not missing:
             # Case 1: all FX already have params → re-optimize from session init
             init_params = {fx: session.current_params[fx] for fx in fx_chain}
-            return self._optimize(instruction, fx_chain, init_params, audio)
+            metadata["route_case"] = "reuse_all"
+            params, rendered_audio, optimize_meta = self._optimize(
+                instruction,
+                fx_chain,
+                init_params,
+                audio,
+                settings,
+            )
+            metadata["stages"] = optimize_meta
+            if return_metadata:
+                return params, rendered_audio, metadata
+            return params, rendered_audio
         elif not existing:
             # Case 2: no FX have params yet → LLM-initialize, then single render pass (no optimization loop)
             init_params = self._llm_init(instruction, fx_chain)
             rendered = self._render_once(init_params, audio)
+            metadata["route_case"] = "initialize_all"
+            if return_metadata:
+                return init_params, rendered, metadata
             return init_params, rendered
         else:
             # Case 3: some exist, some don't → LLM-init missing, merge, then optimize
             new_params  = self._llm_init(instruction, missing)
             init_params = {**{fx: session.current_params[fx] for fx in existing}, **new_params}
-            return self._optimize(instruction, fx_chain, init_params, audio)
+            metadata["route_case"] = "reuse_and_initialize"
+            params, rendered_audio, optimize_meta = self._optimize(
+                instruction,
+                fx_chain,
+                init_params,
+                audio,
+                settings,
+            )
+            metadata["stages"] = optimize_meta
+            if return_metadata:
+                return params, rendered_audio, metadata
+            return params, rendered_audio
 
     # ------------------------------------------------------------------
     # LLM initialization
@@ -180,26 +301,43 @@ class Parser:
     # Optimization dispatch
     # ------------------------------------------------------------------
 
-    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio):
+    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio, settings: dict):
         dasp_fxs = [fx for fx in fx_chain if fx in DASP_FX]
         pb_fxs   = [fx for fx in fx_chain if fx not in DASP_FX]
 
         result = dict(init_params)
         current_audio = audio
+        stage_metadata = {}
 
         # Stage 1: DASP gradient descent (eq, rev)
         if dasp_fxs:
-            current_audio = self._optimize_dasp(instruction, dasp_fxs, init_params, current_audio, result)
+            current_audio, dasp_meta = self._optimize_dasp(
+                instruction,
+                dasp_fxs,
+                init_params,
+                current_audio,
+                result,
+                settings,
+            )
+            stage_metadata["dasp"] = dasp_meta
 
         # Stage 2: Pedalboard BO on current_audio (DASP output if stage 1 ran)
         if pb_fxs:
-            pb_audio = self._optimize_pb(instruction, pb_fxs, init_params, current_audio, result)
+            pb_audio, pb_meta = self._optimize_pb(
+                instruction,
+                pb_fxs,
+                init_params,
+                current_audio,
+                result,
+                settings,
+            )
+            stage_metadata["pedalboard"] = pb_meta
             if pb_audio is not None:
                 current_audio = pb_audio
 
-        return result, current_audio
+        return result, current_audio, stage_metadata
 
-    def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result):
+    def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result, settings):
         registry_keys = [_DASP_REGISTRY_KEY[fx] for fx in dasp_fxs]
         fx_chain_obj  = FXChainFactory.create_fx_chain_from_effects(registry_keys)
 
@@ -209,7 +347,7 @@ class Parser:
         if isinstance(audio, torch.Tensor):
             audio = audio.to(self.device)
 
-        final_tensor, _, _, audios = move_in_CLAP(
+        final_tensor, final_audio, loss_history, audios = move_in_CLAP(
             audio=audio,
             fx_chain=fx_chain_obj,
             initial_params=init_tensor,
@@ -217,8 +355,9 @@ class Parser:
             target=instruction,
             clap_model=self.clap_model,
             loss_function=self.loss_function,
-            n_iterations=self.n_iterations,
-            lr=self.lr,
+            n_iterations=settings["n_iterations"],
+            lr=settings["learning_rate"],
+            snapshot_interval=settings["snapshot_interval"],
             device=self.device,
         )
 
@@ -228,9 +367,17 @@ class Parser:
             result[fx] = optimized_dict[_DASP_DICT_KEY[fx]]
 
         # Return DASP-processed audio for the PB stage
-        return audios["end"][0]
+        stage_metadata = {
+            "fx": list(dasp_fxs),
+            "optimizer": "gradient_descent",
+            "loss_function": self.loss_function.value,
+            "loss_history": loss_history,
+            "trajectory_supported": True,
+            "trajectory": self._build_dasp_trajectory(audios, dasp_dict_keys, dasp_fxs),
+        }
+        return final_audio, stage_metadata
 
-    def _optimize_pb(self, instruction, pb_fxs, init_params, audio, result):
+    def _optimize_pb(self, instruction, pb_fxs, init_params, audio, result, settings):
         pb_init = {
             _PB_DICT_KEY[fx]: init_params[fx]
             for fx in pb_fxs
@@ -243,7 +390,12 @@ class Parser:
         }
 
         if not pb_param_ranges:
-            return
+            return None, {
+                "fx": list(pb_fxs),
+                "optimizer": "bayesian_optimization",
+                "trajectory_supported": False,
+                "trajectory": [],
+            }
 
         # Convert audio tensor to numpy for fxsearcher
         if isinstance(audio, torch.Tensor):
@@ -258,7 +410,7 @@ class Parser:
                 outdir=tmpdir,
                 clap_model=self.clap_model,
                 top_n=1,
-                n_calls=self.n_iterations,
+                n_calls=settings["n_iterations"],
                 use_guide=False,
                 initial_params=pb_init,
                 all_param_ranges=pb_param_ranges,
@@ -273,12 +425,23 @@ class Parser:
 
             results_list = best_output.get("results", [])
             if not results_list:
-                return None
+                return None, {
+                    "fx": list(pb_fxs),
+                    "optimizer": "bayesian_optimization",
+                    "trajectory_supported": False,
+                    "trajectory": [],
+                }
 
-            best_config = results_list[0].get("config", {})
+            best_config = results_list[0].get("plugins", {})
             for fx in pb_fxs:
                 dict_key = _PB_DICT_KEY.get(fx)
                 if dict_key and dict_key in best_config:
                     result[fx] = best_config[dict_key]
 
-            return pb_audio
+            return pb_audio, {
+                "fx": list(pb_fxs),
+                "optimizer": "bayesian_optimization",
+                "trajectory_supported": False,
+                "trajectory": [],
+                "best_config": best_config,
+            }
