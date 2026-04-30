@@ -5,6 +5,17 @@ import numpy as np
 def extract_json(text: str) -> dict:
     text = re.sub(r"```(?:json)?", "", text)
     text = text.strip("` \n")
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return json.loads(text[start:end + 1])
+
     return json.loads(text)
 
 def to_serializable(obj):

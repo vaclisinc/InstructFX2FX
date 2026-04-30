@@ -593,7 +593,11 @@ class WebDemoService:
                 run.progress = 100.0
                 run.current_iteration = run.total_iterations or run.current_iteration
                 run.updated_at = utc_now_iso()
-                session_record.active_audio_path = final_audio_path
+                final_audio_artifact = payload.get("artifacts", {}).get("final_audio")
+                session_record.active_audio_path = (
+                    artifact_path_from_url(final_audio_artifact)
+                    if final_audio_artifact else None
+                )
                 session_record.active_anchor_run_id = run.run_id
                 session_record.active_anchor_label = "end"
                 session_record.updated_at = utc_now_iso()

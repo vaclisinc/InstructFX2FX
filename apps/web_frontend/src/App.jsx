@@ -61,6 +61,7 @@ export default function App() {
   const [activeRun, setActiveRun] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
   const [error, setError] = useState("");
   const [selectedCheckpointIndex, setSelectedCheckpointIndex] = useState(0);
   const [pendingAudioPreviewUrl, setPendingAudioPreviewUrl] = useState("");
@@ -213,6 +214,7 @@ export default function App() {
 
   const checkpoints = activeRun?.result?.trajectory || [];
   const selectedCheckpoint = checkpoints[selectedCheckpointIndex] || null;
+  const activeRunSummary = runs.find((item) => item.run_id === activeRun?.run_id) || null;
   const runMetadata = activeRun?.result?.metadata || {};
   const uiMetadata = runMetadata.ui || {};
   const routeCase = runMetadata.route_case || null;
@@ -248,7 +250,9 @@ export default function App() {
     Object.keys(selectedCheckpoint.params).length > 0
       ? selectedCheckpoint.params
       : activeRun?.result?.params || {};
-  const activeFxChain = activeRun?.result?.fx_chain || [];
+  const activeFxChain = activeRun?.result?.fx_chain?.length
+    ? activeRun.result.fx_chain
+    : activeRunSummary?.fx_chain || [];
   const hasDaspStage = activeFxChain.some((fx) => ["eq", "rev"].includes(fx));
   const hasPedalboardStage = activeFxChain.some((fx) => !["eq", "rev"].includes(fx));
   const daspStageStatus = stageMetadata.dasp
@@ -279,13 +283,13 @@ export default function App() {
     }
   }
 
-  async function uploadSelectedAudio() {
-    if (!session || !audioFile) {
+  async function uploadSelectedAudio(fileToUpload) {
+    if (!session || !fileToUpload) {
       throw new Error("Choose an audio file before running.");
     }
 
     const formData = new FormData();
-    formData.append("file", audioFile);
+    formData.append("file", fileToUpload);
     await fetchJson(`/sessions/${session.session_id}/audio`, {
       method: "POST",
       body: formData,
@@ -296,6 +300,27 @@ export default function App() {
     ]);
     setSession(refreshedSession);
     setSessionCatalog(listed.sessions || []);
+  }
+
+  async function handleAudioSelection(event) {
+    const file = event.target.files?.[0] || null;
+    setAudioFile(file);
+
+    if (!file || !session || viewingHistory || audioLocked) {
+      return;
+    }
+
+    try {
+      setError("");
+      setUploadingAudio(true);
+      await uploadSelectedAudio(file);
+      setAudioFile(null);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setUploadingAudio(false);
+      event.target.value = "";
+    }
   }
 
   async function handleRun(event) {
@@ -314,9 +339,7 @@ export default function App() {
 
     try {
       setBusy(true);
-      if (audioFile) {
-        await uploadSelectedAudio();
-      } else if (!session?.audio_uploaded) {
+      if (!session?.audio_uploaded) {
         throw new Error("Upload a WAV file before running.");
       }
 
@@ -729,7 +752,7 @@ export default function App() {
                   type="file"
                   accept=".wav,audio/wav"
                   disabled={viewingHistory || audioLocked}
-                  onChange={(event) => setAudioFile(event.target.files?.[0] || null)}
+                  onChange={handleAudioSelection}
                 />
               </div>
             </label>
@@ -801,8 +824,8 @@ export default function App() {
               </div>
             )}
 
-            <button type="submit" className="primary-action" disabled={busy || !session || viewingHistory}>
-              {busy ? "Running..." : "Submit prompt"}
+            <button type="submit" className="primary-action" disabled={busy || uploadingAudio || !session || viewingHistory}>
+              {uploadingAudio ? "Uploading audio..." : busy ? "Running..." : "Submit prompt"}
             </button>
           </form>
 

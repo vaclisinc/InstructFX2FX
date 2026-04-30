@@ -12,6 +12,7 @@ from dataclasses import dataclass
 @dataclass
 class LLMClient:
     model="gpt-4o"
+    parameter_max_tokens=(1024, 2048, 4096)
 
     """LLM client for interacting with OpenRouter or Anthropic."""
     def __init__(self):
@@ -29,22 +30,33 @@ class LLMClient:
 
     def generate_parameters(self, prompt: Prompt, model: str | None = None) -> dict:
         """Generate parameters from the LLM based on the given prompt."""
+        last_error = None
+        for attempt, max_tokens in enumerate(self.parameter_max_tokens, start=1):
+            response = self.llm.chat.completions.create(
+                model=model or self.model,
+                max_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": prompt.sys_prompt},
+                    {"role": "user", "content": prompt.instruction}]
+            )
 
-        response = self.llm.chat.completions.create(
-            model=model or self.model,
-            max_tokens=1024,
-            messages=[
-                {"role": "system", "content": prompt.sys_prompt},
-                {"role": "user", "content": prompt.instruction}]
-        )
+            print(
+                "LLM generated parameters based on the following instruction: ",
+                prompt.instruction,
+                f"(attempt {attempt}, max_tokens={max_tokens})",
+            )
 
-        print("LLM generated parameters based on the following instruction: ", prompt.instruction)
+            text = response.choices[0].message.content
+            if not text:
+                last_error = ValueError("Empty response from LLM")
+                continue
 
-        text = response.choices[0].message.content
-        if text:
             try:
                 return extract_json(text)
             except ValueError as e:
-                raise ValueError(f"Invalid JSON from LLM: {e}")
-        else:
-            return {}
+                last_error = e
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
+                if finish_reason != "length" and attempt == len(self.parameter_max_tokens):
+                    break
+
+        raise ValueError(f"Invalid JSON from LLM after retries: {last_error}")
