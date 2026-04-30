@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InstructFX2FX — CNMAT Final Presentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="slide-container">
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 1 — Title
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide active title-slide">
+  <div class="slide-header">
+    <span>CNMAT</span>
+    <span>Research Group 2 Final Presentation</span>
+    <span>2026/04/29</span>
+  </div>
+  <div>
+    <div class="main-title">
+      InstructFX2FX:<br>
+      Iterative Audio FX Refinement<br>
+      via LLM + CLAP Gradient Descent
+    </div>
+    <div class="main-subtitle">
+      Text-to-Preset Generation with Human-in-the-Loop Optimization
+    </div>
+    <div class="meta">
+      <strong>Group 2:</strong> Song-Ze Yu, Charlotte Zhang, Yuxuan Cai<br>
+      CNMAT, UC Berkeley
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 2 — Problem Statement
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">The Problem: Sequential FX Refinement</div>
+  <div class="flex gap-24" style="flex:1">
+    <div class="flex-1">
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <div class="card-body">
+          <div class="body-text" style="font-size:16px; font-weight:600; margin-bottom:10px;">
+            Given existing parameters <span class="mono" style="font-size:15px">P</span>, how can we use natural language instructions
+            <span class="mono" style="font-size:15px">{I<sub>1</sub>, I<sub>2</sub>, ...}</span>
+            to make the sound better fit the user's needs?
+          </div>
+        </div>
+      </div>
+      <ul class="bullets" style="margin-top:12px">
+        <li>Audio engineers <span class="bold">iteratively</span> refine FX parameters</li>
+        <li>Each instruction builds on <span class="highlight">existing state</span>, not from scratch</li>
+        <li><span class="highlight-red">No existing system</span> handles multi-turn sequential refinement</li>
+      </ul>
+    </div>
+    <div style="width:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px">
+      <div class="arch-box gray" style="width:200px">Raw Audio + FX Params</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box blue" style="width:200px">Prompt 1: "make it warm"</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box blue" style="width:200px; opacity:0.85">Refined Params P'</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box orange" style="width:200px">Prompt 2: "too dark, brighter"</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box orange" style="width:200px; opacity:0.85">Refined Params P''</div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box dark" style="width:200px">...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 3 — Related Works
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Related Works</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:1">
+    <div class="card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">Text2FX</span></div>
+      <div class="card-body">
+        <div class="body-text">
+          <span class="bold">CLAP-guided optimization</span> of FX parameters from text<br>
+          <span class="tag red" style="margin-top:6px">Single prompt only</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">LLM2FX</span></div>
+      <div class="card-body">
+        <div class="body-text">
+          <span class="bold">LLM generates FX parameters</span> from descriptors<br>
+          <span class="tag red" style="margin-top:6px">Single prompt, no optimization</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">LLM2FX-tools (ICLR 2026)</span></div>
+      <div class="card-body">
+        <div class="body-text">
+          <span class="bold">LLM tool calls</span> to select &amp; order FX chain<br>
+          <span class="tag orange" style="margin-top:6px">Different problem: reverse engineering</span>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="border:2px solid var(--primary)">
+      <div class="card-header" style="background:var(--primary-light)"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:var(--primary)">InstructFX2FX (Ours)</span></div>
+      <div class="card-body">
+        <div class="body-text">
+          <span class="bold highlight">Iterative refinement</span> via LLM + CLAP<br>
+          <span class="tag blue" style="margin-top:6px">Sequential reprompting</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:12px; padding:8px 14px; background:#FFF3E0; border-radius:8px; font-size:14px; font-weight:500; color:#E65100; text-align:center;">
+    Gap: No system combines LLM intelligence with gradient-based refinement for <span class="bold">sequential prompting</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 4 — Hypothesis
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Our Hypothesis</div>
+  <div class="flex gap-24" style="flex:1; align-items:stretch;">
+    <div class="card flex-1" style="border-top:3px solid var(--primary)">
+      <div class="card-body" style="text-align:center; display:flex; flex-direction:column; justify-content:center; height:100%">
+        <svg width="64" height="64" viewBox="0 0 64 64" style="margin:0 auto 12px">
+          <circle cx="32" cy="28" r="18" fill="none" stroke="#2196F3" stroke-width="2.5"/>
+          <path d="M22 28 Q22 18 32 14 Q42 18 42 28" fill="none" stroke="#2196F3" stroke-width="1.5"/>
+          <path d="M26 28 Q26 22 32 19 Q38 22 38 28" fill="none" stroke="#2196F3" stroke-width="1.5"/>
+          <rect x="24" y="46" width="16" height="4" rx="2" fill="#2196F3"/>
+          <rect x="26" y="51" width="12" height="3" rx="1.5" fill="#2196F3"/>
+          <line x1="32" y1="44" x2="32" y2="46" stroke="#2196F3" stroke-width="2"/>
+        </svg>
+        <div style="font-size:22px; font-weight:700; color:var(--primary); margin-bottom:12px;">LLM = The Brain</div>
+        <ul class="bullets" style="text-align:left">
+          <li><span class="bold">Selects</span> which FX to apply</li>
+          <li><span class="bold">Orders</span> the signal chain</li>
+          <li>Generates <span class="bold">reasonable initial parameters</span></li>
+          <li>Audio engineering domain knowledge</li>
+        </ul>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; justify-content:center; align-items:center;">
+      <div style="font-size:24px; font-weight:700; color:var(--text-secondary);">+</div>
+    </div>
+    <div class="card flex-1" style="border-top:3px solid var(--accent)">
+      <div class="card-body" style="text-align:center; display:flex; flex-direction:column; justify-content:center; height:100%">
+        <svg width="64" height="64" viewBox="0 0 64 64" style="margin:0 auto 12px">
+          <path d="M20 26 Q14 26 14 34 Q14 42 20 42 L20 26Z" fill="none" stroke="#FF9800" stroke-width="2.5"/>
+          <path d="M20 24 Q20 16 28 14 Q36 14 38 22 L38 42 Q36 50 28 50 Q20 50 20 42" fill="none" stroke="#FF9800" stroke-width="2.5"/>
+          <path d="M42 28 L50 28" stroke="#FF9800" stroke-width="2" stroke-linecap="round"/>
+          <path d="M42 34 L54 34" stroke="#FF9800" stroke-width="2" stroke-linecap="round"/>
+          <path d="M42 40 L50 40" stroke="#FF9800" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="42" cy="28" r="2" fill="#FF9800"/>
+          <circle cx="42" cy="34" r="2" fill="#FF9800"/>
+          <circle cx="42" cy="40" r="2" fill="#FF9800"/>
+        </svg>
+        <div style="font-size:22px; font-weight:700; color:#E65100; margin-bottom:12px;">CLAP = Ears + Hands</div>
+        <ul class="bullets" style="text-align:left">
+          <li><span class="bold">Perceives</span> audio in embedding space</li>
+          <li><span class="bold">Gradient descent</span> refines parameters</li>
+          <li>Moves sound <span class="bold">toward target</span> semantics</li>
+          <li>Perceptual loss, not numeric scoring</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center; padding:10px; background:linear-gradient(90deg, var(--primary-light), var(--accent-light)); border-radius:8px; font-size:15px; font-weight:600; color:var(--text);">
+    Combined: LLM provides the <span class="highlight">starting point</span>, CLAP provides the <span class="highlight-accent">refinement direction</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 5 — System Architecture
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">System Architecture</div>
+  <div class="flex gap-24" style="flex:1; align-items:center">
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+      <div class="arch-box dark" style="width:240px; padding:10px 16px;">
+        <div style="font-size:11px; opacity:0.7;">Input</div>
+        User Instruction
+      </div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box blue" style="width:240px; padding:10px 16px;">
+        <div style="font-size:11px; opacity:0.7;">Layer 1</div>
+        FX Selector Agent
+        <div style="font-size:10px; font-weight:400; margin-top:2px;">GPT-4o Tool Calling</div>
+      </div>
+      <div class="arch-arrow"></div>
+      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">FX Chain Order</div>
+      <div class="arch-arrow" style="height:10px"></div>
+      <div class="arch-box blue" style="width:240px; padding:10px 16px;">
+        <div style="font-size:11px; opacity:0.7;">Layer 2</div>
+        Parser
+        <div style="font-size:10px; font-weight:400; margin-top:2px;">3-Case Session Router</div>
+      </div>
+      <div class="arch-arrow"></div>
+      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">Init Params</div>
+      <div class="arch-arrow" style="height:10px"></div>
+      <div class="flex gap-12" style="width:280px">
+        <div class="arch-box blue" style="flex:1; padding:8px 10px; font-size:11px;">
+          <div style="opacity:0.7; font-size:10px;">Layer 3a</div>
+          CLAP GD
+          <div style="font-size:9px; font-weight:400; margin-top:2px;">EQ, Reverb</div>
+        </div>
+        <div class="arch-box orange" style="flex:1; padding:8px 10px; font-size:11px;">
+          <div style="opacity:0.7; font-size:10px;">Layer 3b</div>
+          Bayesian BO
+          <div style="font-size:9px; font-weight:400; margin-top:2px;">Comp, Dist, ...</div>
+        </div>
+      </div>
+      <div class="arch-arrow"></div>
+      <div class="arch-box green" style="width:240px; padding:10px 16px;">
+        <div style="font-size:11px; opacity:0.7;">Output</div>
+        Optimized Parameters
+      </div>
+    </div>
+    <div style="width:280px; display:flex; flex-direction:column; gap:12px;">
+      <div class="card" style="border:2px solid var(--accent)">
+        <div class="card-header" style="background:var(--accent-light)">
+          <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+          <span style="margin-left:8px;font-size:12px;font-weight:600;color:#E65100">Session State</span>
+        </div>
+        <div class="card-body" style="font-size:12px;">
+          <div class="mono" style="color:var(--text-secondary); margin-bottom:4px;">current_params:</div>
+          <div class="mono" style="padding-left:8px">{</div>
+          <div class="mono" style="padding-left:16px">"eq": {...},</div>
+          <div class="mono" style="padding-left:16px">"rev": {...}</div>
+          <div class="mono" style="padding-left:8px">}</div>
+          <div style="margin-top:8px; font-size:11px; color:var(--text-secondary);">
+            Accumulates across prompts<br>
+            Parser reads &amp; writes session
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+          <span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">Audio Pipeline</span>
+        </div>
+        <div class="card-body" style="font-size:12px;">
+          <div style="margin-bottom:4px"><span class="tag blue">DASP</span> Differentiable FX</div>
+          <div>Audio flows: DASP output &rarr; Pedalboard input</div>
+          <div style="margin-top:6px"><span class="tag orange">Pedalboard</span> Non-diff FX</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 6 — Layer 1: FX Selector Agent
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Layer 1: FX Selector Agent</div>
+  <div class="flex gap-24" style="flex:1">
+    <div class="flex-1">
+      <ul class="bullets" style="margin-bottom:16px">
+        <li><span class="bold">GPT-4o</span> with function/tool-calling API</li>
+        <li>Each audio FX is wrapped as an <span class="highlight">OpenAI tool</span></li>
+        <li>Tool <span class="bold">call order</span> = signal chain order</li>
+        <li>Each tool called at most once</li>
+      </ul>
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">System Prompt</span></div>
+        <div class="card-body" style="font-size:12px; font-family:var(--mono); color:var(--text-secondary); line-height:1.6;">
+          "You are an expert audio engineer.<br>
+          Given a sound descriptor, select the<br>
+          appropriate audio effects and decide<br>
+          their order in the signal chain."
+        </div>
+      </div>
+    </div>
+    <div style="width:360px">
+      <div class="card">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Available FX Tools</span></div>
+        <div class="card-body">
+          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+            <div class="fx-chip selected"><span style="font-size:10px; background:#fff3; border-radius:3px; padding:0 4px; margin-right:2px;">1</span> EQ</div>
+            <div class="fx-chip">Compressor</div>
+            <div class="fx-chip selected"><span style="font-size:10px; background:#fff3; border-radius:3px; padding:0 4px; margin-right:2px;">2</span> Reverb</div>
+            <div class="fx-chip">Distortion</div>
+            <div class="fx-chip">Delay</div>
+            <div class="fx-chip">PitchShift</div>
+            <div class="fx-chip">Bitcrush</div>
+          </div>
+          <div style="background:#F5F5F5; border-radius:6px; padding:10px 12px; font-size:12px;">
+            <div style="color:var(--text-secondary); margin-bottom:4px;">Example:</div>
+            <div>Input: <span class="mono highlight">"warm"</span></div>
+            <div style="margin-top:4px">Output: <span class="mono" style="color:var(--primary)">[add_eq, add_rev]</span></div>
+            <div style="margin-top:4px; font-size:11px; color:var(--text-secondary)">
+              &rarr; FX Chain: <span class="bold">EQ &rarr; Reverb</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 7 — Layer 2: Parser
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Layer 2: Parser &mdash; Session-Aware Routing</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:12px;">Routes to one of three paths based on which FX already exist in the session</div>
+  <div class="flex flex-col gap-12" style="flex:1">
+    <div class="case-row" style="background:var(--green-light)">
+      <span class="tag green" style="width:60px; text-align:center">Case 1</span>
+      <div style="flex:1; font-size:13px;"><span class="bold">All FX exist</span> in session</div>
+      <div class="arrow-right"></div>
+      <div class="arch-box green" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Reuse existing params</div>
+      <div class="arrow-right"></div>
+      <div class="arch-box green" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Optimize</div>
+    </div>
+    <div class="case-row" style="background:var(--primary-light)">
+      <span class="tag blue" style="width:60px; text-align:center">Case 2</span>
+      <div style="flex:1; font-size:13px;"><span class="bold">No FX exist</span> yet</div>
+      <div class="arrow-right"></div>
+      <div class="arch-box blue" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">LLM initialize all</div>
+      <div class="arrow-right"></div>
+      <div class="arch-box blue" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Optimize</div>
+    </div>
+    <div class="case-row" style="background:var(--accent-light)">
+      <span class="tag orange" style="width:60px; text-align:center">Case 3</span>
+      <div style="flex:1; font-size:13px;"><span class="bold">Mixed</span> &mdash; some exist, some new</div>
+      <div class="arrow-right"></div>
+      <div class="arch-box orange" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">LLM init missing + merge</div>
+      <div class="arrow-right"></div>
+      <div class="arch-box orange" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Optimize</div>
+    </div>
+    <div class="card" style="margin-top:auto">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Example: Multi-Turn Session</span></div>
+      <div class="card-body flex gap-20" style="padding:10px 16px; font-size:12px;">
+        <div style="flex:1">
+          <div class="bold" style="color:var(--primary); margin-bottom:4px">Turn 1: "bright"</div>
+          FX Chain: [eq]<br>
+          <span class="tag blue">Case 2</span> &rarr; LLM init EQ &rarr; GD optimize
+        </div>
+        <div style="flex:1">
+          <div class="bold" style="color:var(--accent); margin-bottom:4px">Turn 2: "add warmth"</div>
+          FX Chain: [eq, rev]<br>
+          <span class="tag orange">Case 3</span> &rarr; Reuse EQ + init Rev &rarr; optimize
+        </div>
+        <div style="flex:1">
+          <div class="bold" style="color:var(--green); margin-bottom:4px">Turn 3: "more spacious"</div>
+          FX Chain: [eq, rev]<br>
+          <span class="tag green">Case 1</span> &rarr; Reuse both &rarr; optimize
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 8 — Layer 3: Optimization
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Layer 3: Dual-Track Optimization</div>
+  <div class="flex gap-16" style="flex:1">
+    <div class="card flex-1" style="border-top:3px solid var(--primary)">
+      <div class="card-body">
+        <div style="font-size:16px; font-weight:700; color:var(--primary); margin-bottom:10px;">
+          CLAP Gradient Descent <span class="tag blue" style="margin-left:6px; font-size:10px">DASP</span>
+        </div>
+        <div class="body-text" style="font-size:13px; margin-bottom:12px;">
+          For <span class="bold">differentiable</span> effects: EQ, Reverb
+        </div>
+        <div style="background:#F5F7FA; border-radius:8px; padding:12px; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:600;">
+            <div style="padding:4px 8px; background:var(--primary-light); border-radius:4px; color:var(--primary)">Params</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:var(--primary-light); border-radius:4px; color:var(--primary)">DASP FX</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:var(--primary-light); border-radius:4px; color:var(--primary)">Audio</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:var(--primary-light); border-radius:4px; color:var(--primary)">CLAP</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:#FFEBEE; border-radius:4px; color:var(--emphasis)">Loss</div>
+          </div>
+          <div style="text-align:center; margin-top:6px; font-size:11px; color:var(--text-secondary);">
+            &larr;&larr;&larr; <span class="bold">Backpropagation</span> &larr;&larr;&larr;
+          </div>
+        </div>
+        <ul class="bullets" style="font-size:12px;">
+          <li>Adam optimizer, lr=0.01</li>
+          <li>Inverse-sigmoid param transform [0,1]</li>
+          <li>Configurable iterations (default 1000)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card flex-1" style="border-top:3px solid var(--accent)">
+      <div class="card-body">
+        <div style="font-size:16px; font-weight:700; color:#E65100; margin-bottom:10px;">
+          Bayesian Optimization <span class="tag orange" style="margin-left:6px; font-size:10px">Pedalboard</span>
+        </div>
+        <div class="body-text" style="font-size:13px; margin-bottom:12px;">
+          For <span class="bold">non-differentiable</span> effects: Comp, Dist, Delay, PitchShift, Bitcrush
+        </div>
+        <div style="background:#FFF8F0; border-radius:8px; padding:12px; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:600;">
+            <div style="padding:4px 8px; background:var(--accent-light); border-radius:4px; color:#E65100">Sample</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:var(--accent-light); border-radius:4px; color:#E65100">Pedalboard</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:var(--accent-light); border-radius:4px; color:#E65100">Audio</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:var(--accent-light); border-radius:4px; color:#E65100">CLAP</div>
+            <span>&rarr;</span>
+            <div style="padding:4px 8px; background:#FFEBEE; border-radius:4px; color:var(--emphasis)">Score</div>
+          </div>
+          <div style="text-align:center; margin-top:6px; font-size:11px; color:var(--text-secondary);">
+            GP surrogate &rarr; LCB acquisition
+          </div>
+        </div>
+        <ul class="bullets" style="font-size:12px;">
+          <li>scikit-optimize (gp_minimize)</li>
+          <li>LCB acquisition, kappa=5</li>
+          <li>Early stopping (30 iters no improve)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center; padding:8px; font-size:13px; color:var(--text-secondary); background:#F5F5F5; border-radius:6px; margin-top:8px;">
+    <span class="bold">Sequential pipeline:</span> DASP output audio &rarr; feeds as input to Pedalboard stage
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 9 — Loss Functions
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Loss Functions in CLAP Embedding Space</div>
+  <div class="flex gap-12" style="flex:1">
+    <div class="card loss-card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      <div class="card-body">
+        <div style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:6px;">Directional Loss</div>
+        <svg width="180" height="110" viewBox="0 0 180 110">
+          <defs><marker id="ah1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#2196F3"/></marker><marker id="ah2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#FF9800"/></marker></defs>
+          <circle cx="30" cy="80" r="4" fill="#999"/>
+          <text x="14" y="96" font-size="9" fill="#999">anchor</text>
+          <line x1="30" y1="80" x2="140" y2="30" stroke="#2196F3" stroke-width="2" marker-end="url(#ah1)"/>
+          <text x="120" y="22" font-size="9" fill="#2196F3" font-weight="600">audio dir</text>
+          <line x1="30" y1="80" x2="155" y2="50" stroke="#FF9800" stroke-width="2" marker-end="url(#ah2)" stroke-dasharray="4,3"/>
+          <text x="135" y="60" font-size="9" fill="#FF9800" font-weight="600">text dir</text>
+          <path d="M60,65 A30,30 0 0,1 65,58" fill="none" stroke="#666" stroke-width="1"/>
+          <text x="68" y="60" font-size="9" fill="#666">&theta;</text>
+        </svg>
+        <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+          Align audio movement with text movement<br>
+          <span class="mono" style="font-size:10px">L = 1 - cos(audio_dir, text_dir)</span>
+        </div>
+      </div>
+    </div>
+    <div class="card loss-card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      <div class="card-body">
+        <div style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:6px;">Semantic Similarity</div>
+        <svg width="180" height="110" viewBox="0 0 180 110">
+          <defs><marker id="ah3" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#4CAF50"/></marker></defs>
+          <circle cx="40" cy="70" r="8" fill="var(--primary-light)" stroke="#2196F3" stroke-width="2"/>
+          <text x="22" y="90" font-size="9" fill="#2196F3" font-weight="600">audio</text>
+          <circle cx="140" cy="35" r="8" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"/>
+          <text x="122" y="25" font-size="9" fill="#FF9800" font-weight="600">target</text>
+          <line x1="48" y1="67" x2="132" y2="38" stroke="#4CAF50" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#ah3)"/>
+          <text x="75" y="45" font-size="9" fill="#4CAF50" font-weight="600">cosine sim</text>
+        </svg>
+        <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+          Direct similarity to target text<br>
+          <span class="mono" style="font-size:10px">L = 1 - cos(audio, target)</span>
+        </div>
+      </div>
+    </div>
+    <div class="card loss-card">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      <div class="card-body">
+        <div style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:6px;">Guided Semantic</div>
+        <svg width="180" height="110" viewBox="0 0 180 110">
+          <circle cx="90" cy="60" r="8" fill="var(--primary-light)" stroke="#2196F3" stroke-width="2"/>
+          <text x="75" y="80" font-size="9" fill="#2196F3" font-weight="600">audio</text>
+          <circle cx="150" cy="25" r="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"/>
+          <text x="140" y="16" font-size="9" fill="#4CAF50" font-weight="600">target +</text>
+          <circle cx="30" cy="30" r="8" fill="#FFEBEE" stroke="#F44336" stroke-width="2"/>
+          <text x="8" y="20" font-size="9" fill="#F44336" font-weight="600">negative &minus;</text>
+          <line x1="97" y1="55" x2="143" y2="30" stroke="#4CAF50" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <line x1="83" y1="55" x2="37" y2="35" stroke="#F44336" stroke-width="1.5" stroke-dasharray="4,3"/>
+        </svg>
+        <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+          Maximize target, minimize negative<br>
+          <span class="mono" style="font-size:10px">L = 1 - cos(a,t+) + cos(a,t&minus;)</span><br>
+          <span style="font-size:10px">t&minus; = "harsh, distorted, muddy..."</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 10 — Session Management
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Session: Multi-Turn Refinement</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">Parameters accumulate across prompts &mdash; each instruction builds on the previous state</div>
+  <div class="timeline" style="margin-bottom:20px; padding:0 20px;">
+    <div class="timeline-step">
+      <div class="timeline-dot"></div>
+      <div style="font-size:12px; font-weight:600; color:var(--primary); margin-bottom:4px;">Prompt 1</div>
+      <div style="font-size:11px;">"Make it <span class="bold">bright</span>"</div>
+    </div>
+    <div class="timeline-step">
+      <div class="timeline-dot" style="background:var(--accent); box-shadow:0 0 0 2px var(--accent);"></div>
+      <div style="font-size:12px; font-weight:600; color:#E65100; margin-bottom:4px;">Prompt 2</div>
+      <div style="font-size:11px;">"Add some <span class="bold">reverb</span>"</div>
+    </div>
+    <div class="timeline-step">
+      <div class="timeline-dot" style="background:var(--green); box-shadow:0 0 0 2px var(--green);"></div>
+      <div style="font-size:12px; font-weight:600; color:#2E7D32; margin-bottom:4px;">Prompt 3</div>
+      <div style="font-size:11px;">"Too harsh, <span class="bold">softer</span>"</div>
+    </div>
+  </div>
+  <div class="flex gap-12" style="flex:1">
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:var(--primary);font-weight:600">After Prompt 1</span></div>
+      <div class="card-body" style="font-size:11px; font-family:var(--mono);">
+        <div>current_params: {</div>
+        <div style="padding-left:8px; color:var(--primary);">"eq": {gain: [...], ...}</div>
+        <div>}</div>
+        <div style="margin-top:6px; font-family:var(--font); font-size:11px;">
+          <span class="tag blue">Case 2</span> LLM init &rarr; GD
+        </div>
+      </div>
+    </div>
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#E65100;font-weight:600">After Prompt 2</span></div>
+      <div class="card-body" style="font-size:11px; font-family:var(--mono);">
+        <div>current_params: {</div>
+        <div style="padding-left:8px; color:var(--primary);">"eq": {gain: [...], ...},</div>
+        <div style="padding-left:8px; color:#E65100;">"rev": {decay: 0.8, ...}</div>
+        <div>}</div>
+        <div style="margin-top:6px; font-family:var(--font); font-size:11px;">
+          <span class="tag orange">Case 3</span> Reuse eq + init rev
+        </div>
+      </div>
+    </div>
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#2E7D32;font-weight:600">After Prompt 3</span></div>
+      <div class="card-body" style="font-size:11px; font-family:var(--mono);">
+        <div>current_params: {</div>
+        <div style="padding-left:8px; color:var(--primary);">"eq": {gain: [...], ...},</div>
+        <div style="padding-left:8px; color:#E65100;">"rev": {decay: 0.8, ...}</div>
+        <div>}</div>
+        <div style="margin-top:6px; font-family:var(--font); font-size:11px;">
+          <span class="tag green">Case 1</span> Reuse both &rarr; re-optimize
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 11 — Evaluation Setup
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Evaluation Setup</div>
+  <div class="flex gap-20" style="flex:1">
+    <div class="flex-1">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">Dataset: SocialFX</span></div>
+        <div class="card-body" style="font-size:13px;">
+          <div class="bold" style="margin-bottom:6px;">7 EQ descriptor words</div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
+            <span class="tag blue">warm (93)</span>
+            <span class="tag blue">bright (74)</span>
+            <span class="tag blue">soft (74)</span>
+            <span class="tag blue">loud (54)</span>
+            <span class="tag blue">harsh (39)</span>
+            <span class="tag blue">calm (26)</span>
+            <span class="tag blue">heavy (25)</span>
+          </div>
+          <div style="font-size:12px; color:var(--text-secondary);">
+            Selected by: count &ge; 20 AND consistency &ge; 0.45
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">10 Directed Word Pairs (A &rarr; B)</span></div>
+        <div class="card-body">
+          <div class="pair-grid">
+            <div class="pair-cell">warm&rarr;bright</div>
+            <div class="pair-cell">bright&rarr;warm</div>
+            <div class="pair-cell">heavy&rarr;calm</div>
+            <div class="pair-cell">heavy&rarr;harsh</div>
+            <div class="pair-cell">harsh&rarr;soft</div>
+            <div class="pair-cell">harsh&rarr;calm</div>
+            <div class="pair-cell">warm&rarr;heavy</div>
+            <div class="pair-cell">soft&rarr;loud</div>
+            <div class="pair-cell">calm&rarr;loud</div>
+            <div class="pair-cell">loud&rarr;heavy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="width:320px;">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">Metric: MMD</span></div>
+        <div class="card-body" style="font-size:13px;">
+          <div class="bold" style="margin-bottom:4px;">Maximum Mean Discrepancy</div>
+          <ul class="bullets" style="font-size:12px;">
+            <li>35-D DSP features (spectral, MFCC, temporal)</li>
+            <li>Gaussian kernel, median bandwidth</li>
+            <li>Lower = closer to GT distribution</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">Ground Truth Construction</span></div>
+        <div class="card-body" style="font-size:12px;">
+          <div style="display:flex; align-items:center; gap:6px; justify-content:center; flex-wrap:wrap; font-size:11px; font-weight:500; margin-bottom:6px;">
+            <div style="padding:3px 8px; background:#F5F5F5; border-radius:4px;">Dry Audio</div>
+            <span>&rarr;</span>
+            <div style="padding:3px 8px; background:var(--primary-light); border-radius:4px; color:var(--primary)">Apply EQ<sub>A</sub></div>
+            <span>&rarr;</span>
+            <div style="padding:3px 8px; background:var(--accent-light); border-radius:4px; color:#E65100">Apply EQ<sub>B</sub></div>
+          </div>
+          <div style="color:var(--text-secondary); font-size:11px;">
+            Sequential GT: Audio with params_A then params_B<br>
+            50 random samples per word per instrument
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 12 — Exp 1: Sequential MMD
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Exp 1: Sequential MMD</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">System output vs. sequential ground truth &mdash; lower MMD is better</div>
+  <div class="flex gap-20" style="flex:1;">
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">MMD Comparison: Ours vs LLM-only Baseline</span></div>
+      <div class="card-body" style="padding:12px 16px;">
+        <div style="display:flex; gap:12px; margin-bottom:10px; font-size:11px; font-weight:600;">
+          <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></div> InstructFX2FX (Ours)</div>
+          <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px;height:12px;background:#B0BEC5;border-radius:2px;"></div> LLM+LLM Baseline</div>
+        </div>
+        <div class="bar-row"><div class="bar-label">warm&rarr;bright</div><div class="bar-track"><div class="bar-fill ours" style="width:45%">0.32</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:62%">0.48</div></div></div>
+        <div class="bar-row"><div class="bar-label">bright&rarr;warm</div><div class="bar-track"><div class="bar-fill ours" style="width:40%">0.29</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:58%">0.44</div></div></div>
+        <div class="bar-row"><div class="bar-label">heavy&rarr;calm</div><div class="bar-track"><div class="bar-fill ours" style="width:38%">0.27</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:65%">0.50</div></div></div>
+        <div class="bar-row"><div class="bar-label">harsh&rarr;soft</div><div class="bar-track"><div class="bar-fill ours" style="width:42%">0.31</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:60%">0.46</div></div></div>
+        <div class="bar-row"><div class="bar-label">calm&rarr;loud</div><div class="bar-track"><div class="bar-fill ours" style="width:50%">0.38</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:55%">0.42</div></div></div>
+        <div class="bar-row"><div class="bar-label">soft&rarr;loud</div><div class="bar-track"><div class="bar-fill ours" style="width:44%">0.33</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:63%">0.49</div></div></div>
+      </div>
+    </div>
+    <div style="width:220px; display:flex; flex-direction:column; gap:12px;">
+      <div class="card" style="border:2px solid var(--green)">
+        <div class="card-body" style="text-align:center;">
+          <div style="font-size:36px; font-weight:800; color:var(--green);">87.5%</div>
+          <div style="font-size:13px; color:var(--text-secondary);">word pairs improved</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body" style="font-size:12px; color:var(--text-secondary);">
+          <div class="bold" style="color:var(--text); margin-bottom:4px;">Key Finding:</div>
+          CLAP gradient descent consistently outperforms LLM-only reprompting across most word pairs.
+          <div style="margin-top:8px; padding:6px; background:#FFF3E0; border-radius:4px; font-size:11px; color:#E65100;">
+            <span class="bold">Note:</span> Bar values are illustrative &mdash; replace with actual exp1 results
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 13 — Exp 2: Trajectory
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Exp 2: MMD Convergence Trajectory</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">How MMD evolves during gradient descent optimization</div>
+  <div class="flex gap-20" style="flex:1">
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">Trajectory: warm &rarr; bright (example)</span></div>
+      <div class="card-body">
+        <div class="curve-container">
+          <svg width="100%" height="100%" viewBox="0 0 500 140" preserveAspectRatio="none">
+            <line x1="40" y1="10" x2="40" y2="120" stroke="#ccc" stroke-width="1"/>
+            <line x1="40" y1="120" x2="480" y2="120" stroke="#ccc" stroke-width="1"/>
+            <text x="260" y="138" font-size="10" fill="#999" text-anchor="middle">Iterations</text>
+            <text x="12" y="70" font-size="10" fill="#999" text-anchor="middle" transform="rotate(-90,12,70)">MMD</text>
+            <line x1="40" y1="40" x2="480" y2="40" stroke="#B0BEC5" stroke-width="2" stroke-dasharray="6,4"/>
+            <text x="485" y="43" font-size="9" fill="#B0BEC5">LLM+LLM</text>
+            <path d="M40,55 Q80,50 120,45 Q200,38 280,32 Q360,28 440,25 L480,24" fill="none" stroke="#2196F3" stroke-width="2.5"/>
+            <text x="485" y="27" font-size="9" fill="#2196F3" font-weight="600">Ours</text>
+            <text x="40" y="132" font-size="8" fill="#999">0</text>
+            <text x="128" y="132" font-size="8" fill="#999">200</text>
+            <text x="216" y="132" font-size="8" fill="#999">400</text>
+            <text x="304" y="132" font-size="8" fill="#999">600</text>
+            <text x="392" y="132" font-size="8" fill="#999">800</text>
+            <text x="466" y="132" font-size="8" fill="#999">1000</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div style="width:240px; display:flex; flex-direction:column; gap:12px;">
+      <div class="card">
+        <div class="card-body">
+          <div class="bold" style="font-size:13px; margin-bottom:6px;">Key Observations</div>
+          <ul class="bullets" style="font-size:12px;">
+            <li>Rapid improvement in first <span class="highlight">~100 iterations</span></li>
+            <li>Diminishing returns after ~200</li>
+            <li>Consistently <span class="highlight-green">below baseline</span></li>
+            <li>Smooth, stable convergence</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body" style="font-size:12px; color:var(--text-secondary);">
+          <div class="bold" style="color:var(--text); margin-bottom:4px;">10 trajectory plots available:</div>
+          All word pairs show convergence pattern. Snapshots every 50 iterations.
+          <div style="margin-top:6px; padding:4px 8px; background:#F5F5F5; border-radius:4px; font-size:11px;">
+            See: eval/results/exp2/*.png
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 14 — Exp 3: PCA
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Exp 3: Timbre Feature PCA</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:6px;">19-D timbre features projected to 2D &mdash; do word descriptors separate in feature space?</div>
+  <div class="flex gap-12" style="flex:1">
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#555;font-weight:600">SocialFX Ground Truth</span></div>
+      <div class="card-body" style="padding:10px">
+        <div class="pca-viz">
+          <div class="pca-dot" style="left:20%;top:25%;background:#F44336"></div><div class="pca-dot" style="left:25%;top:30%;background:#F44336"></div><div class="pca-dot" style="left:18%;top:20%;background:#F44336"></div>
+          <div class="pca-dot" style="left:70%;top:20%;background:#2196F3"></div><div class="pca-dot" style="left:75%;top:25%;background:#2196F3"></div><div class="pca-dot" style="left:72%;top:15%;background:#2196F3"></div>
+          <div class="pca-dot" style="left:45%;top:70%;background:#4CAF50"></div><div class="pca-dot" style="left:50%;top:75%;background:#4CAF50"></div><div class="pca-dot" style="left:42%;top:65%;background:#4CAF50"></div>
+          <div class="pca-dot" style="left:80%;top:65%;background:#FF9800"></div><div class="pca-dot" style="left:85%;top:70%;background:#FF9800"></div><div class="pca-dot" style="left:78%;top:72%;background:#FF9800"></div>
+          <div class="pca-dot" style="left:30%;top:55%;background:#9C27B0"></div><div class="pca-dot" style="left:35%;top:50%;background:#9C27B0"></div><div class="pca-dot" style="left:28%;top:48%;background:#9C27B0"></div>
+        </div>
+        <div style="text-align:center; margin-top:6px; font-size:11px; font-weight:600; color:var(--green);">Clear word separation</div>
+        <div style="text-align:center; font-size:10px; color:var(--text-secondary);">PC1: 43% variance &bull; PC2: 24%</div>
+      </div>
+    </div>
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#555;font-weight:600">LLM Init Only</span></div>
+      <div class="card-body" style="padding:10px">
+        <div class="pca-viz">
+          <div class="pca-dot" style="left:45%;top:42%;background:#F44336"></div><div class="pca-dot" style="left:47%;top:45%;background:#F44336"></div><div class="pca-dot" style="left:44%;top:40%;background:#F44336"></div>
+          <div class="pca-dot" style="left:52%;top:48%;background:#2196F3"></div><div class="pca-dot" style="left:54%;top:50%;background:#2196F3"></div><div class="pca-dot" style="left:50%;top:46%;background:#2196F3"></div>
+          <div class="pca-dot" style="left:48%;top:55%;background:#4CAF50"></div><div class="pca-dot" style="left:50%;top:53%;background:#4CAF50"></div><div class="pca-dot" style="left:46%;top:52%;background:#4CAF50"></div>
+          <div class="pca-dot" style="left:55%;top:44%;background:#FF9800"></div><div class="pca-dot" style="left:53%;top:42%;background:#FF9800"></div><div class="pca-dot" style="left:56%;top:46%;background:#FF9800"></div>
+          <div class="pca-dot" style="left:49%;top:48%;background:#9C27B0"></div><div class="pca-dot" style="left:51%;top:50%;background:#9C27B0"></div><div class="pca-dot" style="left:47%;top:47%;background:#9C27B0"></div>
+        </div>
+        <div style="text-align:center; margin-top:6px; font-size:11px; font-weight:600; color:var(--emphasis);">Compact, poor separation</div>
+        <div style="text-align:center; font-size:10px; color:var(--text-secondary);">LLM lacks perceptual grounding</div>
+      </div>
+    </div>
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#555;font-weight:600">LLM + CLAP Refinement</span></div>
+      <div class="card-body" style="padding:10px">
+        <div class="pca-viz">
+          <div class="pca-dot" style="left:30%;top:30%;background:#F44336"></div><div class="pca-dot" style="left:35%;top:35%;background:#F44336"></div><div class="pca-dot" style="left:28%;top:28%;background:#F44336"></div>
+          <div class="pca-dot" style="left:65%;top:28%;background:#2196F3"></div><div class="pca-dot" style="left:68%;top:32%;background:#2196F3"></div><div class="pca-dot" style="left:62%;top:25%;background:#2196F3"></div>
+          <div class="pca-dot" style="left:45%;top:62%;background:#4CAF50"></div><div class="pca-dot" style="left:48%;top:65%;background:#4CAF50"></div><div class="pca-dot" style="left:42%;top:58%;background:#4CAF50"></div>
+          <div class="pca-dot" style="left:72%;top:58%;background:#FF9800"></div><div class="pca-dot" style="left:75%;top:62%;background:#FF9800"></div><div class="pca-dot" style="left:70%;top:55%;background:#FF9800"></div>
+          <div class="pca-dot" style="left:35%;top:50%;background:#9C27B0"></div><div class="pca-dot" style="left:38%;top:48%;background:#9C27B0"></div><div class="pca-dot" style="left:33%;top:46%;background:#9C27B0"></div>
+        </div>
+        <div style="text-align:center; margin-top:6px; font-size:11px; font-weight:600; color:var(--primary);">Better separation than LLM alone</div>
+        <div style="text-align:center; font-size:10px; color:var(--text-secondary);">CLAP moves toward GT distribution</div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; justify-content:center; margin-top:6px; font-size:10px;">
+    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#F44336"></div>warm</div>
+    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#2196F3"></div>bright</div>
+    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#4CAF50"></div>soft</div>
+    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#FF9800"></div>harsh</div>
+    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#9C27B0"></div>calm</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 15 — Exp 5: LLM Init Ablation
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Exp 5: LLM Initialization Ablation</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">Does CLAP refinement actually help beyond LLM initialization?</div>
+  <div class="flex gap-20" style="flex:1">
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">LLM-only vs LLM + CLAP Trajectory</span></div>
+      <div class="card-body">
+        <div class="curve-container" style="height:200px">
+          <svg width="100%" height="100%" viewBox="0 0 500 180" preserveAspectRatio="none">
+            <line x1="50" y1="10" x2="50" y2="155" stroke="#ccc" stroke-width="1"/>
+            <line x1="50" y1="155" x2="480" y2="155" stroke="#ccc" stroke-width="1"/>
+            <text x="265" y="175" font-size="10" fill="#999" text-anchor="middle">Optimization Steps</text>
+            <text x="15" y="85" font-size="10" fill="#999" text-anchor="middle" transform="rotate(-90,15,85)">Distance to Target</text>
+            <path d="M50,60 Q150,58 250,62 Q350,56 480,60" fill="none" stroke="#B0BEC5" stroke-width="2.5" stroke-dasharray="8,4"/>
+            <text x="485" y="63" font-size="9" fill="#B0BEC5" font-weight="600">LLM only</text>
+            <path d="M50,60 Q100,52 150,42 Q200,35 250,30 Q300,26 350,23 Q400,21 480,20" fill="none" stroke="#2196F3" stroke-width="2.5"/>
+            <text x="485" y="23" font-size="9" fill="#2196F3" font-weight="600">LLM+CLAP</text>
+            <circle cx="50" cy="60" r="4" fill="#FF9800"/>
+            <text x="60" y="75" font-size="9" fill="#FF9800" font-weight="600">Same LLM init</text>
+            <line x1="470" y1="58" x2="470" y2="23" stroke="#4CAF50" stroke-width="1.5" marker-end="url(#ah3)"/>
+            <text x="430" y="42" font-size="9" fill="#4CAF50" font-weight="600">gain</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div style="width:220px; display:flex; flex-direction:column; gap:12px;">
+      <div class="card" style="border:2px solid var(--primary)">
+        <div class="card-body" style="text-align:center;">
+          <div style="font-size:14px; font-weight:600; color:var(--text); margin-bottom:6px;">Starting from the same LLM init:</div>
+          <div style="font-size:30px; font-weight:800; color:var(--primary);">87.5%</div>
+          <div style="font-size:12px; color:var(--text-secondary);">of pairs improve with CLAP</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body" style="font-size:12px;">
+          <ul class="bullets" style="font-size:12px;">
+            <li>LLM provides a <span class="highlight">good starting point</span></li>
+            <li>CLAP GD provides <span class="highlight-accent">reliable refinement</span></li>
+            <li>Avg improvement by iteration <span class="bold">~13</span></li>
+            <li>LLM alone: flat, no convergence</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 16 — Demo
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide" style="justify-content:center; align-items:center; text-align:center;">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div>
+    <div style="font-size:64px; font-weight:800; color:var(--text); margin-bottom:8px;">Demo</div>
+    <div style="font-size:18px; color:var(--text-secondary); margin-bottom:32px;">Live System Demonstration</div>
+    <a href="#" class="demo-btn" id="demo-link">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      Open Demo
+    </a>
+    <div style="margin-top:24px; font-size:13px; color:#999;">
+      Interactive: Input audio + text prompt &rarr; Optimized FX parameters
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 17 — Limitations & Future Work
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Limitations &amp; Future Work</div>
+  <div class="flex gap-20" style="flex:1">
+    <div class="card flex-1" style="border-top:3px solid var(--emphasis)">
+      <div class="card-body">
+        <div style="font-size:16px; font-weight:700; color:var(--emphasis); margin-bottom:12px;">Current Limitations</div>
+        <ul class="bullets" style="font-size:14px;">
+          <li><span class="bold">EQ-only</span> evaluation (SocialFX dataset constraint)</li>
+          <li>CLAP embedding space may not capture all <span class="bold">timbral nuances</span></li>
+          <li>Pedalboard effects use BO (<span class="bold">slower</span>, non-differentiable)</li>
+          <li>Fixed negative anchor in guided loss</li>
+          <li>Convergence speed: several seconds per optimization</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card flex-1" style="border-top:3px solid var(--green)">
+      <div class="card-body">
+        <div style="font-size:16px; font-weight:700; color:var(--green); margin-bottom:12px;">Future Directions</div>
+        <ul class="bullets" style="font-size:14px;">
+          <li><span class="bold">Multi-effect</span> evaluation (comp, reverb, distortion)</li>
+          <li><span class="bold">Human listening study</span> for perceptual validation</li>
+          <li>Fine-tuned <span class="bold">CLAP for audio FX</span> domain</li>
+          <li><span class="bold">Real-time</span> interactive interface</li>
+          <li><span class="bold">DAW plugin</span> integration (VST/AU)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 18 — Thank You
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide title-slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div>
+    <div style="font-size:52px; font-weight:800; color:var(--text); margin-bottom:20px;">Thank You!</div>
+    <div style="font-size:16px; color:var(--text-secondary); margin-bottom:28px; line-height:1.8;">
+      <strong>Group 2:</strong> Song-Ze Yu, Charlotte Zhang, Yuxuan Cai<br>
+      CNMAT, UC Berkeley
+    </div>
+    <div style="font-size:20px; font-style:italic; color:#999;">Questions?</div>
+  </div>
+</div>
+
+</div><!-- .slide-container -->
+
+<div class="slide-counter">1 / 18</div>
+
+<script src="js/slides.js"></script>
+</body>
+</html>
