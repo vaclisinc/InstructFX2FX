@@ -188,13 +188,13 @@
   <div class="slide-title" style="margin-bottom:10px;">Introducing InstructFX2FX</div>
   <div class="slide-subtitle" style="font-size:14px; margin-bottom:16px;">Iterative text-to-preset refinement with persistent session state</div>
   <div style="flex:1; display:flex; align-items:center; justify-content:center; min-height:0;">
-    <div class="card" style="width:92%; max-width:720px; border:3px solid var(--primary); box-shadow: 0 8px 28px rgba(33,150,243,0.15); overflow:visible;">
-      <div class="card-header" style="justify-content:center; padding:14px 16px;"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:14px;font-weight:800;color:var(--primary);letter-spacing:-0.02em;">InstructFX2FX</span></div>
+    <div class="card slide-intro-system-card" style="width:92%; max-width:720px; border:3px solid var(--primary); box-shadow: 0 8px 28px rgba(33,150,243,0.15); overflow:visible;">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">InstructFX2FX (Ours)</span></div>
       <div class="card-body" style="padding:26px 32px 30px;">
         <div class="body-text" style="text-align:center; font-size:16px; line-height:1.55; margin-bottom:18px;">
           <span class="highlight">Multi-turn refinement</span> of audio FX presets: an <span class="highlight">LLM</span> picks the FX chain and sensible starting parameters;
           <span class="highlight">CLAP-guided optimization</span> adjusts the sound to match natural language step by step &mdash;
-          built for <span class="highlight-accent">sequential prompting</span>, not one-shot generation.
+          built for <span class="highlight-accent">sequential prompting</span> and <span class="bold">persistent session state</span>, unlike pipelines that assume each text query is isolated (no accumulating FX preset).
         </div>
         <ul class="bullets" style="font-size:14px; max-width:580px; margin:0 auto;">
           <li>LLM selects &amp; orders effects; differentiable FX use gradient descent</li>
@@ -895,53 +895,93 @@
 <!-- ════════════════════════════════════════════════════════════════
      SLIDE 18 — Project Timeline (Last Semester → This Semester)
      ════════════════════════════════════════════════════════════════ -->
-<div class="slide">
+<div class="slide slide-timeline-h">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
-  <div class="slide-title">How We Got Here: Project Timeline</div>
-  <div class="slide-subtitle" style="font-size:14px; margin-bottom:14px;">From a flawed judge-then-reprompt loop &rarr; today's iterative LLM + CLAP system</div>
+  <div class="slide-title">How We Got Here</div>
+  <div class="slide-subtitle timeline-h-sub">Research arc: judge loops &rarr; optimization &rarr; InstructFX2FX</div>
 
-  <div style="display:grid; grid-template-columns: 110px 1fr; row-gap:10px; column-gap:14px; flex:1; align-content:start;">
+  <div class="timeline-h-shell">
 
-    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--primary); padding-top:6px;">Fall&nbsp;2025</div>
-    <div class="card" style="border-left:3px solid var(--primary);">
-      <div class="card-body" style="padding:8px 14px; font-size:12px;">
-        <div class="bold" style="font-size:13px; margin-bottom:2px;">v1 &mdash; LLM + Judge System</div>
-        LLM generates FX parameters from a tone description; a separate "judge" scores the output and we reprompt with the score.
+    <!-- Row 1: equal-height cards + notches -->
+    <div class="timeline-h-top">
+      <div class="timeline-h-step-col">
+        <div class="timeline-h-card">
+          <div class="tl-ico-ring" style="background:rgba(124,77,255,0.2);border:2px solid #7C4DFF;color:#4527A0;">
+            <svg viewBox="0 0 24 24"><path stroke="currentColor" fill="none" d="M9 21h6M12 3a5 5 0 015 5c0 4-5 8-5 8s-5-4-5-8a5 5 0 015-5z"/><path stroke="currentColor" fill="none" d="M10 21v2M14 21v2"/></svg>
+          </div>
+          <div class="tl-label" style="color:#7C4DFF;">Phase 01</div>
+          <div class="tl-head">v1 Judge loop</div>
+          <div class="tl-desc">LLM emits FX presets; separate judge scores outputs; reprompt on low score.</div>
+        </div>
+        <div class="timeline-h-notch" aria-hidden="true"></div>
+      </div>
+      <div class="timeline-h-step-col">
+        <div class="timeline-h-card">
+          <div class="tl-ico-ring" style="background:rgba(239,83,80,0.15);border:2px solid #EF5350;color:#C62828;">
+            <svg viewBox="0 0 24 24"><path stroke="currentColor" fill="none" d="M12 9v4M12 17h.01"/><path stroke="currentColor" fill="none" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h18.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          </div>
+          <div class="tl-label" style="color:#EF5350;">Roadblock</div>
+          <div class="tl-head">Judge fails</div>
+          <div class="tl-desc">Noisy descriptors; no fair numeric &ldquo;warm&rdquo; score; LLM reprompts don&rsquo;t converge.</div>
+        </div>
+        <div class="timeline-h-notch" aria-hidden="true"></div>
+      </div>
+      <div class="timeline-h-step-col">
+        <div class="timeline-h-card">
+          <div class="tl-ico-ring" style="background:rgba(38,198,218,0.18);border:2px solid #26C6DA;color:#006064;">
+            <svg viewBox="0 0 24 24"><path stroke="currentColor" fill="none" d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3" stroke="currentColor" fill="none"/></svg>
+          </div>
+          <div class="tl-label" style="color:#0097A7;">Pivot</div>
+          <div class="tl-head">Reframe goal</div>
+          <div class="tl-desc">Stop judging absolutes &mdash; <span style="font-weight:600;color:var(--text);">move audio</span> toward user intent.</div>
+        </div>
+        <div class="timeline-h-notch" aria-hidden="true"></div>
+      </div>
+      <div class="timeline-h-step-col">
+        <div class="timeline-h-card">
+          <div class="tl-ico-ring" style="background:rgba(255,167,38,0.2);border:2px solid #FFA726;color:#E65100;">
+            <svg viewBox="0 0 24 24"><path stroke="currentColor" fill="none" stroke-linecap="round" d="M4 17h16M8 13h12M6 9h11M10 5h10"/></svg>
+          </div>
+          <div class="tl-label" style="color:#FFA726;">v2 Optimize</div>
+          <div class="tl-head">Human-in-the-loop</div>
+          <div class="tl-desc">Text2FX-style CLAP tuning: you listen and steer with NL feedback, not a brittle judge. One effect chain.</div>
+        </div>
+        <div class="timeline-h-notch" aria-hidden="true"></div>
+      </div>
+      <div class="timeline-h-step-col">
+        <div class="timeline-h-card">
+          <div class="tl-ico-ring" style="background:rgba(236,64,122,0.15);border:2px solid #EC407A;color:#AD1457;">
+            <svg viewBox="0 0 24 24"><path stroke="currentColor" fill="none" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div class="tl-label" style="color:#EC407A;">Now</div>
+          <div class="tl-head">InstructFX2FX</div>
+          <div class="tl-desc">FX agent + session parser; CLAP&nbsp;GD + BO; SocialFX&nbsp;MMD / PCA evaluation.</div>
+        </div>
+        <div class="timeline-h-notch" aria-hidden="true"></div>
       </div>
     </div>
 
-    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--emphasis); padding-top:6px;">&nbsp;</div>
-    <div class="card" style="border-left:3px solid var(--emphasis); background:#FFF3E0;">
-      <div class="card-body" style="padding:8px 14px; font-size:12px; color:#5D4037;">
-        <div class="bold" style="font-size:13px; margin-bottom:2px; color:var(--emphasis);">Problems found</div>
-        SocialFX descriptors are noisy &mdash; no fair score for "warm" or "airy". LLM reprompting <span class="bold">does not converge</span>. Hard judge is fundamentally unstable.
+    <!-- Centered gradient bar + dots aligned to columns -->
+    <div class="timeline-h-rail-wrap" aria-hidden="true">
+      <div class="timeline-h-track"></div>
+      <div class="timeline-h-dots-row">
+        <div class="timeline-h-dot-cell"><span class="timeline-h-dot"></span></div>
+        <div class="timeline-h-dot-cell"><span class="timeline-h-dot"></span></div>
+        <div class="timeline-h-dot-cell"><span class="timeline-h-dot"></span></div>
+        <div class="timeline-h-dot-cell"><span class="timeline-h-dot"></span></div>
+        <div class="timeline-h-dot-cell"><span class="timeline-h-dot"></span></div>
       </div>
     </div>
 
-    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--text-secondary); padding-top:6px;">&nbsp;</div>
-    <div class="card" style="border-left:3px solid var(--text-secondary);">
-      <div class="card-body" style="padding:8px 14px; font-size:12px;">
-        <div class="bold" style="font-size:13px; margin-bottom:2px;">Reframe the question</div>
-        From <span style="font-style:italic;">"how do we judge a sound?"</span> &rarr; <span class="bold highlight">"how do we move a sound toward the user's intention?"</span>
-      </div>
+    <div class="timeline-h-periods">
+      <div class="timeline-h-period" style="color:#7C4DFF;">Fall&nbsp;&rsquo;25</div>
+      <div class="timeline-h-period" style="color:#EF5350;">Fall&nbsp;&rsquo;25</div>
+      <div class="timeline-h-period" style="color:#0097A7;">Nov&nbsp;&rsquo;25</div>
+      <div class="timeline-h-period" style="color:#FFA726;">Dec&nbsp;&rsquo;25</div>
+      <div class="timeline-h-period" style="color:#C2185B;">Spring&nbsp;&rsquo;26</div>
     </div>
 
-    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--accent); padding-top:6px;">Late&nbsp;Fall&nbsp;'25</div>
-    <div class="card" style="border-left:3px solid var(--accent);">
-      <div class="card-body" style="padding:8px 14px; font-size:12px;">
-        <div class="bold" style="font-size:13px; margin-bottom:2px;">v2 &mdash; Human-in-the-Loop Optimization</div>
-        Inspired by <span class="bold">Text2FX</span> + <span class="bold">InstructPix2Pix</span>: tone <em>editing</em> via natural-language feedback, optimization replaces the hard judge. Single-FX, single-turn.
-      </div>
-    </div>
-
-    <div style="text-align:right; font-size:13px; font-weight:700; color:var(--green); padding-top:6px;">Spring&nbsp;2026</div>
-    <div class="card" style="border-left:3px solid var(--green); background:var(--green-light);">
-      <div class="card-body" style="padding:8px 14px; font-size:12px;">
-        <div class="bold" style="font-size:13px; margin-bottom:2px; color:var(--green);">This semester &mdash; InstructFX2FX</div>
-        <span class="bold">LLM agent</span> for FX selection &amp; chain order; <span class="bold">parser</span> with 3-case session routing; <span class="bold">CLAP gradient descent + Bayesian optimization</span>; full <span class="bold">multi-turn refinement</span>; quantitative evaluation against SocialFX (MMD, PCA, ablations).
-      </div>
-    </div>
-
+    <div class="timeline-h-footer">Timeline</div>
   </div>
 </div>
 

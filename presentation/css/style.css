@@ -288,3 +288,223 @@ ul.bullets li::before {
   .slide-exp2-traj .exp2-traj-img { max-height: 136px; }
 }
 
+/* ── Horizontal infographic timeline (slide 18) ── */
+.slide-timeline-h {
+  overflow: visible;
+  padding-bottom: 28px;
+}
+
+.slide-timeline-h .slide-title {
+  margin-bottom: 8px !important;
+  margin-top: 4px;
+}
+
+.slide-timeline-h .timeline-h-sub {
+  font-size: 13px !important;
+  margin-bottom: 20px !important;
+}
+
+.timeline-h-shell {
+  position: relative;
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  justify-content: flex-start;
+  padding: calc(16px + 11px * 1.3 * 3) 0 0;
+}
+
+.timeline-h-top {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: stretch;
+  justify-content: space-between;
+  min-height: 0;
+}
+
+.timeline-h-step-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.timeline-h-rail-wrap {
+  position: relative;
+  flex-shrink: 0;
+  height: 32px;
+  margin-top: -7px;
+  width: 100%;
+}
+
+.timeline-h-track {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 50%;
+  height: 5px;
+  transform: translateY(-50%);
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    #7C4DFF 0%,
+    #26C6DA 22%,
+    #66BB6A 44%,
+    #FFCA28 66%,
+    #FF7043 82%,
+    #EC407A 100%
+  );
+  opacity: 0.92;
+  z-index: 0;
+}
+
+.timeline-h-dots-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.timeline-h-dot-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeline-h-periods {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 2px;
+  width: 100%;
+}
+
+.timeline-h-periods > .timeline-h-period {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.timeline-h-card {
+  --tl-desc-lh: calc(11px * 1.3);
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: linear-gradient(180deg, #f8f9fa 0%, #eceff1 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  padding: calc(var(--tl-desc-lh) * 2) 8px calc(var(--tl-desc-lh) * 2) 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.timeline-h-card .tl-ico-ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 3px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.timeline-h-card .tl-ico-ring svg {
+  width: 18px;
+  height: 18px;
+  stroke: #1a1a1a;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.timeline-h-card .tl-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  line-height: 1.15;
+}
+
+.timeline-h-card .tl-head {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.18;
+  margin-bottom: 3px;
+}
+
+.timeline-h-card .tl-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  margin-top: 0;
+}
+
+.timeline-h-notch {
+  width: 0;
+  height: 0;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-top: 12px solid #eceff1;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.06));
+  flex-shrink: 0;
+}
+
+.timeline-h-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px rgba(100, 100, 140, 0.35), 0 2px 6px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 2;
+}
+
+.timeline-h-period {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.timeline-h-footer {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding-top: 0;
+  line-height: 1.15;
+  opacity: 0.92;
+}
+
+/* ── Slide 5: intro card header matches Related Works chrome ── */
+.slide-intro-system-card .card-header {
+  background: #f7f7f7;
+  border-bottom: 1px solid var(--border);
+}
+

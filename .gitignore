@@ -41,6 +41,9 @@ webapp/frontend/.vite/
 # Misc
 =1.1.0
 
+# Local research / scratch (do not commit)
+yuxuan/
+
 results/fxsearcher/.DS_Store
 
 *.wav
