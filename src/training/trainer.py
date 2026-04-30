@@ -51,6 +51,7 @@ def move_in_CLAP(
         print(f"⚡ Using shortened audio for CLAP: {audio_short.shape[-1]/44100:.1f}s instead of {audio.shape[-1]/44100:.1f}s")
     else:
         audio_short = audio
+    audio_short = audio_short.to(device)
 
     # Setup - ensure initial_params is on correct device and requires grad
     params = torch.nn.Parameter(inverse_sigmoid_torch(initial_params).clone().detach().to(device).requires_grad_(True)) # INVERSE SIGMOID
@@ -259,7 +260,7 @@ def move_in_CLAP(
 
     # Compute and store final audio with final parameters
     with torch.no_grad():
-        final_audio = fx_chain(audio.clone(), final_params).detach().cpu()
+        final_audio = fx_chain(audio.clone().to(device), final_params).detach().cpu()
         audio_param_snapshots['end'] = (final_audio, final_params.detach().cpu())
 
     return final_params, final_audio, loss_history, audio_param_snapshots

@@ -46,11 +46,10 @@ yuxuan/
 
 results/fxsearcher/.DS_Store
 
-*.wav
-*.flac
-*.mp3
-*.m4a
-*.ogg
+#*.wav
+#*.flac
+#*.mp3
+#*.m4a
+#*.ogg
 prompts.json
 node_modules/
-*.wav

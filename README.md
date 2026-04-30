@@ -34,9 +34,9 @@ User prompt ("bright")
 **Layer 1 — FX Selector Agent**: Each available FX is an OpenAI tool. The LLM calls them in signal-chain order.
 
 **Layer 2 — Parser**: Routes based on session state:
-- Case 1: All FX exist in session → optimize from existing params
-- Case 2: None exist → LLM-initialize, then optimize
-- Case 3: Mixed → LLM-initialize missing, merge with existing, then optimize
+- Case 1: All FX exist in session → re-optimize from existing params
+- Case 2: None exist → LLM-initialize only (no optimization)
+- Case 3: Mixed → LLM-initialize missing, merge with existing, then optimize all
 
 **Layer 3 — Dual-Track Optimization** (sequential):
 - 3A: DASP effects (eq, rev) → CLAP gradient descent via `move_in_CLAP()`
