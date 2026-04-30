@@ -75,11 +75,13 @@ class Parser:
     def _resolve_run_settings(self, run_settings: dict | None) -> dict:
         run_settings = run_settings or {}
         snapshot_interval = run_settings.get("snapshot_interval")
+        llm_model = run_settings.get("llm_model")
         return {
             "n_iterations": int(run_settings.get("n_iterations", self.n_iterations)),
             "learning_rate": float(run_settings.get("learning_rate", self.lr)),
             "snapshot_interval": int(snapshot_interval) if snapshot_interval is not None else None,
             "loss_function": self.loss_function.value,
+            "llm_model": llm_model or None,
         }
 
     @staticmethod
@@ -211,7 +213,7 @@ class Parser:
             return params, rendered_audio
         elif not existing:
             # Case 2: no FX have params yet → LLM-initialize, then single render pass (no optimization loop)
-            init_params = self._llm_init(instruction, fx_chain)
+            init_params = self._llm_init(instruction, fx_chain, model=settings["llm_model"])
             rendered = self._render_once(init_params, audio)
             metadata["route_case"] = "initialize_all"
             if progress_callback is not None:
@@ -227,7 +229,7 @@ class Parser:
             return init_params, rendered
         else:
             # Case 3: some exist, some don't → LLM-init missing, merge, then optimize
-            new_params  = self._llm_init(instruction, missing)
+            new_params  = self._llm_init(instruction, missing, model=settings["llm_model"])
             init_params = {**{fx: session.current_params[fx] for fx in existing}, **new_params}
             metadata["route_case"] = "reuse_and_initialize"
             if progress_callback is not None:
@@ -249,7 +251,7 @@ class Parser:
     # LLM initialization
     # ------------------------------------------------------------------
 
-    def _llm_init(self, instruction: str, fx_list: list) -> dict:
+    def _llm_init(self, instruction: str, fx_list: list, model: str | None = None) -> dict:
         dasp_fxs = [fx for fx in fx_list if fx in DASP_FX]
         pb_fxs   = [fx for fx in fx_list if fx not in DASP_FX]
         result   = {}
@@ -261,7 +263,7 @@ class Parser:
                 instruction=instruction,
                 effects=registry_keys,
             )
-            params_dict = self.llm.generate_parameters(prompt)
+            params_dict = self.llm.generate_parameters(prompt, model=model)
             for fx in dasp_fxs:
                 dict_key = _DASP_DICT_KEY[fx]
                 if dict_key in params_dict:
@@ -273,7 +275,7 @@ class Parser:
                 instruction=instruction,
                 effects=prompt_names,
             )
-            pb_dict = self.llm.generate_parameters(prompt)
+            pb_dict = self.llm.generate_parameters(prompt, model=model)
             for fx in pb_fxs:
                 dict_key = _PB_DICT_KEY.get(fx)
                 if dict_key and dict_key in pb_dict:

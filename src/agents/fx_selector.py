@@ -59,7 +59,7 @@ class FXSelectorAgent:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
 
-    def select(self, instruction: str, available_fx: list, history: list = None) -> list:
+    def select(self, instruction: str, available_fx: list, history: list = None, model: str | None = None) -> list:
         """Return ordered list of canonical FX names for the given instruction.
 
         Args:
@@ -108,7 +108,7 @@ class FXSelectorAgent:
             tool_choice = "required"
 
         response = self.llm.llm.chat.completions.create(
-            model=_MODEL,
+            model=model or _MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_msg},
