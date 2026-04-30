@@ -10,6 +10,7 @@ Requires:
     - CLAP model weights (auto-downloaded on first run)
 """
 
+import json
 import sys
 import os
 import traceback
@@ -81,7 +82,12 @@ def run_case(name: str, turns: list[tuple[str, list[str]]], orch: Orchestrator, 
 
     for i, (instruction, expected_fx) in enumerate(turns, 1):
         turn_label = f"{name}/turn{i}"
+        turn_dir = os.path.join(case_dir, f"turn{i}")
+        os.makedirs(turn_dir, exist_ok=True)
         print(f"\n--- Turn {i}: \"{instruction}\" ---")
+
+        save_audio(audio.squeeze(0), os.path.join(turn_dir, "before.wav"))
+
         try:
             result = orch.run(instruction, session, audio)
         except Exception as e:
@@ -93,6 +99,13 @@ def run_case(name: str, turns: list[tuple[str, list[str]]], orch: Orchestrator, 
         errors.extend(errs)
         if errs:
             continue
+
+        with open(os.path.join(turn_dir, "params.json"), "w") as f:
+            json.dump(result["params"], f, indent=2)
+        print(f"  Params saved: {turn_dir}/params.json")
+
+        if result.get("audio") is not None:
+            save_audio(result["audio"], os.path.join(turn_dir, "after.wav"))
 
         print(f"  FX chain: {result['fx_chain']}")
         print(f"  Params keys: {list(result['params'].keys())}")
@@ -116,11 +129,14 @@ def main():
     print("Initializing LLM client...")
     llm = LLMClient()
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+
     print("Initializing CLAP model...")
-    clap = CLAPWrapper(device="cpu")
+    clap = CLAPWrapper(device=device)
 
     print("Creating Orchestrator...")
-    orch = Orchestrator(llm, clap, device="cpu", n_iterations=N_ITERATIONS)
+    orch = Orchestrator(llm, clap, device=device, n_iterations=N_ITERATIONS)
 
     all_errors = []
 

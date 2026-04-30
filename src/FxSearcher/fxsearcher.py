@@ -467,12 +467,13 @@ def refine_candidate_bayesian(args_dict, plot=False):
     print(f"  ├─ Objective: {'guided CLAP' if use_guide else 'vanilla CLAP'}")
     print(f"  └─ Search space dimensionality: {len(search_space)}")
 
+    n_initial_points = min(20, max(1, n_calls - 1))
     result = gp_minimize(objective_function,
                          search_space,
                          n_calls=n_calls,
                          acq_func="LCB",
                          kappa=5,
-                         n_initial_points=20,
+                         n_initial_points=n_initial_points,
                          random_state=42,
                          callback=[pbar_callback, early_stopper]
                         )
@@ -734,7 +735,8 @@ def fxsearcher(audio: str = None,
     # FXSearcher returns Pedalboard params (incompatible with DASP chain)
     # The audio has already been rendered and saved internally
     # Return embeddings_history as second value for downstream visualization
-    audio, sr = torchaudio.load(os.path.join(outdir, "best.wav"))
+    _data, _sr = sf.read(os.path.join(outdir, "best.wav"), always_2d=True)
+    audio = torch.from_numpy(_data.T).float()  # [C, T]
     return audio, embeddings_history, None
 
 

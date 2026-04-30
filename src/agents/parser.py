@@ -86,10 +86,10 @@ class Parser:
             audio: torch tensor [1, T] at 44100 Hz
 
         Returns:
-            dict {canonical_fx_name: params_dict}
+            (params_dict, rendered_audio) where params_dict is keyed by canonical FX name
         """
         if not fx_chain:
-            return {}
+            return {}, audio
 
         existing = [fx for fx in fx_chain if session.fx_exists(fx)]
         missing  = [fx for fx in fx_chain if not session.fx_exists(fx)]
@@ -105,7 +105,8 @@ class Parser:
             new_params  = self._llm_init(instruction, missing)
             init_params = {**{fx: session.current_params[fx] for fx in existing}, **new_params}
 
-        return self._optimize(instruction, fx_chain, init_params, audio)
+        params, rendered_audio = self._optimize(instruction, fx_chain, init_params, audio)
+        return params, rendered_audio
 
     # ------------------------------------------------------------------
     # LLM initialization
@@ -147,7 +148,7 @@ class Parser:
     # Optimization dispatch
     # ------------------------------------------------------------------
 
-    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio) -> dict:
+    def _optimize(self, instruction: str, fx_chain: list, init_params: dict, audio):
         dasp_fxs = [fx for fx in fx_chain if fx in DASP_FX]
         pb_fxs   = [fx for fx in fx_chain if fx not in DASP_FX]
 
@@ -160,9 +161,11 @@ class Parser:
 
         # Stage 2: Pedalboard BO on current_audio (DASP output if stage 1 ran)
         if pb_fxs:
-            self._optimize_pb(instruction, pb_fxs, init_params, current_audio, result)
+            pb_audio = self._optimize_pb(instruction, pb_fxs, init_params, current_audio, result)
+            if pb_audio is not None:
+                current_audio = pb_audio
 
-        return result
+        return result, current_audio
 
     def _optimize_dasp(self, instruction, dasp_fxs, init_params, audio, result):
         registry_keys = [_DASP_REGISTRY_KEY[fx] for fx in dasp_fxs]
@@ -214,7 +217,7 @@ class Parser:
             audio_np = audio
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            fxsearcher(
+            pb_audio, _, _ = fxsearcher(
                 audio=(audio_np, 44100),
                 prompt=instruction,
                 outdir=tmpdir,
@@ -229,16 +232,18 @@ class Parser:
             # Read best params back from JSON written by fxsearcher
             json_files = _glob.glob(os.path.join(tmpdir, "**", "best_presets.json"), recursive=True)
             if not json_files:
-                return
+                return None
             with open(json_files[0]) as f:
                 best_output = json.load(f)
 
             results_list = best_output.get("results", [])
             if not results_list:
-                return
+                return None
 
             best_config = results_list[0].get("config", {})
             for fx in pb_fxs:
                 dict_key = _PB_DICT_KEY.get(fx)
                 if dict_key and dict_key in best_config:
                     result[fx] = best_config[dict_key]
+
+            return pb_audio

@@ -45,9 +45,9 @@ class Orchestrator:
         fx_chain = self.fx_selector.select(instruction, session.available_fx)
         print(f"[FXSelector] '{instruction}' → {fx_chain}")
 
-        params = self.parser.route(instruction, fx_chain, session, audio)
+        params, rendered_audio = self.parser.route(instruction, fx_chain, session, audio)
 
         session.update(instruction, fx_chain, params)
         print(f"[Orchestrator] Session updated. Current FX: {list(session.current_params.keys())}")
 
-        return {"fx_chain": fx_chain, "params": params}
+        return {"fx_chain": fx_chain, "params": params, "audio": rendered_audio}
