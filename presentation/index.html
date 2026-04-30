@@ -211,31 +211,33 @@
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
-  <div class="slide-title">System Architecture</div>
-  <div class="flex gap-24" style="flex:1; align-items:flex-start; padding-top:8px;">
-    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;">
-      <div class="arch-box dark" style="width:240px; padding:6px 14px;">
+  <div class="slide-title">System Architecture: Current Pipeline</div>
+  <div class="flex gap-20" style="flex:1; align-items:flex-start; padding-top:8px;">
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;">
+      <div class="arch-box dark" style="width:250px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Input</div>
-        User Instruction
+        Dry Audio + User Instruction
       </div>
       <div class="arch-arrow" style="height:10px"></div>
-      <div class="arch-box blue" style="width:240px; padding:6px 14px;">
+      <div class="arch-box blue" style="width:250px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Layer 1</div>
         FX Selector Agent
-        <div style="font-size:10px; font-weight:400; margin-top:1px;">GPT-4o Tool Calling</div>
+        <div style="font-size:10px; font-weight:400; margin-top:1px;">Gemini 3.1 Pro via OpenRouter</div>
       </div>
       <div class="arch-arrow" style="height:10px"></div>
-      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">FX Chain Order</div>
-      <div class="arch-arrow" style="height:8px"></div>
-      <div class="arch-box blue" style="width:240px; padding:6px 14px;">
+      <div class="arch-box blue" style="width:250px; padding:6px 14px;">
+        <div style="font-size:11px; opacity:0.7;">Orchestrator</div>
+        Merge Session FX + New FX
+        <div style="font-size:10px; font-weight:400; margin-top:1px;">carry old chain forward before routing</div>
+      </div>
+      <div class="arch-arrow" style="height:10px"></div>
+      <div class="arch-box blue" style="width:250px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Layer 2</div>
         Parser
-        <div style="font-size:10px; font-weight:400; margin-top:1px;">3-Case Session Router</div>
+        <div style="font-size:10px; font-weight:400; margin-top:1px;">3 real routes: reuse_all / initialize_all / reuse_and_initialize</div>
       </div>
       <div class="arch-arrow" style="height:10px"></div>
-      <div style="font-size:11px; color:var(--text-secondary); font-weight:500;">Init Params</div>
-      <div class="arch-arrow" style="height:8px"></div>
-      <div class="flex gap-12" style="width:280px">
+      <div class="flex gap-12" style="width:300px">
         <div class="arch-box blue" style="flex:1; padding:6px 10px; font-size:11px;">
           <div style="opacity:0.7; font-size:10px;">Layer 3a</div>
           CLAP GD
@@ -244,42 +246,51 @@
         <div class="arch-box orange" style="flex:1; padding:6px 10px; font-size:11px;">
           <div style="opacity:0.7; font-size:10px;">Layer 3b</div>
           Bayesian BO
-          <div style="font-size:9px; font-weight:400; margin-top:1px;">Comp, Dist, ...</div>
+          <div style="font-size:9px; font-weight:400; margin-top:1px;">Comp, Dist, Delay, PitchShift, Bitcrush</div>
         </div>
       </div>
       <div class="arch-arrow" style="height:10px"></div>
-      <div class="arch-box green" style="width:240px; padding:6px 14px;">
+      <div class="arch-box green" style="width:250px; padding:6px 14px;">
         <div style="font-size:11px; opacity:0.7;">Output</div>
-        Optimized Parameters
+        Updated Params + Rendered Audio
       </div>
     </div>
-    <div style="width:280px; display:flex; flex-direction:column; gap:12px;">
+    <div style="width:300px; display:flex; flex-direction:column; gap:12px;">
       <div class="card" style="border:2px solid var(--accent)">
         <div class="card-header" style="background:var(--accent-light)">
           <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
           <span style="margin-left:8px;font-size:12px;font-weight:600;color:#E65100">Session State</span>
         </div>
         <div class="card-body" style="font-size:12px;">
-          <div class="mono" style="color:var(--text-secondary); margin-bottom:4px;">current_params:</div>
-          <div class="mono" style="padding-left:8px">{</div>
-          <div class="mono" style="padding-left:16px">"eq": {...},</div>
-          <div class="mono" style="padding-left:16px">"rev": {...}</div>
-          <div class="mono" style="padding-left:8px">}</div>
+          <div class="mono" style="color:var(--text-secondary); margin-bottom:4px;">history[] + current_params{}</div>
+          <div class="mono" style="padding-left:8px">Turn 1: "church" -&gt; [rev]</div>
+          <div class="mono" style="padding-left:8px">Turn 2: "add grit" -&gt; [rev, dist]</div>
           <div style="margin-top:8px; font-size:11px; color:var(--text-secondary);">
-            Accumulates across prompts<br>
-            Parser reads &amp; writes session
+            Layer 1 reads history.<br>
+            Orchestrator/Parser reuse current params across turns.
           </div>
         </div>
       </div>
       <div class="card">
         <div class="card-header">
           <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
-          <span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">Audio Pipeline</span>
+          <span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">Current Behavior</span>
         </div>
         <div class="card-body" style="font-size:12px;">
-          <div style="margin-bottom:4px"><span class="tag blue">DASP</span> Differentiable FX</div>
-          <div>Audio flows: DASP output &rarr; Pedalboard input</div>
-          <div style="margin-top:6px"><span class="tag orange">Pedalboard</span> Non-diff FX</div>
+          <div style="margin-bottom:6px;"><span class="tag blue">Turn 1</span> selector must choose at least one FX</div>
+          <div style="margin-bottom:6px;"><span class="tag green">Later turns</span> selector may return <span class="mono">[]</span> and just re-tune</div>
+          <div style="margin-bottom:6px;"><span class="tag orange">Case 2</span> LLM init + one render pass</div>
+          <div><span class="tag blue">Case 1 / 3</span> run DASP first, then Pedalboard BO</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+          <span style="margin-left:8px;font-size:12px;font-weight:600;color:#555">Audio Path</span>
+        </div>
+        <div class="card-body" style="font-size:12px;">
+          <div style="margin-bottom:4px"><span class="tag blue">DASP</span> differentiable stage with trajectory checkpoints</div>
+          <div><span class="tag orange">Pedalboard</span> non-differentiable stage, optimized after DASP output</div>
         </div>
       </div>
     </div>
@@ -292,45 +303,69 @@
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
   <div class="slide-title">Layer 1: FX Selector Agent</div>
-  <div class="flex gap-24" style="flex:1">
-    <div class="flex-1">
-      <ul class="bullets" style="margin-bottom:16px">
-        <li><span class="bold">GPT-4o</span> with function/tool-calling API</li>
-        <li>Each audio FX is wrapped as an <span class="highlight">OpenAI tool</span></li>
-        <li>Tool <span class="bold">call order</span> = signal chain order</li>
-        <li>Each tool called at most once</li>
+  <div class="flex gap-20" style="flex:1">
+    <div class="flex-1" style="display:flex; flex-direction:column; gap:12px;">
+      <ul class="bullets" style="margin-bottom:0">
+        <li><span class="bold">Model:</span> <span class="mono">google/gemini-3.1-pro-preview</span></li>
+        <li>Each FX is exposed as an <span class="highlight">add_&lt;fx&gt;</span> tool</li>
+        <li>Tool call order = signal chain order</li>
+        <li>Tools already in the session chain are hidden on refinement turns</li>
       </ul>
-      <div class="card" style="margin-top:12px;">
-        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">System Prompt</span></div>
-        <div class="card-body" style="font-size:12px; font-family:var(--mono); color:var(--text-secondary); line-height:1.6;">
-          "You are an expert audio engineer.<br>
-          Given a sound descriptor, select the<br>
-          appropriate audio effects and decide<br>
-          their order in the signal chain."
+      <div class="flex gap-12" style="flex:1; min-height:0;">
+        <div class="card flex-1" style="border-top:3px solid var(--primary);">
+          <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Initial Turn</span></div>
+          <div class="card-body" style="font-size:12px;">
+            <div style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:6px;">Empty history</div>
+            <div style="margin-bottom:8px; color:var(--text-secondary); line-height:1.5;">
+              Clean "pick the chain" prompt.<br>
+              <span class="mono">tool_choice="required"</span>
+            </div>
+            <div style="padding:8px 10px; background:#F5F7FA; border-radius:6px;">
+              Input: <span class="mono">"make it sound like a church"</span><br>
+              Output: <span class="mono" style="color:var(--primary)">[add_rev]</span>
+            </div>
+          </div>
+        </div>
+        <div class="card flex-1" style="border-top:3px solid var(--green);">
+          <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Refinement Turn</span></div>
+          <div class="card-body" style="font-size:12px;">
+            <div style="font-size:13px; font-weight:700; color:var(--green); margin-bottom:6px;">History-aware add-only prompt</div>
+            <div style="margin-bottom:8px; color:var(--text-secondary); line-height:1.5;">
+              Sees prior prompts + current chain.<br>
+              <span class="mono">tool_choice="auto"</span> so zero tool calls are allowed.
+            </div>
+            <div style="padding:8px 10px; background:#F3F9F4; border-radius:6px;">
+              Current chain: <span class="mono">[rev, dist]</span><br>
+              Request: <span class="mono">"too harsh, soften it"</span><br>
+              Output: <span class="mono" style="color:var(--green)">[]</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div style="width:360px">
+    <div style="width:330px; display:flex; flex-direction:column; gap:12px;">
       <div class="card">
-        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Available FX Tools</span></div>
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Available Tools</span></div>
         <div class="card-body">
-          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
-            <div class="fx-chip selected"><span style="font-size:10px; background:#fff3; border-radius:3px; padding:0 4px; margin-right:2px;">1</span> EQ</div>
-            <div class="fx-chip">Compressor</div>
-            <div class="fx-chip selected"><span style="font-size:10px; background:#fff3; border-radius:3px; padding:0 4px; margin-right:2px;">2</span> Reverb</div>
-            <div class="fx-chip">Distortion</div>
-            <div class="fx-chip">Delay</div>
-            <div class="fx-chip">PitchShift</div>
-            <div class="fx-chip">Bitcrush</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <div class="fx-chip">add_eq</div>
+            <div class="fx-chip">add_comp</div>
+            <div class="fx-chip selected">add_rev</div>
+            <div class="fx-chip selected">add_dist</div>
+            <div class="fx-chip">add_delay</div>
+            <div class="fx-chip">add_pitchshift</div>
+            <div class="fx-chip">add_bitcrush</div>
           </div>
-          <div style="background:#F5F5F5; border-radius:6px; padding:10px 12px; font-size:12px;">
-            <div style="color:var(--text-secondary); margin-bottom:4px;">Example:</div>
-            <div>Input: <span class="mono highlight">"warm"</span></div>
-            <div style="margin-top:4px">Output: <span class="mono" style="color:var(--primary)">[add_eq, add_rev]</span></div>
-            <div style="margin-top:4px; font-size:11px; color:var(--text-secondary)">
-              &rarr; FX Chain: <span class="bold">EQ &rarr; Reverb</span>
-            </div>
-          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">What Changed From Last Version</span></div>
+        <div class="card-body" style="font-size:12px;">
+          <ul class="bullets" style="font-size:12px;">
+            <li>Selector now reads <span class="mono">session.history</span></li>
+            <li>Can decide to add nothing and just re-tune</li>
+            <li>Prevents double-adding an FX already in the chain</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -343,7 +378,7 @@
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
   <div class="slide-title">Layer 2: Parser &mdash; Session-Aware Routing</div>
-  <div class="slide-subtitle" style="font-size:14px; margin-bottom:12px;">Routes to one of three paths based on which FX already exist in the session</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:12px;">The route now depends on whether the selected full chain already has params in the session</div>
   <div class="flex flex-col gap-12" style="flex:1">
     <div class="case-row" style="background:var(--green-light)">
       <span class="tag green" style="width:60px; text-align:center">Case 1</span>
@@ -359,7 +394,7 @@
       <div class="arrow-right"></div>
       <div class="arch-box blue" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">LLM initialize all</div>
       <div class="arrow-right"></div>
-      <div class="arch-box blue" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Optimize</div>
+      <div class="arch-box blue" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Render once</div>
     </div>
     <div class="case-row" style="background:var(--accent-light)">
       <span class="tag orange" style="width:60px; text-align:center">Case 3</span>
@@ -370,22 +405,23 @@
       <div class="arch-box orange" style="padding:4px 12px; font-size:12px; min-width:auto; border-width:1.5px;">Optimize</div>
     </div>
     <div class="card" style="margin-top:auto">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Example: Multi-Turn Session</span></div>
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555">Example: Case B from `tests/test_pipeline.py`</span></div>
       <div class="card-body flex gap-20" style="padding:10px 16px; font-size:12px;">
         <div style="flex:1">
-          <div class="bold" style="color:var(--primary); margin-bottom:4px">Turn 1: "bright"</div>
-          FX Chain: [eq]<br>
-          <span class="tag blue">Case 2</span> &rarr; LLM init EQ &rarr; GD optimize
+          <div class="bold" style="color:var(--primary); margin-bottom:4px">Turn 1: "make it sound like a church"</div>
+          Full chain: <span class="mono">[rev]</span><br>
+          <span class="tag blue">Case 2</span> &rarr; initialize reverb, then render once
         </div>
         <div style="flex:1">
-          <div class="bold" style="color:var(--accent); margin-bottom:4px">Turn 2: "add warmth"</div>
-          FX Chain: [eq, rev]<br>
-          <span class="tag orange">Case 3</span> &rarr; Reuse EQ + init Rev &rarr; optimize
+          <div class="bold" style="color:var(--accent); margin-bottom:4px">Turn 2: "add some grit"</div>
+          Full chain: <span class="mono">[rev, dist]</span><br>
+          <span class="tag orange">Case 3</span> &rarr; reuse rev + init dist &rarr; optimize
         </div>
         <div style="flex:1">
-          <div class="bold" style="color:var(--green); margin-bottom:4px">Turn 3: "more spacious"</div>
-          FX Chain: [eq, rev]<br>
-          <span class="tag green">Case 1</span> &rarr; Reuse both &rarr; optimize
+          <div class="bold" style="color:var(--green); margin-bottom:4px">Turn 3: "too harsh, soften it"</div>
+          Full chain: <span class="mono">[rev, dist]</span><br>
+          <span class="tag green">Case 1</span> &rarr; reuse both &rarr; re-optimize<br>
+          <span style="font-size:11px; color:#C62828;">Current issue: BO does not reliably reduce distortion.</span>
         </div>
       </div>
     </div>
@@ -479,19 +515,32 @@
       <div class="card-body">
         <div style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:6px;">Directional Loss</div>
         <svg width="180" height="110" viewBox="0 0 180 110">
-          <defs><marker id="ah1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#2196F3"/></marker><marker id="ah2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#FF9800"/></marker></defs>
-          <circle cx="30" cy="80" r="4" fill="#999"/>
-          <text x="14" y="96" font-size="9" fill="#999">anchor</text>
-          <line x1="30" y1="80" x2="140" y2="30" stroke="#2196F3" stroke-width="2" marker-end="url(#ah1)"/>
-          <text x="120" y="22" font-size="9" fill="#2196F3" font-weight="600">audio dir</text>
-          <line x1="30" y1="80" x2="155" y2="50" stroke="#FF9800" stroke-width="2" marker-end="url(#ah2)" stroke-dasharray="4,3"/>
-          <text x="135" y="60" font-size="9" fill="#FF9800" font-weight="600">text dir</text>
-          <path d="M60,65 A30,30 0 0,1 65,58" fill="none" stroke="#666" stroke-width="1"/>
-          <text x="68" y="60" font-size="9" fill="#666">&theta;</text>
+          <defs>
+            <marker id="ah1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#FF9800"/></marker>
+            <marker id="ah2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#2196F3"/></marker>
+          </defs>
+          <circle cx="32" cy="28" r="7" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"/>
+          <text x="27" y="31" font-size="8" fill="#E65100" font-weight="700">A</text>
+          <circle cx="146" cy="28" r="7" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"/>
+          <text x="141" y="31" font-size="8" fill="#E65100" font-weight="700">B</text>
+          <line x1="40" y1="28" x2="138" y2="28" stroke="#FF9800" stroke-width="2.5" marker-end="url(#ah1)"/>
+          <text x="72" y="18" font-size="9" fill="#E65100" font-weight="600">text_dir</text>
+
+          <circle cx="32" cy="82" r="7" fill="var(--primary-light)" stroke="#2196F3" stroke-width="2"/>
+          <text x="17" y="98" font-size="9" fill="#2196F3" font-weight="600">audio_0</text>
+          <circle cx="138" cy="66" r="7" fill="var(--primary-light)" stroke="#2196F3" stroke-width="2"/>
+          <text x="118" y="84" font-size="9" fill="#2196F3" font-weight="600">audio_t</text>
+          <line x1="40" y1="81" x2="130" y2="67" stroke="#2196F3" stroke-width="2.5" marker-end="url(#ah2)"/>
+          <text x="78" y="60" font-size="9" fill="#2196F3" font-weight="600">audio_dir</text>
+
+          <line x1="32" y1="35" x2="32" y2="75" stroke="#BDBDBD" stroke-width="1" stroke-dasharray="3,3"/>
+          <path d="M78,67 A22,22 0 0,1 84,49" fill="none" stroke="#666" stroke-width="1"/>
+          <text x="86" y="53" font-size="9" fill="#666">align</text>
         </svg>
         <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
-          Align audio movement with text movement<br>
-          <span class="mono" style="font-size:10px">L = 1 - cos(audio_dir, text_dir)</span>
+          Text says <span class="mono">A -&gt; B</span>; optimization should move audio in that same direction.<br>
+          <span class="mono" style="font-size:10px">text_dir = emb(B) - emb(A)</span><br>
+          <span class="mono" style="font-size:10px">audio_dir = emb(audio_t) - emb(audio_0)</span>
         </div>
       </div>
     </div>
@@ -539,70 +588,108 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 11 — Session Management
+     SLIDE 11 — Demo
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
-  <div class="slide-title">Session: Multi-Turn Refinement</div>
-  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">Parameters accumulate across prompts &mdash; each instruction builds on the previous state</div>
-  <div class="timeline" style="margin-bottom:20px; padding:0 20px;">
-    <div class="timeline-step">
-      <div class="timeline-dot"></div>
-      <div style="font-size:12px; font-weight:600; color:var(--primary); margin-bottom:4px;">Prompt 1</div>
-      <div style="font-size:11px;">"Make it <span class="bold">bright</span>"</div>
-    </div>
-    <div class="timeline-step">
-      <div class="timeline-dot" style="background:var(--accent); box-shadow:0 0 0 2px var(--accent);"></div>
-      <div style="font-size:12px; font-weight:600; color:#E65100; margin-bottom:4px;">Prompt 2</div>
-      <div style="font-size:11px;">"Add some <span class="bold">reverb</span>"</div>
-    </div>
-    <div class="timeline-step">
-      <div class="timeline-dot" style="background:var(--green); box-shadow:0 0 0 2px var(--green);"></div>
-      <div style="font-size:12px; font-weight:600; color:#2E7D32; margin-bottom:4px;">Prompt 3</div>
-      <div style="font-size:11px;">"Too harsh, <span class="bold">softer</span>"</div>
-    </div>
-  </div>
-  <div class="flex gap-12" style="flex:1">
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:var(--primary);font-weight:600">After Prompt 1</span></div>
-      <div class="card-body" style="font-size:11px; font-family:var(--mono);">
-        <div>current_params: {</div>
-        <div style="padding-left:8px; color:var(--primary);">"eq": {gain: [...], ...}</div>
-        <div>}</div>
-        <div style="margin-top:6px; font-family:var(--font); font-size:11px;">
-          <span class="tag blue">Case 2</span> LLM init &rarr; GD
-        </div>
-      </div>
-    </div>
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#E65100;font-weight:600">After Prompt 2</span></div>
-      <div class="card-body" style="font-size:11px; font-family:var(--mono);">
-        <div>current_params: {</div>
-        <div style="padding-left:8px; color:var(--primary);">"eq": {gain: [...], ...},</div>
-        <div style="padding-left:8px; color:#E65100;">"rev": {decay: 0.8, ...}</div>
-        <div>}</div>
-        <div style="margin-top:6px; font-family:var(--font); font-size:11px;">
-          <span class="tag orange">Case 3</span> Reuse eq + init rev
-        </div>
-      </div>
-    </div>
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#2E7D32;font-weight:600">After Prompt 3</span></div>
-      <div class="card-body" style="font-size:11px; font-family:var(--mono);">
-        <div>current_params: {</div>
-        <div style="padding-left:8px; color:var(--primary);">"eq": {gain: [...], ...},</div>
-        <div style="padding-left:8px; color:#E65100;">"rev": {decay: 0.8, ...}</div>
-        <div>}</div>
-        <div style="margin-top:6px; font-family:var(--font); font-size:11px;">
-          <span class="tag green">Case 1</span> Reuse both &rarr; re-optimize
-        </div>
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; text-align:center;">
+    <div>
+      <div style="font-size:64px; font-weight:800; color:var(--text); margin-bottom:8px;">Demo</div>
+      <div style="font-size:18px; color:var(--text-secondary); margin-bottom:32px;">Live System Demonstration</div>
+      <a href="#" class="demo-btn" id="demo-link">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Open Demo
+      </a>
+      <div style="margin-top:24px; font-size:13px; color:#999;">
+        Interactive: input audio + text prompt &rarr; optimized FX parameters
       </div>
     </div>
   </div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 12 — Evaluation Setup
+     SLIDE 12 — Case Study
+     ════════════════════════════════════════════════════════════════ -->
+<div class="slide">
+  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
+  <div class="slide-title">Case Study: `test_pipeline.py` Case B</div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:10px;">Routing is mostly correct; the current flaw is in distortion re-tuning during Pedalboard BO</div>
+  <div class="timeline" style="margin-bottom:20px; padding:0 20px;">
+    <div class="timeline-step">
+      <div class="timeline-dot"></div>
+      <div style="font-size:12px; font-weight:600; color:var(--primary); margin-bottom:4px;">Prompt 1</div>
+      <div style="font-size:11px;">"make it sound like a <span class="bold">church</span>"</div>
+    </div>
+    <div class="timeline-step">
+      <div class="timeline-dot" style="background:var(--accent); box-shadow:0 0 0 2px var(--accent);"></div>
+      <div style="font-size:12px; font-weight:600; color:#E65100; margin-bottom:4px;">Prompt 2</div>
+      <div style="font-size:11px;">"add some <span class="bold">grit</span>"</div>
+    </div>
+    <div class="timeline-step">
+      <div class="timeline-dot" style="background:var(--green); box-shadow:0 0 0 2px var(--green);"></div>
+      <div style="font-size:12px; font-weight:600; color:#2E7D32; margin-bottom:4px;">Prompt 3</div>
+      <div style="font-size:11px;">"too harsh, <span class="bold">soften it</span>"</div>
+    </div>
+  </div>
+  <div class="flex gap-12" style="flex:1">
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:var(--primary);font-weight:600">Turn 1 Result</span></div>
+      <div class="card-body" style="font-size:11px;">
+        <div class="mono" style="margin-bottom:6px;">fx_chain = ["rev"]</div>
+        <div style="margin-bottom:6px;"><span class="tag blue">Case 2</span> initialize all</div>
+        <div style="color:var(--text-secondary); line-height:1.45;">
+          Latest saved output picks reverb only, which matches the intended "church" behavior.
+        </div>
+      </div>
+    </div>
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#E65100;font-weight:600">Turn 2 Result</span></div>
+      <div class="card-body" style="font-size:11px;">
+        <div class="mono" style="margin-bottom:6px;">fx_chain = ["rev", "dist"]</div>
+        <div style="margin-bottom:6px;"><span class="tag orange">Case 3</span> reuse reverb + init distortion</div>
+        <div style="color:var(--text-secondary); line-height:1.45;">
+          Distortion is added as expected. In the saved run, <span class="mono">dist.drive_db = 10.0</span>.
+        </div>
+      </div>
+    </div>
+    <div class="card flex-1">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#2E7D32;font-weight:600">Turn 3 Result</span></div>
+      <div class="card-body" style="font-size:11px;">
+        <div class="mono" style="margin-bottom:6px;">fx_chain = ["rev", "dist"]</div>
+        <div style="margin-bottom:6px;"><span class="tag green">Case 1</span> reuse all, re-optimize</div>
+        <div style="color:#C62828; line-height:1.45;">
+          The selector behavior is correct, but BO does not actually soften the distortion:
+          <span class="mono">dist.drive_db</span> stays at <span class="mono">10.0</span>.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flex gap-12" style="margin-top:12px;">
+    <div class="card flex-1" style="border-left:3px solid var(--green);">
+      <div class="card-body" style="font-size:12px;">
+        <div class="bold" style="margin-bottom:4px;">What works</div>
+        <ul class="bullets" style="font-size:12px;">
+          <li>Session carries the chain forward correctly</li>
+          <li>Refinement turn adds no extra FX</li>
+          <li>Parser lands on the correct reuse path</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card flex-1" style="border-left:3px solid var(--emphasis);">
+      <div class="card-body" style="font-size:12px;">
+        <div class="bold" style="margin-bottom:4px;">Current flaw to discuss</div>
+        <ul class="bullets" style="font-size:12px;">
+          <li>Pedalboard BO is not reliably pushing distortion downward</li>
+          <li>Most movement happens in reverb params instead of the distortion control</li>
+          <li>This suggests the bottleneck is the BO objective / CLAP signal, not the routing logic</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SLIDE 13 — Evaluation Setup
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -678,7 +765,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 13 — Exp 1: Sequential MMD
+     SLIDE 14 — Exp 1: Sequential MMD
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -721,7 +808,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 14 — Exp 2: Trajectory
+     SLIDE 15 — Exp 2: Trajectory
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide slide-exp2-traj">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -764,7 +851,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 15 — Exp 3: PCA
+     SLIDE 16 — Exp 3: PCA
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -824,7 +911,7 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 16 — Exp 5: LLM Init Ablation
+     SLIDE 17 — Exp 5: LLM Init Ablation
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
@@ -870,24 +957,6 @@
           </ul>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════════════════════════
-     SLIDE 17 — Demo
-     ════════════════════════════════════════════════════════════════ -->
-<div class="slide" style="justify-content:center; align-items:center; text-align:center;">
-  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
-  <div>
-    <div style="font-size:64px; font-weight:800; color:var(--text); margin-bottom:8px;">Demo</div>
-    <div style="font-size:18px; color:var(--text-secondary); margin-bottom:32px;">Live System Demonstration</div>
-    <a href="#" class="demo-btn" id="demo-link">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      Open Demo
-    </a>
-    <div style="margin-top:24px; font-size:13px; color:#999;">
-      Interactive: Input audio + text prompt &rarr; Optimized FX parameters
     </div>
   </div>
 </div>
