@@ -23,26 +23,45 @@ turn. Issue surfaced in `v1_B/turn3` ("too harsh, soften it"): the selector
 stacked an EQ on top of the existing reverb+distortion chain instead of
 re-tuning the existing distortion, and the BO result was poor.
 
-### v2 — Layer 1 sees session history + may add no FX
+### v2 — Layer 1 sees session history (interim design, NOT run)
 
-Two changes to `src/agents/fx_selector.py`:
+Two minimal changes to `src/agents/fx_selector.py` over v1, still on `gpt-4o`
+with a single system prompt:
 
-1. `select()` now takes `session.history` and renders the prior turns
-   (`prompt → chain became [...]`) into the user message, so the selector
-   knows what's already in the chain and why.
-2. `tool_choice` switched from `"required"` to `"auto"`. The selector may
-   return zero tool calls when the existing chain already contains the right
-   effects; in that case the orchestrator carries the existing chain into
-   parser Case 1, which re-optimizes the existing params for the new
-   descriptor.
+1. `select()` takes `session.history` and renders prior turns into the user
+   message so the selector knows what's already in the chain.
+2. `tool_choice` switched from `"required"` to `"auto"` so the selector can
+   return zero tool calls when the existing chain already covers the
+   request, letting parser Case 1 re-tune the existing FX.
 
-Goal: in cases like `B/turn3`, let the selector skip adding FX and let BO
-re-tune the existing distortion to soften it, instead of stacking EQ.
+This was the originally-scoped v2. It was rolled forward into v3 before
+being run, so there are no `v2_*` output dirs — v2 exists only as a
+design step, kept here to make the v1 → v3 trajectory legible.
 
-### v3 — (planned) selector may also REMOVE existing FX
+### v3 — split initial/refinement prompts + Gemini 3 Pro
 
-Not implemented in this session. The idea is to give the selector a
-`remove_<fx>` tool (or otherwise express subtraction) so it can prune the
-chain when a reprompt suggests an earlier FX is no longer wanted. Requires
-plumbing changes in `Session` / `Parser` to actually drop FX from
-`current_params`, so it is intentionally deferred.
+Builds on v2:
+
+1. `select()` now uses **two distinct system prompts** depending on whether
+   it's the first turn:
+   - **Initial path** (empty history, turn 1): a clean "pick FX for this
+     descriptor" prompt with no mention of refinement / existing chain,
+     and `tool_choice="required"` so the model must pick at least one FX.
+   - **Refinement path** (non-empty history): the v2-style history-aware
+     prompt with `tool_choice="auto"`. Tools for FX already in the chain
+     are filtered out so the model can't double-add.
+2. Model swapped from `gpt-4o` to `google/gemini-3.1-pro-preview` (via
+   OpenRouter). Goal: cleaner one-shot tool-calling decisions, less
+   over-adding (e.g. `church → reverb only`, not `eq + reverb`).
+
+Goal in `B/turn3` ("too harsh, soften it"): selector returns zero tool
+calls, orchestrator carries the existing chain into parser Case 1, BO
+re-tunes the existing distortion instead of stacking an EQ.
+
+### v4 — (planned) selector may also REMOVE existing FX
+
+Not implemented yet. The idea is to give the selector a `remove_<fx>` tool
+(or otherwise express subtraction) so it can prune the chain when a
+reprompt suggests an earlier FX is no longer wanted. Requires plumbing
+changes in `Session` / `Parser` to actually drop FX from `current_params`,
+so it is intentionally deferred.
