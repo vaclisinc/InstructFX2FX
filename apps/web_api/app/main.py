@@ -15,6 +15,7 @@ from .schemas import (
     SessionCreateRequest,
     SessionListResponse,
     SessionResponse,
+    SessionUpdateRequest,
 )
 from .service import ARTIFACTS_ROOT, available_fx_metadata, artifact_url, service
 
@@ -32,9 +33,11 @@ app.mount("/artifacts", StaticFiles(directory=str(ARTIFACTS_ROOT)), name="artifa
 def _session_to_response(record) -> SessionResponse:
     return SessionResponse(
         session_id=record.session_id,
+        name=record.name,
         available_fx=list(record.session.available_fx),
         audio_uploaded=record.audio_path is not None,
         audio_filename=record.audio_path.name if record.audio_path else None,
+        audio_artifact=artifact_url(record.audio_path) if record.audio_path else None,
         history_length=len(record.session.history),
         runs=service.session_runs_payload(record.session_id),
         created_at=record.created_at,
@@ -74,7 +77,7 @@ def list_sessions() -> SessionListResponse:
 
 @app.post("/sessions", response_model=SessionResponse)
 def create_session(payload: SessionCreateRequest) -> SessionResponse:
-    record = service.create_session(payload.available_fx)
+    record = service.create_session(payload.available_fx, payload.name)
     return _session_to_response(record)
 
 
@@ -84,6 +87,27 @@ def get_session(session_id: str) -> SessionResponse:
     if record is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return _session_to_response(record)
+
+
+@app.patch("/sessions/{session_id}", response_model=SessionResponse)
+def update_session(session_id: str, payload: SessionUpdateRequest) -> SessionResponse:
+    record = service.get_session(session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        updated = service.rename_session(session_id, payload.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _session_to_response(updated)
+
+
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: str) -> dict[str, str]:
+    record = service.get_session(session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    service.delete_session(session_id)
+    return {"status": "deleted"}
 
 
 @app.post("/sessions/{session_id}/audio", response_model=AudioUploadResponse)
