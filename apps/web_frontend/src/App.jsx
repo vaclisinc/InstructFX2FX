@@ -10,6 +10,13 @@ const FX_LABELS = {
   pitchshift: "pitch shift",
   bitcrush: "bitcrush",
 };
+
+const ROUTE_LABELS = {
+  reuse_all: "Case 1 · reuse and optimize existing FX",
+  initialize_all: "Case 2 · initialize new FX only",
+  reuse_and_initialize: "Case 3 · mix existing FX with new initialization",
+  empty_chain: "Empty chain",
+};
 const DEFAULT_SETTINGS = {
   n_iterations: 10,
   learning_rate: 0.01,
@@ -36,6 +43,10 @@ function formatFxLabel(fx) {
 
 function formatFxChain(fxChain) {
   return (fxChain || []).map(formatFxLabel).join(" -> ");
+}
+
+function formatRouteCase(routeCase) {
+  return ROUTE_LABELS[routeCase] || "Waiting for parser route";
 }
 
 export default function App() {
@@ -202,8 +213,10 @@ export default function App() {
 
   const checkpoints = activeRun?.result?.trajectory || [];
   const selectedCheckpoint = checkpoints[selectedCheckpointIndex] || null;
-  const uiMetadata = activeRun?.result?.metadata?.ui || {};
-  const routeCase = activeRun?.result?.metadata?.route_case || null;
+  const runMetadata = activeRun?.result?.metadata || {};
+  const uiMetadata = runMetadata.ui || {};
+  const routeCase = runMetadata.route_case || null;
+  const stageMetadata = runMetadata.stages || {};
   const canBrowseTrajectory = Boolean(uiMetadata.can_browse_trajectory);
   const selectedCheckpointIsSessionHead =
     Boolean(
@@ -235,6 +248,23 @@ export default function App() {
     Object.keys(selectedCheckpoint.params).length > 0
       ? selectedCheckpoint.params
       : activeRun?.result?.params || {};
+  const activeFxChain = activeRun?.result?.fx_chain || [];
+  const hasDaspStage = activeFxChain.some((fx) => ["eq", "rev"].includes(fx));
+  const hasPedalboardStage = activeFxChain.some((fx) => !["eq", "rev"].includes(fx));
+  const daspStageStatus = stageMetadata.dasp
+    ? "Completed"
+    : activeRun?.status === "running" && hasDaspStage
+      ? "Running"
+      : hasDaspStage
+        ? "Planned"
+        : "Not used";
+  const pedalboardStageStatus = stageMetadata.pedalboard
+    ? "Completed"
+    : activeRun?.status === "running" && hasPedalboardStage
+      ? hasDaspStage ? "Queued after DASP" : "Running"
+      : hasPedalboardStage
+        ? "Planned"
+        : "Not used";
 
   let statusText = "No run selected";
   if (activeRun) {
@@ -804,6 +834,56 @@ export default function App() {
               </div>
 
               {renderRunModeMessage()}
+
+              <details className="trace-panel" open={activeRun?.status === "running"}>
+                <summary>Pipeline trace</summary>
+                <div className="trace-stack">
+                  <div className="trace-item">
+                    <div className="trace-head">
+                      <h3>Layer 1 · FX selector</h3>
+                      <span className="trace-status">{activeFxChain.length > 0 ? "Resolved" : "Pending"}</span>
+                    </div>
+                    <p className="trace-copy">
+                      {activeFxChain.length > 0 ? `Selected chain: ${formatFxChain(activeFxChain)}` : "Waiting for selected FX chain."}
+                    </p>
+                    <div className="chips">
+                      <span className="chip">{activeRun.settings?.llm_model || "default model"}</span>
+                    </div>
+                  </div>
+
+                  <div className="trace-item">
+                    <div className="trace-head">
+                      <h3>Layer 2 · Session router</h3>
+                      <span className="trace-status">{routeCase ? "Resolved" : "Pending"}</span>
+                    </div>
+                    <p className="trace-copy">{formatRouteCase(routeCase)}</p>
+                  </div>
+
+                  <div className="trace-item">
+                    <div className="trace-head">
+                      <h3>Layer 3A · DASP optimization</h3>
+                      <span className="trace-status">{daspStageStatus}</span>
+                    </div>
+                    <p className="trace-copy">
+                      {hasDaspStage
+                        ? `Gradient descent on ${formatFxChain(activeFxChain.filter((fx) => ["eq", "rev"].includes(fx)))}`
+                        : "No DASP FX in this chain."}
+                    </p>
+                  </div>
+
+                  <div className="trace-item">
+                    <div className="trace-head">
+                      <h3>Layer 3B · Pedalboard optimization</h3>
+                      <span className="trace-status">{pedalboardStageStatus}</span>
+                    </div>
+                    <p className="trace-copy">
+                      {hasPedalboardStage
+                        ? `Bayesian optimization on ${formatFxChain(activeFxChain.filter((fx) => !["eq", "rev"].includes(fx)))}`
+                        : "No Pedalboard FX in this chain."}
+                    </p>
+                  </div>
+                </div>
+              </details>
 
               <div className="audio-grid">
                 <div className="audio-card">
