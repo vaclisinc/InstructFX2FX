@@ -24,6 +24,9 @@ function formatPercent(value) {
 export default function App() {
   const [sessionCatalog, setSessionCatalog] = useState([]);
   const [session, setSession] = useState(null);
+  const [sessionNameDraft, setSessionNameDraft] = useState("");
+  const [openSessionMenuId, setOpenSessionMenuId] = useState(null);
+  const [editingSessionId, setEditingSessionId] = useState(null);
   const [audioFile, setAudioFile] = useState(null);
   const [instruction, setInstruction] = useState("");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -32,6 +35,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [selectedCheckpointIndex, setSelectedCheckpointIndex] = useState(0);
+  const [pendingAudioPreviewUrl, setPendingAudioPreviewUrl] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +82,21 @@ export default function App() {
   const promptModeLabel = (session?.history_length || 0) > 0 ? "Refinement prompt" : "Initial prompt";
 
   useEffect(() => {
+    setSessionNameDraft(session?.name || "");
+  }, [session?.session_id, session?.name]);
+
+  useEffect(() => {
+    if (!audioFile) {
+      setPendingAudioPreviewUrl("");
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(audioFile);
+    setPendingAudioPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [audioFile]);
+
+  useEffect(() => {
     if (!selectedRunId && liveRunId) {
       setSelectedRunId(liveRunId);
     }
@@ -107,6 +126,22 @@ export default function App() {
       cancelled = true;
     };
   }, [selectedRunId]);
+
+  useEffect(() => {
+    if (!openSessionMenuId) {
+      return undefined;
+    }
+
+    function handlePointerDown(event) {
+      if (event.target.closest(".session-menu-wrap")) {
+        return;
+      }
+      setOpenSessionMenuId(null);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [openSessionMenuId]);
 
   useEffect(() => {
     if (!activeRun || activeRun.status === "completed" || activeRun.status === "failed") {
@@ -161,6 +196,12 @@ export default function App() {
   const inputAudioSrc = activeRun?.result?.artifacts?.input_audio
     ? `${API_BASE}${activeRun.result.artifacts.input_audio}`
     : "";
+  const dryAudioSrc = pendingAudioPreviewUrl || (session?.audio_artifact ? `${API_BASE}${session.audio_artifact}` : "");
+  const audioLocked = Boolean(session?.audio_uploaded);
+  const comparisonLabel =
+    (activeRun?.result?.artifacts?.input_audio && activeRun?.result?.artifacts?.dry_audio !== activeRun?.result?.artifacts?.input_audio)
+      ? "Previous output"
+      : "Dry audio";
 
   const selectedParams =
     canBrowseTrajectory &&
@@ -294,6 +335,91 @@ export default function App() {
     }
   }
 
+  async function handleDeleteSession(item) {
+    if (!window.confirm(`Delete session "${item.name || "Untitled session"}"? This will remove its saved runs and audio.`)) {
+      return;
+    }
+
+    try {
+      setError("");
+      await fetchJson(`/sessions/${item.session_id}`, { method: "DELETE" });
+      const listed = await fetchJson("/sessions");
+      const nextCatalog = listed.sessions || [];
+      setSessionCatalog(nextCatalog);
+      setOpenSessionMenuId(null);
+      setEditingSessionId(null);
+
+      if (session?.session_id === item.session_id) {
+        if (nextCatalog.length > 0) {
+          const nextSession = await fetchJson(`/sessions/${nextCatalog[0].session_id}`);
+          setSession(nextSession);
+          const nextRunId = nextSession.runs?.length ? nextSession.runs[nextSession.runs.length - 1].run_id : null;
+          setSelectedRunId(nextRunId);
+        } else {
+          const created = await fetchJson("/sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          const refreshed = await fetchJson("/sessions");
+          setSessionCatalog(refreshed.sessions || []);
+          setSession(created);
+          setSelectedRunId(null);
+        }
+        setActiveRun(null);
+        setSelectedCheckpointIndex(0);
+        setAudioFile(null);
+        setInstruction("");
+      }
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
+  async function handleRenameSession(event) {
+    event.preventDefault();
+    if (!editingSessionId) {
+      return;
+    }
+
+    const nextName = sessionNameDraft.trim();
+    if (!nextName) {
+      setError("Session name cannot be empty.");
+      return;
+    }
+
+    try {
+      setError("");
+      const updated = await fetchJson(`/sessions/${editingSessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nextName }),
+      });
+      const listed = await fetchJson("/sessions");
+      if (session?.session_id === editingSessionId) {
+        setSession(updated);
+      }
+      setSessionCatalog(listed.sessions || []);
+      setEditingSessionId(null);
+      setOpenSessionMenuId(null);
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
+  function handleStartRenameSession(item) {
+    setEditingSessionId(item.session_id);
+    setSessionNameDraft(item.name || "");
+    setOpenSessionMenuId(null);
+    setError("");
+  }
+
+  function handleCancelRenameSession() {
+    setEditingSessionId(null);
+    setSessionNameDraft(session?.name || "");
+    setOpenSessionMenuId(null);
+  }
+
   function updateSetting(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
   }
@@ -343,17 +469,17 @@ export default function App() {
           <p className="sidebar-note">
             Prompt-guided tone design for musicians, with session memory, checkpoint playback, and refinement history.
           </p>
-          <div className="session-actions">
-            <button type="button" className="secondary-action" onClick={handleCreateSession}>
-              New session
-            </button>
-          </div>
         </div>
 
         <div className="sidebar-card history-card">
           <div className="section-head">
-            <h2>Sessions</h2>
-            <span>{sessionCatalog.length}</span>
+            <div className="section-head-group">
+              <h2>Sessions</h2>
+              <span>{sessionCatalog.length}</span>
+            </div>
+            <button type="button" className="plus-action" onClick={handleCreateSession} aria-label="Create new session">
+              +
+            </button>
           </div>
           <div className="history-stack compact-stack">
             {sessionCatalog.length === 0 ? (
@@ -361,21 +487,79 @@ export default function App() {
             ) : (
               sessionCatalog.map((item) => {
                 const isActive = item.session_id === session?.session_id;
+                const isEditing = item.session_id === editingSessionId;
+                const isMenuOpen = item.session_id === openSessionMenuId;
                 return (
-                  <button
+                  <div
                     key={item.session_id}
-                    type="button"
-                    className={`session-button${isActive ? " active" : ""}`}
-                    onClick={() => handleSelectSession(item.session_id)}
+                    className={`session-row${isActive ? " active" : ""}${isEditing ? " editing" : ""}${isMenuOpen ? " menu-open" : ""}`}
                   >
-                    <div className="history-topline">
-                      <strong>{item.latest_prompt || "Untitled session"}</strong>
-                    </div>
-                    <div className="history-subline">
-                      <span>{item.history_length} prompt{item.history_length === 1 ? "" : "s"}</span>
-                      <span>{item.audio_uploaded ? "audio ready" : "no audio"}</span>
-                    </div>
-                  </button>
+                    {isEditing ? (
+                      <form className="session-rename-inline" onSubmit={handleRenameSession}>
+                        <input
+                          type="text"
+                          value={sessionNameDraft}
+                          onChange={(event) => setSessionNameDraft(event.target.value)}
+                          placeholder="Untitled session"
+                          maxLength={120}
+                          autoFocus
+                        />
+                        <div className="session-rename-actions">
+                          <button
+                            type="submit"
+                            className="mini-action"
+                            disabled={sessionNameDraft.trim() === (item.name || "")}
+                          >
+                            Save
+                          </button>
+                          <button type="button" className="mini-action ghost" onClick={handleCancelRenameSession}>
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className={`session-button${isActive ? " active" : ""}`}
+                          onClick={() => handleSelectSession(item.session_id)}
+                        >
+                          <div className="history-topline">
+                            <strong>{item.name || "Untitled session"}</strong>
+                          </div>
+                          <div className="history-subline">
+                            <span>{item.latest_prompt || "No prompts yet"}</span>
+                          </div>
+                          <div className="history-subline">
+                            <span>{item.history_length} prompt{item.history_length === 1 ? "" : "s"}</span>
+                            <span>{item.audio_uploaded ? "audio ready" : "no audio"}</span>
+                          </div>
+                        </button>
+                        <div className="session-menu-wrap">
+                          <button
+                            type="button"
+                            className="session-menu-trigger"
+                            aria-label={`Session actions for ${item.name || "Untitled session"}`}
+                            onClick={() => setOpenSessionMenuId(isMenuOpen ? null : item.session_id)}
+                          >
+                            <span />
+                            <span />
+                            <span />
+                          </button>
+                          {isMenuOpen ? (
+                            <div className="session-menu">
+                              <button type="button" onClick={() => handleStartRenameSession(item)}>
+                                Rename
+                              </button>
+                              <button type="button" className="danger-item" onClick={() => handleDeleteSession(item)}>
+                                Delete
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 );
               })
             )}
@@ -407,6 +591,9 @@ export default function App() {
                     <div className="history-subline">
                       <span>{item.fx_chain?.join(" -> ") || "Awaiting output"}</span>
                       <span>{formatPercent(item.progress)}</span>
+                    </div>
+                    <div className="history-subline">
+                      <span>{item.llm_model || "default model"}</span>
                     </div>
                   </button>
                 );
@@ -440,18 +627,29 @@ export default function App() {
             <label className="field">
               <span>Dry audio</span>
               <div className="file-picker">
-                <label className={`file-trigger${viewingHistory ? " disabled" : ""}`} htmlFor="dry-audio-input">
-                  Select audio
-                </label>
-                <span className="file-name">
-                  {audioFile?.name || (session?.audio_uploaded ? "Current session audio loaded" : "No file selected")}
-                </span>
+                {dryAudioSrc ? (
+                  <div className="uploaded-audio-block">
+                    <div className="uploaded-audio-meta">
+                      <span className="file-name">
+                        {audioFile?.name || session?.audio_filename || "Current session audio"}
+                      </span>
+                    </div>
+                    <audio controls src={dryAudioSrc} />
+                  </div>
+                ) : (
+                  <>
+                    <label className={`file-trigger${viewingHistory ? " disabled" : ""}`} htmlFor="dry-audio-input">
+                      Select audio
+                    </label>
+                    <span className="file-name">No file selected</span>
+                  </>
+                )}
                 <input
                   id="dry-audio-input"
                   className="native-file-input"
                   type="file"
                   accept=".wav,audio/wav"
-                  disabled={viewingHistory}
+                  disabled={viewingHistory || audioLocked}
                   onChange={(event) => setAudioFile(event.target.files?.[0] || null)}
                 />
               </div>
@@ -560,7 +758,7 @@ export default function App() {
 
               <div className="audio-grid">
                 <div className="audio-card">
-                  <h3>Input</h3>
+                  <h3>{comparisonLabel}</h3>
                   <audio controls src={inputAudioSrc} />
                 </div>
                 <div className="audio-card">
@@ -605,6 +803,16 @@ export default function App() {
                   {(activeRun.result?.fx_chain || []).map((fx) => (
                     <span key={fx} className="chip">{fx}</span>
                   ))}
+                </div>
+              </div>
+
+              <div className="stack compact">
+                <h3>Run settings</h3>
+                <div className="chips">
+                  <span className="chip">{activeRun.settings?.llm_model || "default model"}</span>
+                  <span className="chip">{`${activeRun.settings?.n_iterations ?? "?"} iter`}</span>
+                  <span className="chip">{`lr ${activeRun.settings?.learning_rate ?? "?"}`}</span>
+                  <span className="chip">{`snap ${activeRun.settings?.snapshot_interval ?? "off"}`}</span>
                 </div>
               </div>
 

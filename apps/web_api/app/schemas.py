@@ -15,13 +15,20 @@ class RunSettings(BaseModel):
 
 class SessionCreateRequest(BaseModel):
     available_fx: list[str] = Field(default_factory=lambda: list(DEFAULT_AVAILABLE_FX))
+    name: str | None = None
+
+
+class SessionUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
 
 
 class SessionResponse(BaseModel):
     session_id: str
+    name: str
     available_fx: list[str]
     audio_uploaded: bool
     audio_filename: str | None
+    audio_artifact: str | None = None
     history_length: int
     runs: list[dict[str, Any]] = Field(default_factory=list)
     created_at: str | None = None

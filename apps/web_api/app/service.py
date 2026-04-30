@@ -121,6 +121,7 @@ class EngineRuntime:
 @dataclass
 class SessionRecord:
     session_id: str
+    name: str
     session: Session
     audio_path: Path | None
     created_at: str
@@ -173,6 +174,7 @@ class WebDemoService:
         session_dir.mkdir(parents=True, exist_ok=True)
         payload = {
             "session_id": session_record.session_id,
+            "name": session_record.name,
             "available_fx": list(session_record.session.available_fx),
             "current_params": dict(session_record.session.current_params),
             "history": session_history_payload(session_record.session),
@@ -230,6 +232,11 @@ class WebDemoService:
             audio_path = payload.get("audio_path")
             record = SessionRecord(
                 session_id=payload["session_id"],
+                name=payload.get("name") or (
+                    payload.get("history", [{}])[-1].get("prompt")
+                    if payload.get("history")
+                    else "Untitled session"
+                ),
                 session=session,
                 audio_path=(ARTIFACTS_ROOT / audio_path) if audio_path else None,
                 created_at=payload.get("created_at", utc_now_iso()),
@@ -309,6 +316,23 @@ class WebDemoService:
             "history": session_history_payload(session_record.session),
         }
 
+    def _previous_run(self, session_id: str, run_id: str) -> RunRecord | None:
+        with self.lock:
+            runs = [item for item in self.runs.values() if item.session_id == session_id]
+        runs.sort(key=lambda item: item.created_at)
+        for index, item in enumerate(runs):
+            if item.run_id == run_id:
+                return runs[index - 1] if index > 0 else None
+        return None
+
+    def _comparison_input_audio(self, session_record: SessionRecord, run: RunRecord) -> str | None:
+        previous_run = self._previous_run(session_record.session_id, run.run_id)
+        if previous_run and previous_run.result:
+            previous_audio = previous_run.result.get("artifacts", {}).get("final_audio")
+            if previous_audio:
+                return previous_audio
+        return artifact_url(session_record.audio_path) if session_record.audio_path else None
+
     def session_runs_payload(self, session_id: str) -> list[dict[str, Any]]:
         with self.lock:
             runs = [run for run in self.runs.values() if run.session_id == session_id]
@@ -331,6 +355,7 @@ class WebDemoService:
                     "current_iteration": run.current_iteration,
                     "total_iterations": run.total_iterations,
                     "route_case": metadata.get("route_case"),
+                    "llm_model": run.settings.get("llm_model"),
                     "fx_chain": result.get("fx_chain", []),
                     "final_audio": artifacts.get("final_audio"),
                     "can_browse_trajectory": ui.get("can_browse_trajectory", False),
@@ -346,6 +371,7 @@ class WebDemoService:
         return [
             {
                 "session_id": record.session_id,
+                "name": record.name,
                 "created_at": record.created_at,
                 "updated_at": record.updated_at,
                 "audio_uploaded": record.audio_path is not None,
@@ -361,7 +387,8 @@ class WebDemoService:
             "fx_chain": [],
             "params": {},
             "artifacts": {
-                "input_audio": artifact_url(session_record.audio_path) if session_record.audio_path else None,
+                "dry_audio": artifact_url(session_record.audio_path) if session_record.audio_path else None,
+                "input_audio": self._comparison_input_audio(session_record, run),
                 "final_audio": None,
             },
             "trajectory": trajectory,
@@ -408,12 +435,13 @@ class WebDemoService:
         )
         return filtered
 
-    def create_session(self, available_fx: list[str] | None = None) -> SessionRecord:
+    def create_session(self, available_fx: list[str] | None = None, name: str | None = None) -> SessionRecord:
         available_fx = available_fx or list(DEFAULT_AVAILABLE_FX)
         session_id = uuid.uuid4().hex
         now = utc_now_iso()
         record = SessionRecord(
             session_id=session_id,
+            name=(name or "Untitled session").strip() or "Untitled session",
             session=Session(available_fx=available_fx),
             audio_path=None,
             created_at=now,
@@ -427,6 +455,29 @@ class WebDemoService:
     def get_session(self, session_id: str) -> SessionRecord | None:
         with self.lock:
             return self.sessions.get(session_id)
+
+    def rename_session(self, session_id: str, name: str) -> SessionRecord:
+        cleaned_name = name.strip()
+        if not cleaned_name:
+            raise ValueError("Session name cannot be empty")
+        with self.lock:
+            record = self.sessions[session_id]
+            record.name = cleaned_name
+            record.updated_at = utc_now_iso()
+            self._persist_session(record)
+            return record
+
+    def delete_session(self, session_id: str) -> None:
+        with self.lock:
+            record = self.sessions.pop(session_id, None)
+            if record is None:
+                raise KeyError(session_id)
+
+            run_ids = [run_id for run_id, run in self.runs.items() if run.session_id == session_id]
+            for run_id in run_ids:
+                self.runs.pop(run_id, None)
+
+        shutil.rmtree(self._session_dir(session_id), ignore_errors=True)
 
     def attach_audio(self, session_id: str, source_path: Path, filename: str) -> SessionRecord:
         with self.lock:
@@ -689,7 +740,8 @@ class WebDemoService:
             "fx_chain": raw_result["fx_chain"],
             "params": raw_result["params"],
             "artifacts": {
-                "input_audio": artifact_url(session_record.audio_path),
+                "dry_audio": artifact_url(session_record.audio_path),
+                "input_audio": self._comparison_input_audio(session_record, run),
                 "final_audio": artifact_url(final_audio_path),
             },
             "trajectory": trajectory,
