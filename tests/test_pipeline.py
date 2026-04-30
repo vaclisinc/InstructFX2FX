@@ -34,7 +34,7 @@ AUDIO_PATH = os.path.join(os.path.dirname(__file__), "..", "dry_audio", "piano",
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
 # Bump this when changing pipeline behavior so prior runs don't get overwritten.
 # See tests/outputs/VERSIONS.md for what each version means.
-VERSION = "v3"
+VERSION = "v4"
 N_ITERATIONS = 10
 ALL_FX = ["eq", "comp", "rev", "dist", "delay", "pitchshift", "bitcrush"]
 
