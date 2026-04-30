@@ -94,6 +94,16 @@ Global / output:
 }
 
 _EFFECT_DESCRIPTIONS_PEDALBOARD = {
+    "compressor": """\
+COMPRESSOR
+
+{
+  "threshold_db": float in [-60.0, 0.0], step 1.0,
+  "ratio": float in [1.0, 20.0], step 0.5 (log scale),
+  "attack_ms": float in [0.1, 100.0], step 0.1 (log scale),
+  "release_ms": float in [10.0, 1000.0], step 1.0 (log scale)
+}""",
+
     "eq": """\
 EQ
 
@@ -184,6 +194,14 @@ _EFFECT_OUTPUT_BLOCKS_DASP = {
 }
 
 _EFFECT_OUTPUT_BLOCKS_PEDALBOARD = {
+    "compressor": '''\
+  "Compressor": {
+    "threshold_db": ...,
+    "ratio": ...,
+    "attack_ms": ...,
+    "release_ms": ...
+  }''',
+
     "eq": '''\
   "EQ": {
     "mode": ...,
@@ -234,6 +252,7 @@ _EFFECT_DICT_KEYS = {
 }
 
 _EFFECT_DICT_KEYS_PEDALBOARD = {
+  "compressor": "Compressor",
   "eq": "EQ",
   "distortion": "Distortion",
   "reverb": "Reverb",
