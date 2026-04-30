@@ -1,6 +1,6 @@
 ## Exisiting Issue
 
-1. DASP reverb is way slower than eq on GD:
+1. DASP reverb is way slower than eq:
  The root cause is clear. The NoiseShapedReverb forward pass does a time-domain convolution of
    the full audio against a synthesized impulse response with:
   - num_samples=65536 (~1.5 s IR at 44100 Hz)
@@ -19,4 +19,4 @@
   2. Switch to FFT convolution — torchaudio.functional.fftconvolve or torch.fft-based
   overlap-add would make long IRs affordable, but requires patching the library or wrapping it.
 
-  Let me check if num_samples can be set at construction time:
+-> solved but still slow (at least no OOM on my macbook)
