@@ -23,6 +23,12 @@ class SessionResponse(BaseModel):
     audio_filename: str | None
     history_length: int
     runs: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AudioUploadResponse(BaseModel):

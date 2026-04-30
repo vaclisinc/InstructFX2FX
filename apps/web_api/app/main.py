@@ -13,6 +13,7 @@ from .schemas import (
     RunCreateRequest,
     RunEnvelope,
     SessionCreateRequest,
+    SessionListResponse,
     SessionResponse,
 )
 from .service import ARTIFACTS_ROOT, available_fx_metadata, artifact_url, service
@@ -36,6 +37,8 @@ def _session_to_response(record) -> SessionResponse:
         audio_filename=record.audio_path.name if record.audio_path else None,
         history_length=len(record.session.history),
         runs=service.session_runs_payload(record.session_id),
+        created_at=record.created_at,
+        updated_at=record.updated_at,
     )
 
 
@@ -62,6 +65,11 @@ def health() -> dict[str, str]:
 @app.get("/fx-metadata", response_model=FxMetadataResponse)
 def fx_metadata() -> FxMetadataResponse:
     return FxMetadataResponse(available_fx=available_fx_metadata())
+
+
+@app.get("/sessions", response_model=SessionListResponse)
+def list_sessions() -> SessionListResponse:
+    return SessionListResponse(sessions=service.sessions_payload())
 
 
 @app.post("/sessions", response_model=SessionResponse)

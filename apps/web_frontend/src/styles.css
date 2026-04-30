@@ -198,22 +198,26 @@ h3 {
   color: rgba(245, 237, 227, 0.72);
 }
 
-.session-meta {
-  display: grid;
-  gap: 0.68rem;
-  font-size: 0.92rem;
+.session-actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
-.session-meta strong {
-  display: inline-block;
-  min-width: 3.7rem;
-  color: rgba(245, 237, 227, 0.56);
-  font-weight: 500;
+.secondary-action {
+  border-radius: 999px;
+  padding: 0.78rem 1rem;
+  background: rgba(255, 245, 228, 0.08);
+  color: var(--text-inverse);
+  border: 1px solid rgba(214, 186, 147, 0.14);
 }
 
 .history-stack {
   display: grid;
   gap: 0.72rem;
+}
+
+.compact-stack {
+  gap: 0.55rem;
 }
 
 .history-button {
@@ -250,6 +254,21 @@ h3 {
     0 14px 32px rgba(0, 0, 0, 0.18);
 }
 
+.session-button {
+  width: 100%;
+  text-align: left;
+  padding: 0.78rem 0.9rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 248, 236, 0.05);
+  color: #fbf3ea;
+  border: 1px solid rgba(214, 186, 147, 0.08);
+}
+
+.session-button.active {
+  background: rgba(201, 158, 95, 0.14);
+  border-color: rgba(214, 186, 147, 0.24);
+}
+
 .history-topline,
 .history-subline,
 .progress-meta,
@@ -262,14 +281,24 @@ h3 {
 .history-topline {
   margin-bottom: 0.35rem;
   align-items: baseline;
+  min-width: 0;
 }
 
 .history-topline strong {
-  max-width: 12rem;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
+}
+
+.history-status {
+  flex: 0 0 auto;
+  padding-left: 0.8rem;
+  white-space: nowrap;
+  color: rgba(245, 237, 227, 0.72);
 }
 
 .history-subline {
@@ -313,6 +342,52 @@ h3 {
   min-height: 6.5rem;
   resize: vertical;
   line-height: 1.55;
+}
+
+.file-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 4rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(103, 74, 47, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 252, 247, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.native-file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.file-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8.5rem;
+  padding: 0.82rem 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2b221c 0%, #4c3828 100%);
+  color: #f7ecde;
+  box-shadow: 0 10px 24px rgba(49, 31, 18, 0.14);
+}
+
+.file-trigger.disabled {
+  opacity: 0.52;
+}
+
+.file-name {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.95rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .field input:focus,
