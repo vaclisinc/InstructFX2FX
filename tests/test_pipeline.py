@@ -36,12 +36,12 @@ ALL_FX = ["eq", "comp", "rev", "dist", "delay", "pitchshift", "bitcrush"]
 
 
 def load_audio(path: str) -> torch.Tensor:
-    waveform, sr = torchaudio.load(path)
+    import numpy as np
+    data, sr = sf.read(path, always_2d=True)  # [T, C]
+    waveform = torch.from_numpy(data.T).float()  # [C, T]
     if sr != 44100:
         waveform = torchaudio.functional.resample(waveform, sr, 44100)
-    if waveform.ndim == 2:
-        waveform = waveform.unsqueeze(0)  # [1, C, T]
-    return waveform
+    return waveform.unsqueeze(0)  # [1, C, T]
 
 
 def save_audio(tensor: torch.Tensor, path: str):

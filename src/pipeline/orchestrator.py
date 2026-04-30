@@ -1,7 +1,10 @@
+import torch
 from agents.fx_selector import FXSelectorAgent
 from agents.parser import Parser
 from configurations.config import LossFunction
 from session.session import Session
+
+_DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Orchestrator:
@@ -18,7 +21,7 @@ class Orchestrator:
         out = orch.run("warm", session, dry_audio)
     """
 
-    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01,
+    def __init__(self, llm_client, clap_model, device=_DEFAULT_DEVICE, n_iterations=100, lr=0.01,
                  loss_function=LossFunction.SEMANTIC_SIMILARITY_LOSS):
         self.fx_selector = FXSelectorAgent(llm_client)
         self.parser      = Parser(llm_client, clap_model, device=device,

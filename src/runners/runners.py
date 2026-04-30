@@ -546,7 +546,7 @@ def run_LLMLLM_vs_InstructFX2FX(
     sample_rate: int = 44100,
     iterations: int = 1000,
     results_dir: str = "results",
-    device: str = "cpu",
+    device: str = "cuda" if torch.cuda.is_available() else "cpu",
     nr_of_experiments_per_file: int = 1,
     fx_chain=None,
     effects: List[str] = None,
