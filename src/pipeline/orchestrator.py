@@ -1,5 +1,6 @@
 from agents.fx_selector import FXSelectorAgent
 from agents.parser import Parser
+from configurations.config import LossFunction
 from session.session import Session
 
 
@@ -17,10 +18,12 @@ class Orchestrator:
         out = orch.run("warm", session, dry_audio)
     """
 
-    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01):
+    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01,
+                 loss_function=LossFunction.SEMANTIC_SIMILARITY_LOSS):
         self.fx_selector = FXSelectorAgent(llm_client)
         self.parser      = Parser(llm_client, clap_model, device=device,
-                                  n_iterations=n_iterations, lr=lr)
+                                  n_iterations=n_iterations, lr=lr,
+                                  loss_function=loss_function)
 
     def run(self, instruction: str, session: Session, audio) -> dict:
         """Process one user prompt end-to-end.

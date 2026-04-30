@@ -8,6 +8,7 @@ import torch
 from pedalboard import (
     Pedalboard,
     Bitcrush as PedalboardBitcrush,
+    Compressor as PedalboardCompressor,
     Delay as PedalboardDelay,
     Distortion as PedalboardDistortion,
     HighpassFilter,
@@ -184,6 +185,19 @@ def _render_pedalboard_bitcrush(audio, sample_rate, params):
     )
 
 
+def _render_pedalboard_compressor(audio, sample_rate, params):
+    return _render_pedalboard_plugins(
+        audio,
+        sample_rate,
+        [PedalboardCompressor(
+            threshold_db=params["threshold_db"],
+            ratio=params["ratio"],
+            attack_ms=params["attack_ms"],
+            release_ms=params["release_ms"],
+        )],
+    )
+
+
 class DASPEffectAdapter(Effect):
     def __init__(self, effect_name, dict_key, effect_cls, sample_rate=44100):
         self.effect_name = effect_name
@@ -289,6 +303,7 @@ DASP_EFFECT_SPECS = {
 
 PEDALBOARD_EFFECT_SPECS = {
     "eq": EffectSpec("eq", "EQ", FXFamily.PEDALBOARD, renderer=_render_pedalboard_eq),
+    "compressor": EffectSpec("compressor", "Compressor", FXFamily.PEDALBOARD, renderer=_render_pedalboard_compressor),
     "distortion": EffectSpec("distortion", "Distortion", FXFamily.PEDALBOARD, renderer=_render_pedalboard_distortion),
     "reverb": EffectSpec("reverb", "Reverb", FXFamily.PEDALBOARD, renderer=_render_pedalboard_reverb),
     "delay": EffectSpec("delay", "Delay", FXFamily.PEDALBOARD, renderer=_render_pedalboard_delay),
@@ -446,6 +461,12 @@ ALL_PARAM_RANGES_DASP = {
 }
 
 ALL_PARAM_RANGES_PB = {
+    "Compressor": {
+        "threshold_db": {"lo": -60.0, "hi": 0.0, "res": 1.0, "scale": "linear"},
+        "ratio":        {"lo": 1.0,   "hi": 20.0, "res": 0.5, "scale": "log"},
+        "attack_ms":    {"lo": 0.1,   "hi": 100.0, "res": 0.1, "scale": "log"},
+        "release_ms":   {"lo": 10.0,  "hi": 1000.0, "res": 1.0, "scale": "log"},
+    },
     "Distortion": {"drive_db": {"lo": 0, "hi": 15, "res": 0.1, "scale": "linear"}},
     "EQ": {
         "mode": {"choices":

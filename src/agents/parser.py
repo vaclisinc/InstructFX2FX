@@ -5,6 +5,7 @@ import tempfile
 
 import torch
 
+from configurations.config import LossFunction
 from effects.fx import FXChainFactory
 from FxSearcher.fxsearcher import fxsearcher
 from prompts.prompt import PromptFactory
@@ -36,6 +37,15 @@ _PB_DICT_KEY = {
     # "panner":     "Panner",
 }
 
+# canonical → PromptFactory effect name for Pedalboard prompts
+_PB_PROMPT_KEY = {
+    "comp":       "compressor",
+    "dist":       "distortion",
+    "delay":      "delay",
+    "pitchshift": "pitchshift",
+    "bitcrush":   "bitcrush",
+}
+
 # ASSUMPTION: Compressor goes through Pedalboard + BO, not DASP + gradient descent, since it has discrete attack/release times that are not well-suited to gradient-based optimization. If this changes, we may need to update the prompts and how we route FX in Parser.
 
 
@@ -53,12 +63,14 @@ class Parser:
         DASP runs first; its output audio is fed as input to the Pedalboard stage.
     """
 
-    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01):
+    def __init__(self, llm_client, clap_model, device="cpu", n_iterations=100, lr=0.01,
+                 loss_function=LossFunction.SEMANTIC_SIMILARITY_LOSS):
         self.llm = llm_client
         self.clap_model = clap_model
         self.device = device
         self.n_iterations = n_iterations
         self.lr = lr
+        self.loss_function = loss_function
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -118,9 +130,10 @@ class Parser:
                     result[fx] = params_dict[dict_key]
 
         if pb_fxs:
+            prompt_names = [_PB_PROMPT_KEY[fx] for fx in pb_fxs]
             prompt = PromptFactory.LLM_PARAMETER_INITIALIZATION_PROMPT_PEDALBOARD(
                 instruction=instruction,
-                effects=pb_fxs,
+                effects=prompt_names,
             )
             pb_dict = self.llm.generate_parameters(prompt)
             for fx in pb_fxs:
@@ -158,13 +171,14 @@ class Parser:
         dasp_init_dict = {_DASP_DICT_KEY[fx]: init_params[fx] for fx in dasp_fxs if fx in init_params}
         init_tensor    = fx_initial_params_to_tensor(dasp_init_dict, device=self.device)
 
-        final_tensor, _, audios = move_in_CLAP(
+        final_tensor, _, _, audios = move_in_CLAP(
             audio=audio,
             fx_chain=fx_chain_obj,
             initial_params=init_tensor,
             text_anchor="dry audio",
             target=instruction,
             clap_model=self.clap_model,
+            loss_function=self.loss_function,
             n_iterations=self.n_iterations,
             lr=self.lr,
             device=self.device,
