@@ -12,13 +12,27 @@ FX_DESCRIPTIONS = {
     # "panner":    "Panner — controls stereo placement and width",
 }
 
-_SYSTEM_PROMPT = """You are an expert audio engineer. Given a sound descriptor, select the appropriate audio effects (FX) and decide their order in the signal chain.
+_SYSTEM_PROMPT = """You are an expert audio engineer. Given a sound descriptor and the existing effect chain from prior turns in the session, decide which effect(s), if any, to ADD to the chain.
 
 Rules:
-- Call each tool in the ORDER you want effects applied to the audio signal (first call = first in chain).
-- Call each tool AT MOST ONCE.
-- Only select effects that are relevant to achieving the described sound.
-- You may select zero or more effects."""
+- Call each tool in the ORDER you want any new effects applied (first call = first in chain among the new effects).
+- Call each tool AT MOST ONCE, and do NOT call a tool for an effect that is already in the existing chain.
+- If the existing chain already contains the right effects for the new request, return NO tool calls — the existing effects will be re-tuned (parameters re-optimized) for the new descriptor. For example, if the chain already has distortion and the user says "too harsh, soften it", the right move is usually to re-tune the existing distortion (return no tools), not to stack an EQ on top.
+- If the existing chain is empty, you must select at least one effect that fits the request."""
+
+
+def _format_history(history: list) -> str:
+    """Render prior PromptRecords into a short human-readable trace.
+
+    Each PromptRecord.fx_chain is the full accumulated chain at that turn,
+    so we just show "prompt → chain became [...]" per turn.
+    """
+    if not history:
+        return ""
+    lines = ["Prior turns in this session:"]
+    for i, record in enumerate(history, 1):
+        lines.append(f'  Turn {i}: "{record.prompt}" → chain became {record.fx_chain}')
+    return "\n".join(lines)
 
 
 class FXSelectorAgent:
@@ -31,16 +45,22 @@ class FXSelectorAgent:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
 
-    def select(self, instruction: str, available_fx: list) -> list:
+    def select(self, instruction: str, available_fx: list, history: list = None) -> list:
         """Return ordered list of canonical FX names for the given instruction.
 
         Args:
             instruction: single word or short phrase (e.g. "warm", "bright")
             available_fx: list of canonical names the user has (e.g. ["eq", "comp", "rev"])
+            history: list of PromptRecord from session.history — prior (prompt, fx_chain)
+                pairs so the agent can decide whether the existing chain already
+                covers the request.
 
         Returns:
-            ordered list of canonical FX names (e.g. ["eq", "rev"])
+            ordered list of canonical FX names to ADD this turn (may be empty)
         """
+        history = history or []
+        existing_chain = history[-1].fx_chain if history else []
+
         tools = [
             {
                 "type": "function",
@@ -51,20 +71,32 @@ class FXSelectorAgent:
                 },
             }
             for fx in available_fx
-            if fx in FX_DESCRIPTIONS
+            if fx in FX_DESCRIPTIONS and fx not in existing_chain
         ]
 
         if not tools:
             return []
 
+        history_text = _format_history(history)
+        if history_text:
+            user_msg = (
+                f"{history_text}\n\n"
+                f"Current chain: {existing_chain}\n"
+                f"New request: {instruction}\n\n"
+                "Decide what effect(s) to ADD. If the existing chain already has the right "
+                "effects for this request, return no tool calls — they will be re-tuned."
+            )
+        else:
+            user_msg = f"Select effects for: {instruction}"
+
         response = self.llm.llm.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": f"Select effects for: {instruction}"},
+                {"role": "user", "content": user_msg},
             ],
             tools=tools,
-            tool_choice="required",
+            tool_choice="auto",
         )
 
         message = response.choices[0].message

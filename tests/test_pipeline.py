@@ -32,6 +32,9 @@ from session.session import Session
 
 AUDIO_PATH = os.path.join(os.path.dirname(__file__), "..", "dry_audio", "piano", "piano.wav")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
+# Bump this when changing pipeline behavior so prior runs don't get overwritten.
+# See tests/outputs/VERSIONS.md for what each version means.
+VERSION = "v2"
 N_ITERATIONS = 10
 ALL_FX = ["eq", "comp", "rev", "dist", "delay", "pitchshift", "bitcrush"]
 
@@ -153,7 +156,7 @@ def main():
     # Case A — EQ only (DASP path)
     # Turn 1: "bright" should select at least eq
     # Turn 2: "warmer" with eq already in session → Case 1 (reuse + re-optimize)
-    errs = run_case("A", [
+    errs = run_case(f"{VERSION}_A", [
         ("bright", ["eq"]),
         ("warmer", ["eq"]),
     ], orch, audio)
@@ -163,7 +166,7 @@ def main():
     # Turn 1: "make it sound like a church" should select at least rev
     # Turn 2: "add some grit" should add dist (Case 3: new + existing)
     # Turn 3: "too harsh, soften it" should reuse existing FX (Case 1)
-    errs = run_case("B", [
+    errs = run_case(f"{VERSION}_B", [
         ("make it sound like a church", ["rev"]),
         ("add some grit", ["dist"]),
         ("too harsh, soften it", []),
@@ -172,7 +175,7 @@ def main():
 
     # Case C — Pedalboard only
     # "distorted and crushed" should select at least dist
-    errs = run_case("C", [
+    errs = run_case(f"{VERSION}_C", [
         ("distorted and crushed", ["dist"]),
     ], orch, audio)
     all_errors.extend(errs)
