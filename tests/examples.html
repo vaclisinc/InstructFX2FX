@@ -272,6 +272,7 @@
 
   <script>
     let examples = [];
+    const DEFAULT_OUTPUTS_PATH = "./outputs/";
 
     const pickFolderButton = document.getElementById("pick-folder");
     const folderInput = document.getElementById("folder-input");
@@ -313,6 +314,10 @@
 
     function setStatus(message) {
       status.textContent = message;
+    }
+
+    function joinUrl(base, path) {
+      return new URL(path, base).toString();
     }
 
     function updateCaseFilter(items) {
@@ -376,6 +381,100 @@
 
     async function readText(file) {
       return file.text();
+    }
+
+    async function fetchText(url) {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.status}`);
+      }
+      return response.text();
+    }
+
+    async function listDirectoryLinks(url) {
+      const html = await fetchText(url);
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return [...doc.querySelectorAll("a[href]")]
+        .map((anchor) => anchor.getAttribute("href"))
+        .filter((href) => href && href !== "../" && href !== "..");
+    }
+
+    function isDirectoryHref(href) {
+      return href.endsWith("/");
+    }
+
+    function isTurnFolder(name) {
+      return /^turn\d+\/?$/i.test(name);
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.status}`);
+      }
+      return response.json();
+    }
+
+    async function loadFromOutputsDirectory(baseUrl) {
+      examples.forEach((example) => {
+        if (example.beforeAudioUrl?.startsWith("blob:")) {
+          URL.revokeObjectURL(example.beforeAudioUrl);
+        }
+        if (example.afterAudioUrl?.startsWith("blob:")) {
+          URL.revokeObjectURL(example.afterAudioUrl);
+        }
+      });
+
+      const caseHrefs = (await listDirectoryLinks(baseUrl)).filter((href) => isDirectoryHref(href));
+      const discovered = [];
+
+      await Promise.all(caseHrefs.map(async (caseHref) => {
+        const caseName = caseHref.replace(/\/$/, "");
+        const caseUrl = joinUrl(baseUrl, caseHref);
+        const turnHrefs = (await listDirectoryLinks(caseUrl)).filter((href) => isDirectoryHref(href) && isTurnFolder(href));
+
+        await Promise.all(turnHrefs.map(async (turnHref) => {
+          const turnName = turnHref.replace(/\/$/, "");
+          const turnUrl = joinUrl(caseUrl, `${turnName}/`);
+
+          let payload;
+          try {
+            payload = await fetchJson(joinUrl(turnUrl, "params.json"));
+          } catch (_) {
+            return;
+          }
+
+          const normalized = normalizePayload(payload);
+          const turnNumber = inferTurnNumber(turnName);
+          discovered.push({
+            case: caseName,
+            turn: Number.isFinite(turnNumber) ? turnNumber : turnName,
+            turn_label: turnName,
+            prompt: normalized.prompt,
+            reprompt: normalized.prompt,
+            fx_chain: normalized.fx_chain,
+            params: normalized.params,
+            beforeAudioUrl: joinUrl(turnUrl, "before.wav"),
+            afterAudioUrl: joinUrl(turnUrl, "after.wav"),
+          });
+        }));
+      }));
+
+      examples = discovered.sort((a, b) => {
+        const caseOrder = naturalCompare(a.case, b.case);
+        if (caseOrder !== 0) {
+          return caseOrder;
+        }
+        return naturalCompare(a.turn, b.turn);
+      });
+
+      updateCaseFilter(examples);
+      setStatus(
+        examples.length
+          ? `Loaded ${examples.length} example${examples.length === 1 ? "" : "s"} from ${DEFAULT_OUTPUTS_PATH}.`
+          : `No valid turn folders found under ${DEFAULT_OUTPUTS_PATH}.`
+      );
+      applyFilters();
     }
 
     async function loadFromFileList(fileList) {
@@ -563,7 +662,18 @@
 
     searchInput.addEventListener("input", applyFilters);
     caseFilter.addEventListener("change", applyFilters);
-    applyFilters();
+
+    (async () => {
+      setStatus(`Trying to load ${DEFAULT_OUTPUTS_PATH}...`);
+      try {
+        await loadFromOutputsDirectory(DEFAULT_OUTPUTS_PATH);
+      } catch (_) {
+        setStatus(
+          `Could not auto-load ${DEFAULT_OUTPUTS_PATH}. If you opened this page via file://, use the folder picker or serve tests/ over HTTP.`
+        );
+        applyFilters();
+      }
+    })();
   </script>
 </body>
 </html>
