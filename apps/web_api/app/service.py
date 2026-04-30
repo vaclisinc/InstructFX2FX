@@ -26,12 +26,14 @@ from effects.fx import FXChainFactory, FXFamily
 from embeddings.clap import CLAPWrapper
 from llms.llmclient import LLMClient
 from pipeline.orchestrator import Orchestrator
-from session.session import Session
+from session.session import PromptRecord, Session
 
 from .schemas import DEFAULT_AVAILABLE_FX
 
 ARTIFACTS_ROOT = PROJECT_ROOT / "apps" / "web_api" / "artifacts"
 ARTIFACTS_ROOT.mkdir(parents=True, exist_ok=True)
+SESSIONS_ROOT = ARTIFACTS_ROOT / "sessions"
+SESSIONS_ROOT.mkdir(parents=True, exist_ok=True)
 
 PB_CANONICAL_TO_EFFECT_NAME = {
     "comp": "compressor",
@@ -148,6 +150,127 @@ class WebDemoService:
         self.runs: dict[str, RunRecord] = {}
         self.lock = threading.RLock()
         self.executor = ThreadPoolExecutor(max_workers=2)
+        self._load_persisted_state()
+
+    @staticmethod
+    def _session_dir(session_id: str) -> Path:
+        return SESSIONS_ROOT / session_id
+
+    @staticmethod
+    def _session_summary_path(session_id: str) -> Path:
+        return WebDemoService._session_dir(session_id) / "session.json"
+
+    @staticmethod
+    def _run_dir(session_id: str, run_id: str) -> Path:
+        return WebDemoService._session_dir(session_id) / "runs" / run_id
+
+    @staticmethod
+    def _run_summary_path(session_id: str, run_id: str) -> Path:
+        return WebDemoService._run_dir(session_id, run_id) / "run.json"
+
+    def _persist_session(self, session_record: SessionRecord) -> None:
+        session_dir = self._session_dir(session_record.session_id)
+        session_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "session_id": session_record.session_id,
+            "available_fx": list(session_record.session.available_fx),
+            "current_params": dict(session_record.session.current_params),
+            "history": session_history_payload(session_record.session),
+            "audio_path": str(session_record.audio_path.relative_to(ARTIFACTS_ROOT)) if session_record.audio_path else None,
+            "created_at": session_record.created_at,
+            "updated_at": session_record.updated_at,
+        }
+        with self._session_summary_path(session_record.session_id).open("w") as handle:
+            json.dump(payload, handle, indent=2)
+
+    def _persist_run(self, run: RunRecord) -> None:
+        run_dir = self._run_dir(run.session_id, run.run_id)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "run_id": run.run_id,
+            "session_id": run.session_id,
+            "instruction": run.instruction,
+            "settings": run.settings,
+            "status": run.status,
+            "created_at": run.created_at,
+            "updated_at": run.updated_at,
+            "progress": run.progress,
+            "current_iteration": run.current_iteration,
+            "total_iterations": run.total_iterations,
+            "error": run.error,
+        }
+        with self._run_summary_path(run.session_id, run.run_id).open("w") as handle:
+            json.dump(payload, handle, indent=2)
+
+    def _load_persisted_state(self) -> None:
+        if not SESSIONS_ROOT.exists():
+            return
+
+        for session_dir in sorted(SESSIONS_ROOT.iterdir()):
+            if not session_dir.is_dir():
+                continue
+
+            session_path = session_dir / "session.json"
+            if not session_path.exists():
+                continue
+
+            with session_path.open() as handle:
+                payload = json.load(handle)
+
+            session = Session(available_fx=payload.get("available_fx", list(DEFAULT_AVAILABLE_FX)))
+            session.current_params = payload.get("current_params", {})
+            session.history = [
+                PromptRecord(
+                    prompt=item.get("prompt", ""),
+                    fx_chain=list(item.get("fx_chain", [])),
+                    params=dict(item.get("params", {})),
+                )
+                for item in payload.get("history", [])
+            ]
+            audio_path = payload.get("audio_path")
+            record = SessionRecord(
+                session_id=payload["session_id"],
+                session=session,
+                audio_path=(ARTIFACTS_ROOT / audio_path) if audio_path else None,
+                created_at=payload.get("created_at", utc_now_iso()),
+                updated_at=payload.get("updated_at", utc_now_iso()),
+            )
+            self.sessions[record.session_id] = record
+
+            runs_dir = session_dir / "runs"
+            if not runs_dir.exists():
+                continue
+
+            for run_dir in sorted(runs_dir.iterdir()):
+                if not run_dir.is_dir():
+                    continue
+                run_summary_path = run_dir / "run.json"
+                if not run_summary_path.exists():
+                    continue
+                with run_summary_path.open() as handle:
+                    run_payload = json.load(handle)
+
+                result_path = run_dir / "result.json"
+                result_payload = None
+                if result_path.exists():
+                    with result_path.open() as handle:
+                        result_payload = json.load(handle)
+
+                run_record = RunRecord(
+                    run_id=run_payload["run_id"],
+                    session_id=run_payload["session_id"],
+                    instruction=run_payload["instruction"],
+                    settings=run_payload.get("settings", {}),
+                    status=run_payload.get("status", "completed"),
+                    created_at=run_payload.get("created_at", utc_now_iso()),
+                    updated_at=run_payload.get("updated_at", utc_now_iso()),
+                    progress=run_payload.get("progress", 0.0),
+                    current_iteration=run_payload.get("current_iteration", 0),
+                    total_iterations=run_payload.get("total_iterations"),
+                    result=result_payload,
+                    error=run_payload.get("error"),
+                )
+                self.runs[run_record.run_id] = run_record
 
     @staticmethod
     def _ui_state_for(route_case: str | None, trajectory: list[dict[str, Any]]) -> dict[str, Any]:
@@ -215,6 +338,23 @@ class WebDemoService:
             )
         return payload
 
+    def sessions_payload(self) -> list[dict[str, Any]]:
+        with self.lock:
+            session_records = list(self.sessions.values())
+
+        session_records.sort(key=lambda item: item.updated_at, reverse=True)
+        return [
+            {
+                "session_id": record.session_id,
+                "created_at": record.created_at,
+                "updated_at": record.updated_at,
+                "audio_uploaded": record.audio_path is not None,
+                "history_length": len(record.session.history),
+                "latest_prompt": record.session.history[-1].prompt if record.session.history else None,
+            }
+            for record in session_records
+        ]
+
     def _initial_run_payload(self, session_record: SessionRecord, run: RunRecord) -> dict[str, Any]:
         trajectory: list[dict[str, Any]] = []
         return {
@@ -281,6 +421,7 @@ class WebDemoService:
         )
         with self.lock:
             self.sessions[session_id] = record
+            self._persist_session(record)
         return record
 
     def get_session(self, session_id: str) -> SessionRecord | None:
@@ -297,6 +438,8 @@ class WebDemoService:
         shutil.copy2(source_path, audio_path)
         record.audio_path = audio_path
         record.updated_at = utc_now_iso()
+        with self.lock:
+            self._persist_session(record)
         return record
 
     def submit_run(self, session_id: str, instruction: str, settings: dict[str, Any]) -> RunRecord:
@@ -314,6 +457,7 @@ class WebDemoService:
         )
         with self.lock:
             self.runs[run_id] = record
+            self._persist_run(record)
         self.executor.submit(self._execute_run, run_id)
         return record
 
@@ -329,6 +473,7 @@ class WebDemoService:
             run.updated_at = utc_now_iso()
             run.result = self._initial_run_payload(session_record, run)
             self._update_progress_payload(run)
+            self._persist_run(run)
 
         try:
             if session_record.audio_path is None:
@@ -365,12 +510,15 @@ class WebDemoService:
                 run.updated_at = utc_now_iso()
                 session_record.updated_at = utc_now_iso()
                 self._update_progress_payload(run)
+                self._persist_run(run)
+                self._persist_session(session_record)
         except Exception as exc:
             with self.lock:
                 run.error = str(exc)
                 run.status = "failed"
                 run.updated_at = utc_now_iso()
                 self._update_progress_payload(run)
+                self._persist_run(run)
 
     def _handle_progress_event(self, run_id: str, run_dir: Path, event: dict[str, Any]) -> None:
         with self.lock:
@@ -425,6 +573,7 @@ class WebDemoService:
             payload["session_snapshot"] = self._build_session_snapshot(session_record)
             run.updated_at = utc_now_iso()
             self._update_progress_payload(run)
+            self._persist_run(run)
 
     def _apply_pedalboard_chain(
         self,
@@ -561,6 +710,7 @@ class WebDemoService:
         result_json_path = run_dir / "result.json"
         with result_json_path.open("w") as handle:
             json.dump(payload, handle, indent=2)
+        self._persist_run(run)
         return payload
 
 

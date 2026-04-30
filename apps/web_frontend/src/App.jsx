@@ -21,6 +21,7 @@ function formatPercent(value) {
 }
 
 export default function App() {
+  const [sessionCatalog, setSessionCatalog] = useState([]);
   const [session, setSession] = useState(null);
   const [audioFile, setAudioFile] = useState(null);
   const [instruction, setInstruction] = useState("");
@@ -36,13 +37,24 @@ export default function App() {
 
     async function bootstrap() {
       try {
-        const created = await fetchJson("/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
+        const listed = await fetchJson("/sessions");
+        const sessions = listed.sessions || [];
+        let targetSession;
+        let nextCatalog = sessions;
+        if (sessions.length > 0) {
+          targetSession = await fetchJson(`/sessions/${sessions[0].session_id}`);
+        } else {
+          targetSession = await fetchJson("/sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          const refreshedList = await fetchJson("/sessions");
+          nextCatalog = refreshedList.sessions || [];
+        }
         if (!cancelled) {
-          setSession(created);
+          setSessionCatalog(nextCatalog);
+          setSession(targetSession);
         }
       } catch (err) {
         if (!cancelled) {
@@ -102,12 +114,14 @@ export default function App() {
 
     const timer = window.setInterval(async () => {
       try {
-        const [nextRun, refreshedSession] = await Promise.all([
+        const [nextRun, refreshedSession, listed] = await Promise.all([
           fetchJson(`/runs/${activeRun.run_id}`),
           fetchJson(`/sessions/${activeRun.session_id}`),
+          fetchJson("/sessions"),
         ]);
         setActiveRun(nextRun);
         setSession(refreshedSession);
+        setSessionCatalog(listed.sessions || []);
         if (nextRun.status === "completed") {
           setBusy(false);
         }
@@ -178,8 +192,12 @@ export default function App() {
       method: "POST",
       body: formData,
     });
-    const refreshedSession = await fetchJson(`/sessions/${session.session_id}`);
+    const [refreshedSession, listed] = await Promise.all([
+      fetchJson(`/sessions/${session.session_id}`),
+      fetchJson("/sessions"),
+    ]);
     setSession(refreshedSession);
+    setSessionCatalog(listed.sessions || []);
   }
 
   async function handleRun(event) {
@@ -218,8 +236,12 @@ export default function App() {
       });
       setActiveRun(createdRun);
       setSelectedRunId(createdRun.run_id);
-      const refreshedSession = await fetchJson(`/sessions/${session.session_id}`);
+      const [refreshedSession, listed] = await Promise.all([
+        fetchJson(`/sessions/${session.session_id}`),
+        fetchJson("/sessions"),
+      ]);
       setSession(refreshedSession);
+      setSessionCatalog(listed.sessions || []);
       setSelectedCheckpointIndex(0);
     } catch (err) {
       setBusy(false);
@@ -231,6 +253,43 @@ export default function App() {
     setSelectedRunId(runId);
     setSelectedCheckpointIndex(0);
     setError("");
+  }
+
+  async function handleSelectSession(sessionId) {
+    try {
+      setError("");
+      setBusy(false);
+      const loaded = await fetchJson(`/sessions/${sessionId}`);
+      setSession(loaded);
+      const nextRunId = loaded.runs?.length ? loaded.runs[loaded.runs.length - 1].run_id : null;
+      setSelectedRunId(nextRunId);
+      setActiveRun(null);
+      setSelectedCheckpointIndex(0);
+      setAudioFile(null);
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
+  async function handleCreateSession() {
+    try {
+      setError("");
+      const created = await fetchJson("/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const listed = await fetchJson("/sessions");
+      setSessionCatalog(listed.sessions || []);
+      setSession(created);
+      setSelectedRunId(null);
+      setActiveRun(null);
+      setInstruction("");
+      setAudioFile(null);
+      setSelectedCheckpointIndex(0);
+    } catch (err) {
+      setError(String(err));
+    }
   }
 
   function updateSetting(key, value) {
@@ -278,14 +337,46 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-card session-card">
           <p className="eyebrow">Session</p>
-          <h1>text2preset</h1>
+          <h1>InstructFX2FX</h1>
           <p className="sidebar-note">
             Prompt-guided tone design for musicians, with session memory, checkpoint playback, and refinement history.
           </p>
-          <div className="session-meta">
-            <div><strong>ID</strong> {session?.session_id || "Bootstrapping..."}</div>
-            <div><strong>Audio</strong> {session?.audio_uploaded ? "uploaded" : "missing"}</div>
-            <div><strong>Mode</strong> {promptModeLabel}</div>
+          <div className="session-actions">
+            <button type="button" className="secondary-action" onClick={handleCreateSession}>
+              New session
+            </button>
+          </div>
+        </div>
+
+        <div className="sidebar-card history-card">
+          <div className="section-head">
+            <h2>Sessions</h2>
+            <span>{sessionCatalog.length}</span>
+          </div>
+          <div className="history-stack compact-stack">
+            {sessionCatalog.length === 0 ? (
+              <p className="muted">No saved sessions yet.</p>
+            ) : (
+              sessionCatalog.map((item) => {
+                const isActive = item.session_id === session?.session_id;
+                return (
+                  <button
+                    key={item.session_id}
+                    type="button"
+                    className={`session-button${isActive ? " active" : ""}`}
+                    onClick={() => handleSelectSession(item.session_id)}
+                  >
+                    <div className="history-topline">
+                      <strong>{item.latest_prompt || "Untitled session"}</strong>
+                    </div>
+                    <div className="history-subline">
+                      <span>{item.history_length} prompt{item.history_length === 1 ? "" : "s"}</span>
+                      <span>{item.audio_uploaded ? "audio ready" : "no audio"}</span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -309,7 +400,7 @@ export default function App() {
                   >
                     <div className="history-topline">
                       <strong>{item.instruction}</strong>
-                      <span>{item.status}</span>
+                      <span className="history-status">{item.status}</span>
                     </div>
                     <div className="history-subline">
                       <span>{item.fx_chain?.join(" -> ") || "Awaiting output"}</span>
@@ -346,12 +437,22 @@ export default function App() {
           <form onSubmit={handleRun} className="stack">
             <label className="field">
               <span>Dry audio</span>
-              <input
-                type="file"
-                accept=".wav,audio/wav"
-                disabled={viewingHistory}
-                onChange={(event) => setAudioFile(event.target.files?.[0] || null)}
-              />
+              <div className="file-picker">
+                <label className={`file-trigger${viewingHistory ? " disabled" : ""}`} htmlFor="dry-audio-input">
+                  Select audio
+                </label>
+                <span className="file-name">
+                  {audioFile?.name || (session?.audio_uploaded ? "Current session audio loaded" : "No file selected")}
+                </span>
+                <input
+                  id="dry-audio-input"
+                  className="native-file-input"
+                  type="file"
+                  accept=".wav,audio/wav"
+                  disabled={viewingHistory}
+                  onChange={(event) => setAudioFile(event.target.files?.[0] || null)}
+                />
+              </div>
             </label>
 
             <label className="field">
