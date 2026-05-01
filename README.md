@@ -140,3 +140,18 @@ dry_audio/                   # Test audio files (piano, violin, oboe)
 python tests/test_pipeline.py --quick   # fast, skip optimization
 python tests/test_pipeline.py           # full suite with optimization
 ```
+
+## Demo Website
+
+frontend:
+
+```bash
+cd apps/web_frontend
+npm run dev
+```
+backend:
+
+```bash
+source .venv/bin/activate
+uvicorn apps.web_api.app.main:app --reload
+```
