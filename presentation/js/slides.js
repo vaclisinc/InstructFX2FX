@@ -1,8 +1,9 @@
 (function () {
-  const slides  = document.querySelectorAll('.slide');
-  const counter = document.querySelector('.slide-counter');
-  const total   = slides.length;
-  let current   = 0;
+  const slides    = document.querySelectorAll('.slide');
+  const counter   = document.querySelector('.slide-counter');
+  const container = document.querySelector('.slide-container');
+  const total     = slides.length;
+  let current     = 0;
 
   function readHash() {
     const m = location.hash.match(/^#slide-(\d+)$/);
@@ -37,7 +38,7 @@
   });
 
   // Click navigation: left third = prev, rest = next
-  document.querySelector('.slide-container').addEventListener('click', function (e) {
+  container.addEventListener('click', function (e) {
     if (e.target.closest('a, button')) return;
     const rect = this.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -45,13 +46,16 @@
     else next();
   });
 
-  // Responsive scaling
+  // Responsive letterbox scaling
   function scaleSlides() {
-    const container = document.querySelector('.slide-container');
     const sw = 1000, sh = 562.5;
     const scale = Math.min(window.innerWidth / sw, window.innerHeight / sh);
+    const left = Math.round((window.innerWidth  - sw * scale) / 2);
+    const top  = Math.round((window.innerHeight - sh * scale) / 2);
+    container.style.transformOrigin = 'top left';
     container.style.transform = 'scale(' + scale + ')';
-    container.style.transformOrigin = 'center center';
+    container.style.left = left + 'px';
+    container.style.top  = top  + 'px';
   }
   window.addEventListener('resize', scaleSlides);
   scaleSlides();
