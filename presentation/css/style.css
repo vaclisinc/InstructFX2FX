@@ -31,8 +31,9 @@ html, body {
 
 /* ── Slide framework ── */
 .slide-container {
-  width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
+  width: 1000px; height: 562.5px;
+  position: absolute;
+  /* top / left / transform set by JS scaleSlides() */
 }
 
 .slide {
@@ -506,5 +507,68 @@ ul.bullets li::before {
 .slide-intro-system-card .card-header {
   background: #f7f7f7;
   border-bottom: 1px solid var(--border);
+}
+
+/* ── Mobile letterbox notice ── */
+.mobile-notice {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.55);
+  color: #999;
+  font-size: 11px;
+  font-family: var(--font);
+  text-align: center;
+  padding: 5px 16px 6px;
+  z-index: 300;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-notice { display: block; }
+}
+
+/* ── Print / PDF export (Ctrl+P) ── */
+@media print {
+  @page { size: 1000px 562.5px; margin: 0; }
+
+  html, body {
+    overflow: visible !important;
+    background: white !important;
+    width: 1000px !important;
+    height: auto !important;
+  }
+
+  .slide-container {
+    position: static !important;
+    transform: none !important;
+    left: auto !important;
+    top: auto !important;
+    width: 1000px !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  .slide {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 1000px !important;
+    height: 562.5px !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+    position: relative !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .slide:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .slide-counter,
+  .mobile-notice { display: none !important; }
 }
 
