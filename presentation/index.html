@@ -756,35 +756,26 @@
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
   <div class="slide-title">Exp 1: Sequential MMD</div>
   <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">System output vs. sequential ground truth &mdash; lower MMD is better</div>
-  <div class="flex gap-20" style="flex:1;">
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">MMD Comparison: Ours vs LLM-only Baseline</span></div>
-      <div class="card-body" style="padding:12px 16px;">
-        <div style="display:flex; gap:12px; margin-bottom:10px; font-size:11px; font-weight:600;">
-          <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></div> InstructFX2FX (Ours)</div>
-          <div style="display:flex; align-items:center; gap:4px;"><div style="width:12px;height:12px;background:#B0BEC5;border-radius:2px;"></div> LLM+LLM Baseline</div>
-        </div>
-        <div class="bar-row"><div class="bar-label">warm&rarr;bright</div><div class="bar-track"><div class="bar-fill ours" style="width:45%">0.32</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:62%">0.48</div></div></div>
-        <div class="bar-row"><div class="bar-label">bright&rarr;warm</div><div class="bar-track"><div class="bar-fill ours" style="width:40%">0.29</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:58%">0.44</div></div></div>
-        <div class="bar-row"><div class="bar-label">heavy&rarr;calm</div><div class="bar-track"><div class="bar-fill ours" style="width:38%">0.27</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:65%">0.50</div></div></div>
-        <div class="bar-row"><div class="bar-label">harsh&rarr;soft</div><div class="bar-track"><div class="bar-fill ours" style="width:42%">0.31</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:60%">0.46</div></div></div>
-        <div class="bar-row"><div class="bar-label">calm&rarr;loud</div><div class="bar-track"><div class="bar-fill ours" style="width:50%">0.38</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:55%">0.42</div></div></div>
-        <div class="bar-row"><div class="bar-label">soft&rarr;loud</div><div class="bar-track"><div class="bar-fill ours" style="width:44%">0.33</div></div><div class="bar-track"><div class="bar-fill baseline" style="width:63%">0.49</div></div></div>
+  <div class="flex gap-16" style="flex:1; align-items:stretch;">
+    <div class="card flex-1" style="overflow:hidden; display:flex; flex-direction:column;">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">MMD Comparison: InstructFX2FX vs LLM-only Baseline</span></div>
+      <div class="card-body" style="padding:8px; flex:1; display:flex; align-items:center; justify-content:center;">
+        <img src="img/exp1/sequential_mmd_summary.png" alt="Exp 1 Sequential MMD results" style="width:100%; height:100%; object-fit:contain; display:block;">
       </div>
     </div>
-    <div style="width:220px; display:flex; flex-direction:column; gap:12px;">
+    <div style="width:200px; display:flex; flex-direction:column; gap:12px;">
       <div class="card" style="border:2px solid var(--green)">
         <div class="card-body" style="text-align:center;">
-          <div style="font-size:36px; font-weight:800; color:var(--green);">87.5%</div>
-          <div style="font-size:13px; color:var(--text-secondary);">word pairs improved</div>
+          <div style="font-size:36px; font-weight:800; color:var(--green);">90%</div>
+          <div style="font-size:13px; color:var(--text-secondary);">word pairs improved<br>(9 / 10)</div>
         </div>
       </div>
       <div class="card">
         <div class="card-body" style="font-size:12px; color:var(--text-secondary);">
           <div class="bold" style="color:var(--text); margin-bottom:4px;">Key Finding:</div>
-          CLAP gradient descent consistently outperforms LLM-only reprompting across most word pairs.
-          <div style="margin-top:8px; padding:6px; background:#FFF3E0; border-radius:4px; font-size:11px; color:#E65100;">
-            <span class="bold">Note:</span> Bar values are illustrative &mdash; replace with actual exp1 results
+          CLAP gradient descent consistently outperforms LLM-only reprompting across 9 of 10 directed word pairs.
+          <div style="margin-top:8px; padding:6px; background:#E8F5E9; border-radius:4px; font-size:11px; color:#2E7D32;">
+            Only <span class="bold">heavy&rarr;harsh</span> slightly regresses (0.715 vs 0.702).
           </div>
         </div>
       </div>
@@ -836,111 +827,25 @@
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     SLIDE 16 — Exp 3: PCA
-     ════════════════════════════════════════════════════════════════ -->
-<div class="slide">
-  <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
-  <div class="slide-title">Exp 3: Timbre Feature PCA</div>
-  <div class="slide-subtitle" style="font-size:14px; margin-bottom:6px;">19-D timbre features projected to 2D &mdash; do word descriptors separate in feature space?</div>
-  <div class="flex gap-12" style="flex:1">
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#555;font-weight:600">SocialFX Ground Truth</span></div>
-      <div class="card-body" style="padding:10px">
-        <div class="pca-viz">
-          <div class="pca-dot" style="left:20%;top:25%;background:#F44336"></div><div class="pca-dot" style="left:25%;top:30%;background:#F44336"></div><div class="pca-dot" style="left:18%;top:20%;background:#F44336"></div>
-          <div class="pca-dot" style="left:70%;top:20%;background:#2196F3"></div><div class="pca-dot" style="left:75%;top:25%;background:#2196F3"></div><div class="pca-dot" style="left:72%;top:15%;background:#2196F3"></div>
-          <div class="pca-dot" style="left:45%;top:70%;background:#4CAF50"></div><div class="pca-dot" style="left:50%;top:75%;background:#4CAF50"></div><div class="pca-dot" style="left:42%;top:65%;background:#4CAF50"></div>
-          <div class="pca-dot" style="left:80%;top:65%;background:#FF9800"></div><div class="pca-dot" style="left:85%;top:70%;background:#FF9800"></div><div class="pca-dot" style="left:78%;top:72%;background:#FF9800"></div>
-          <div class="pca-dot" style="left:30%;top:55%;background:#9C27B0"></div><div class="pca-dot" style="left:35%;top:50%;background:#9C27B0"></div><div class="pca-dot" style="left:28%;top:48%;background:#9C27B0"></div>
-        </div>
-        <div style="text-align:center; margin-top:6px; font-size:11px; font-weight:600; color:var(--green);">Clear word separation</div>
-        <div style="text-align:center; font-size:10px; color:var(--text-secondary);">PC1: 43% variance &bull; PC2: 24%</div>
-      </div>
-    </div>
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#555;font-weight:600">LLM Init Only</span></div>
-      <div class="card-body" style="padding:10px">
-        <div class="pca-viz">
-          <div class="pca-dot" style="left:45%;top:42%;background:#F44336"></div><div class="pca-dot" style="left:47%;top:45%;background:#F44336"></div><div class="pca-dot" style="left:44%;top:40%;background:#F44336"></div>
-          <div class="pca-dot" style="left:52%;top:48%;background:#2196F3"></div><div class="pca-dot" style="left:54%;top:50%;background:#2196F3"></div><div class="pca-dot" style="left:50%;top:46%;background:#2196F3"></div>
-          <div class="pca-dot" style="left:48%;top:55%;background:#4CAF50"></div><div class="pca-dot" style="left:50%;top:53%;background:#4CAF50"></div><div class="pca-dot" style="left:46%;top:52%;background:#4CAF50"></div>
-          <div class="pca-dot" style="left:55%;top:44%;background:#FF9800"></div><div class="pca-dot" style="left:53%;top:42%;background:#FF9800"></div><div class="pca-dot" style="left:56%;top:46%;background:#FF9800"></div>
-          <div class="pca-dot" style="left:49%;top:48%;background:#9C27B0"></div><div class="pca-dot" style="left:51%;top:50%;background:#9C27B0"></div><div class="pca-dot" style="left:47%;top:47%;background:#9C27B0"></div>
-        </div>
-        <div style="text-align:center; margin-top:6px; font-size:11px; font-weight:600; color:var(--emphasis);">Compact, poor separation</div>
-        <div style="text-align:center; font-size:10px; color:var(--text-secondary);">LLM lacks perceptual grounding</div>
-      </div>
-    </div>
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:10px;color:#555;font-weight:600">LLM + CLAP Refinement</span></div>
-      <div class="card-body" style="padding:10px">
-        <div class="pca-viz">
-          <div class="pca-dot" style="left:30%;top:30%;background:#F44336"></div><div class="pca-dot" style="left:35%;top:35%;background:#F44336"></div><div class="pca-dot" style="left:28%;top:28%;background:#F44336"></div>
-          <div class="pca-dot" style="left:65%;top:28%;background:#2196F3"></div><div class="pca-dot" style="left:68%;top:32%;background:#2196F3"></div><div class="pca-dot" style="left:62%;top:25%;background:#2196F3"></div>
-          <div class="pca-dot" style="left:45%;top:62%;background:#4CAF50"></div><div class="pca-dot" style="left:48%;top:65%;background:#4CAF50"></div><div class="pca-dot" style="left:42%;top:58%;background:#4CAF50"></div>
-          <div class="pca-dot" style="left:72%;top:58%;background:#FF9800"></div><div class="pca-dot" style="left:75%;top:62%;background:#FF9800"></div><div class="pca-dot" style="left:70%;top:55%;background:#FF9800"></div>
-          <div class="pca-dot" style="left:35%;top:50%;background:#9C27B0"></div><div class="pca-dot" style="left:38%;top:48%;background:#9C27B0"></div><div class="pca-dot" style="left:33%;top:46%;background:#9C27B0"></div>
-        </div>
-        <div style="text-align:center; margin-top:6px; font-size:11px; font-weight:600; color:var(--primary);">Better separation than LLM alone</div>
-        <div style="text-align:center; font-size:10px; color:var(--text-secondary);">CLAP moves toward GT distribution</div>
-      </div>
-    </div>
-  </div>
-  <div style="display:flex; gap:8px; justify-content:center; margin-top:6px; font-size:10px;">
-    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#F44336"></div>warm</div>
-    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#2196F3"></div>bright</div>
-    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#4CAF50"></div>soft</div>
-    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#FF9800"></div>harsh</div>
-    <div style="display:flex;align-items:center;gap:3px"><div class="pca-dot" style="position:static;transform:none;background:#9C27B0"></div>calm</div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════════════════════════════
-     SLIDE 17 — Exp 5: LLM Init Ablation
+     SLIDE 16 — Exp 5: LLM Init Ablation
      ════════════════════════════════════════════════════════════════ -->
 <div class="slide">
   <div class="slide-header"><span>CNMAT</span><span>Research Group 2</span><span>2026/04/29</span></div>
   <div class="slide-title">Exp 5: LLM Initialization Ablation</div>
-  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">Does CLAP refinement actually help beyond LLM initialization?</div>
-  <div class="flex gap-20" style="flex:1">
-    <div class="card flex-1">
-      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">LLM-only vs LLM + CLAP Trajectory</span></div>
-      <div class="card-body">
-        <div class="curve-container" style="height:200px">
-          <svg width="100%" height="100%" viewBox="0 0 500 180" preserveAspectRatio="none">
-            <line x1="50" y1="10" x2="50" y2="155" stroke="#ccc" stroke-width="1"/>
-            <line x1="50" y1="155" x2="480" y2="155" stroke="#ccc" stroke-width="1"/>
-            <text x="265" y="175" font-size="10" fill="#999" text-anchor="middle">Optimization Steps</text>
-            <text x="15" y="85" font-size="10" fill="#999" text-anchor="middle" transform="rotate(-90,15,85)">Score</text>
-            <path d="M50,60 Q150,58 250,62 Q350,56 480,60" fill="none" stroke="#B0BEC5" stroke-width="2.5" stroke-dasharray="8,4"/>
-            <text x="485" y="63" font-size="9" fill="#B0BEC5" font-weight="600">LLM only</text>
-            <path d="M50,60 Q100,52 150,42 Q200,35 250,30 Q300,26 350,23 Q400,21 480,20" fill="none" stroke="#2196F3" stroke-width="2.5"/>
-            <text x="485" y="23" font-size="9" fill="#2196F3" font-weight="600">LLM+CLAP</text>
-            <circle cx="50" cy="60" r="4" fill="#FF9800"/>
-            <text x="60" y="75" font-size="9" fill="#FF9800" font-weight="600">Same LLM init</text>
-            <line x1="470" y1="58" x2="470" y2="23" stroke="#4CAF50" stroke-width="1.5" marker-end="url(#ah3)"/>
-            <text x="430" y="42" font-size="9" fill="#4CAF50" font-weight="600">gain</text>
-          </svg>
-        </div>
+  <div class="slide-subtitle" style="font-size:14px; margin-bottom:8px;">Does CLAP refinement actually help beyond LLM initialization? — "bright" target, piano</div>
+  <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:8px;">
+    <div class="card" style="overflow:hidden; display:flex; flex-direction:column; flex:1; min-height:0;">
+      <div class="card-header"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span style="margin-left:8px;font-size:11px;color:#555;font-weight:600">CLAP score, MMD, DSP &amp; FXEnc distance across 100 optimization iterations</span></div>
+      <div class="card-body" style="padding:8px; flex:1; min-height:0; display:flex; align-items:center; justify-content:center;">
+        <img src="img/exp5/trajectory_plot.png" alt="Exp 5 trajectory plot" style="width:100%; max-height:100%; object-fit:contain; display:block;">
       </div>
     </div>
-    <div style="width:220px; display:flex; flex-direction:column; gap:12px;">
-      <div class="card" style="border:2px solid var(--primary)">
-        <div class="card-body" style="text-align:center;">
-          <div style="font-size:14px; font-weight:600; color:var(--text); margin-bottom:6px;">Starting from the same LLM init:</div>
-          <div style="font-size:30px; font-weight:800; color:var(--primary);">87.5%</div>
-          <div style="font-size:12px; color:var(--text-secondary);">of pairs improve with CLAP</div>
-        </div>
+    <div style="display:flex; gap:10px; flex-shrink:0;">
+      <div style="flex:1; padding:6px 12px; background:var(--green-light); border-radius:6px; border:1px solid var(--green); font-size:11px; color:#2E7D32;">
+        <span class="bold">✓</span> CLAP ↑ monotonically; MMD DSP ↓ converges toward GT; FXEnc ↓ stabilizes after iter&nbsp;60
       </div>
-      <div class="card">
-        <div class="card-body" style="font-size:12px;">
-          <ul class="bullets" style="font-size:12px;">
-            <li>LLM provides a <span class="highlight">good starting point</span></li>
-            <li>CLAP GD provides <span class="highlight-accent">reliable refinement</span></li>
-            <li>Avg improvement by iteration <span class="bold">~13</span></li>
-            <li>LLM alone: flat, no convergence</li>
-          </ul>
-        </div>
+      <div style="flex:1; padding:6px 12px; background:#FFEBEE; border-radius:6px; border:1px solid var(--emphasis); font-size:11px; color:#C62828;">
+        <span class="bold">⚠</span> DSP distance ↑ throughout — CLAP optimization and DSP features are not always aligned
       </div>
     </div>
   </div>
@@ -1090,7 +995,7 @@
 
 </div><!-- .slide-container -->
 
-<div class="slide-counter">1 / 20</div>
+<div class="slide-counter">1 / 19</div>
 <div class="mobile-notice">Best viewed on a desktop or laptop — rotate to landscape for a better experience</div>
 
 <script src="js/slides.js"></script>
