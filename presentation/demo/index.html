@@ -11,18 +11,23 @@
 <style>
   :root {
     --paper:    oklch(0.986 0.002 255);
-    --paper-2:  oklch(0.968 0.003 255);
-    --ink:      oklch(0.265 0.011 258);
-    --ink-soft: oklch(0.415 0.011 258);
+    --paper-2:  oklch(0.966 0.003 255);
+    --paper-3:  oklch(0.945 0.004 255);
+    --ink:      oklch(0.255 0.011 258);
+    --ink-soft: oklch(0.410 0.011 258);
     --muted:    oklch(0.555 0.011 260);
     --faint:    oklch(0.695 0.009 262);
     --rule:     oklch(0.895 0.005 258);
     --rule-2:   oklch(0.935 0.004 258);
-    --accent:   oklch(0.515 0.085 248);
-    --accent-d: oklch(0.455 0.085 248);
-    --accent-w: oklch(0.935 0.028 248);
+    --accent:   oklch(0.515 0.110 248);
+    --accent-d: oklch(0.450 0.105 248);
+    --accent-w: oklch(0.930 0.030 248);
+    --wave:     oklch(0.815 0.012 258);
+    --c-init:   oklch(0.520 0.090 230);
+    --c-extend: oklch(0.560 0.085 150);
+    --c-reuse:  oklch(0.560 0.090 60);
     --measure: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-    --maxw: 720px;
+    --maxw: 760px;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -38,36 +43,38 @@
   a { color: var(--accent-d); }
 
   /* hero */
-  header { padding: 84px 0 28px; }
-  .kick { font-family: var(--measure); font-size: 0.73rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-d); margin: 0 0 22px; }
+  header { padding: 80px 0 26px; }
+  .eyebrow { display: flex; align-items: center; gap: 12px; margin: 0 0 22px; }
+  .kick { font-family: var(--measure); font-size: 0.73rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-d); margin: 0; }
+  .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 15px; }
+  .eq i { width: 3px; background: var(--accent); border-radius: 1px; height: 30%; animation: eq 1.1s ease-in-out infinite; }
+  .eq i:nth-child(2){ animation-delay: .18s } .eq i:nth-child(3){ animation-delay: .36s }
+  .eq i:nth-child(4){ animation-delay: .12s } .eq i:nth-child(5){ animation-delay: .42s }
+  @keyframes eq { 0%,100%{ height: 25% } 50%{ height: 100% } }
   h1 { font-size: clamp(2.4rem, 7vw, 3.5rem); font-weight: 600; letter-spacing: -0.04em; line-height: 1.0; margin: 0 0 14px; }
   .subtitle { font-size: clamp(1.1rem, 2.6vw, 1.32rem); font-weight: 450; line-height: 1.32; color: var(--ink-soft); margin: 0 0 26px; max-width: 30ch; }
   .byline { font-size: 0.95rem; color: var(--muted); margin: 0 0 24px; line-height: 1.55; }
   .byline strong { color: var(--ink); font-weight: 500; }
   .byline .dot { color: var(--faint); margin: 0 6px; }
   .btns { display: flex; gap: 10px; flex-wrap: wrap; }
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 5px; text-decoration: none; font-size: 0.91rem; font-weight: 500; color: var(--ink); border: 1px solid var(--rule); transition: border-color .2s, background .2s, color .2s; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 6px; text-decoration: none; font-size: 0.91rem; font-weight: 500; color: var(--ink); border: 1px solid var(--rule); transition: border-color .2s, background .2s, color .2s; }
   .btn:hover { border-color: var(--ink); }
   .btn.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
   .btn.solid:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
   .btn svg { width: 16px; height: 16px; }
 
   /* anchor nav */
-  nav.toc {
-    position: sticky; top: 0; z-index: 10;
-    background: var(--paper);
-    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
-  }
+  nav.toc { position: sticky; top: 0; z-index: 20; background: var(--paper); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
   nav.toc .wrap { display: flex; gap: 22px; padding-top: 11px; padding-bottom: 11px; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; }
   nav.toc .wrap::-webkit-scrollbar { display: none; }
   nav.toc a { font-family: var(--measure); font-size: 0.74rem; letter-spacing: 0.02em; color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s; }
   nav.toc a span { color: var(--faint); margin-right: 5px; }
-  nav.toc a:hover { color: var(--ink); }
-  nav.toc a:hover span { color: var(--accent-d); }
+  nav.toc a:hover, nav.toc a.on { color: var(--ink); }
+  nav.toc a:hover span, nav.toc a.on span { color: var(--accent-d); }
 
   /* sections */
-  section { padding: 40px 0; }
-  section[id] { scroll-margin-top: 60px; }
+  section { padding: 42px 0; }
+  section[id] { scroll-margin-top: 58px; }
   hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 0; }
   .sec-head { display: flex; align-items: baseline; gap: 13px; margin: 0 0 22px; }
   .sec-head h2 { font-size: 1.04rem; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
@@ -77,7 +84,7 @@
   p.body strong { color: var(--ink); font-weight: 600; }
 
   /* problem definition block */
-  .def { margin: 6px 0 22px; padding: 18px 20px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px; }
+  .def { margin: 6px 0 22px; padding: 18px 20px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 8px; }
   .def-tag { display: block; font-family: var(--measure); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-d); margin: 0 0 8px; }
   .def p { margin: 0; font-size: 0.99rem; color: var(--ink-soft); line-height: 1.55; max-width: 62ch; }
   .def code { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; color: var(--accent-d); font-weight: 500; }
@@ -93,71 +100,91 @@
   /* figures */
   figure { margin: 0; }
   .fignum { font-family: var(--measure); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin: 0 0 9px; }
-  figure img { width: 100%; border: 1px solid var(--rule); border-radius: 4px; display: block; background: var(--paper); }
+  figure img { width: 100%; border: 1px solid var(--rule); border-radius: 6px; display: block; background: var(--paper); }
   figcaption { font-size: 0.86rem; color: var(--muted); margin-top: 11px; max-width: 62ch; line-height: 1.5; }
   figcaption b { color: var(--ink-soft); font-weight: 600; }
   .fig-stack { display: grid; gap: 30px; }
 
-  /* examples */
-  .ex-intro { color: var(--muted); font-size: 0.97rem; margin: 0 0 26px; max-width: 60ch; }
+  /* listen */
+  .ex-intro { color: var(--muted); font-size: 0.97rem; margin: 0 0 30px; max-width: 60ch; }
   .ex-intro strong { color: var(--ink-soft); font-weight: 600; }
-  .example { padding: 6px 0 2px; }
-  .example + .example { border-top: 1px solid var(--rule); margin-top: 28px; padding-top: 30px; }
-  .ex-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-  .ex-top h3 { font-size: 1.26rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-  .ex-meta { font-family: var(--measure); font-size: 0.72rem; color: var(--faint); white-space: nowrap; }
-  .ex-blurb { color: var(--muted); font-size: 0.96rem; margin: 6px 0 16px; max-width: 60ch; }
-  .source { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 4px 0 6px; }
-  .source .slab { font-family: var(--measure); font-size: 0.69rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+  .ex-intro .hint { font-family: var(--measure); font-size: 0.82rem; color: var(--accent-d); }
 
-  .turn { padding: 18px 0 6px; border-top: 1px dashed var(--rule); margin-top: 12px; }
-  .turn:first-of-type { border-top: 0; margin-top: 4px; }
-  .turn-head { display: grid; grid-template-columns: 2rem 1fr; gap: 12px; align-items: baseline; margin-bottom: 14px; }
-  .turn-n { font-family: var(--measure); font-size: 0.77rem; color: var(--accent-d); }
-  .instruction { font-size: 1.07rem; font-weight: 450; line-height: 1.4; }
+  .session { padding: 0; }
+  .session + .session { border-top: 1px solid var(--rule); margin-top: 40px; padding-top: 38px; }
+  .ses-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+  .ses-top h3 { font-size: 1.34rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .ses-meta { font-family: var(--measure); font-size: 0.72rem; color: var(--faint); white-space: nowrap; }
+  .ses-blurb { color: var(--muted); font-size: 0.96rem; margin: 0 0 18px; max-width: 62ch; }
 
-  /* layer annotation: the core "which layer did what" cue */
-  .lane { padding-left: calc(2rem + 12px); }
-  .layer { display: grid; grid-template-columns: 9.5rem 1fr; gap: 12px; align-items: baseline; padding: 7px 0; }
-  .ltag { font-family: var(--measure); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; color: var(--accent-d); }
-  .lbody { font-size: 0.92rem; color: var(--ink-soft); }
-  .mode { font-weight: 600; color: var(--ink); }
-  .fx { font-family: var(--measure); font-size: 0.82rem; padding: 1px 6px; border-radius: 4px; background: var(--paper-2); border: 1px solid var(--rule); }
+  .dry { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; padding: 14px 16px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 8px; margin-bottom: 6px; }
+  .dry .dry-tag { font-family: var(--measure); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+
+  /* conversation thread */
+  .thread { margin-top: 6px; }
+  .turn { position: relative; padding: 22px 0 22px 40px; }
+  .turn::before { content: ""; position: absolute; left: 12px; top: 30px; bottom: -22px; width: 1.5px; background: var(--rule); }
+  .turn:last-child::before { display: none; }
+  .turn-node { position: absolute; left: 0; top: 18px; width: 25px; height: 25px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--rule); display: grid; place-items: center; font-family: var(--measure); font-size: 0.7rem; font-weight: 600; color: var(--accent-d); z-index: 1; }
+  .instruction { font-size: 1.08rem; font-weight: 500; line-height: 1.4; color: var(--ink); margin: 0 0 12px; letter-spacing: -0.01em; }
+  .instruction::before { content: "“"; color: var(--faint); } .instruction::after { content: "”"; color: var(--faint); }
+
+  .turn-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .route { display: inline-flex; align-items: center; gap: 6px; font-family: var(--measure); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--rule); color: var(--ink-soft); background: var(--paper-2); }
+  .route::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .route.init::before { background: var(--c-init); }
+  .route.extend::before { background: var(--c-extend); }
+  .route.reuse::before { background: var(--c-reuse); }
+  .chain { display: inline-flex; align-items: center; gap: 4px; }
+  .fx { font-family: var(--measure); font-size: 0.74rem; padding: 2px 8px; border-radius: 5px; background: var(--paper-2); border: 1px solid var(--rule); color: var(--ink-soft); }
   .fx.new { color: var(--accent-d); border-color: var(--accent-w); background: var(--accent-w); }
-  .arrow { color: var(--faint); margin: 0 3px; }
+  .fx .tag { font-size: 0.84em; color: var(--accent-d); margin-left: 4px; }
+  .chain .arrow { color: var(--faint); font-size: 0.8rem; }
 
-  audio { width: 100%; height: 38px; border-radius: 6px; }
-  audio::-webkit-media-controls-panel { background: var(--paper-2); }
-  .result { display: grid; grid-template-columns: 9.5rem 1fr; gap: 12px; align-items: center; padding: 8px 0 2px; }
-  .result .rtag { font-family: var(--measure); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; color: var(--accent-d); }
+  /* waveform player */
+  .player { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 10px; padding: 13px 15px; }
+  .player.lifted { box-shadow: 0 1px 0 var(--rule-2); }
+  .pl-row { display: grid; grid-template-columns: 38px 1fr auto; gap: 13px; align-items: center; }
+  .pbtn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--rule); background: var(--paper); display: grid; place-items: center; cursor: pointer; color: var(--ink); transition: border-color .2s, background .2s, color .2s, transform .12s; }
+  .pbtn:hover { border-color: var(--accent); }
+  .pbtn:active { transform: scale(0.94); }
+  .pbtn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  .pbtn svg { width: 15px; height: 15px; }
+  .wf-wrap { position: relative; height: 52px; }
+  canvas.wf { width: 100%; height: 100%; display: block; cursor: pointer; touch-action: none; }
+  .wf-load { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--measure); font-size: 0.66rem; letter-spacing: 0.04em; color: var(--faint); pointer-events: none; opacity: 0; transition: opacity .2s; }
+  .wf-load.on { opacity: 1; }
+  .ptime { font-family: var(--measure); font-size: 0.72rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-  /* trajectory */
-  .traj { margin: 4px 0 6px; }
-  .traj-bar { display: flex; align-items: center; gap: 12px; }
-  .traj-btn { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--rule); background: var(--paper); display: grid; place-items: center; cursor: pointer; color: var(--ink); transition: border-color .2s, background .2s, color .2s; }
-  .traj-btn:hover { border-color: var(--accent); }
-  .traj-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
-  .traj-btn svg { width: 14px; height: 14px; }
-  .traj-track { flex: 1; }
-  .traj-now { font-family: var(--measure); font-size: 0.7rem; font-weight: 500; color: var(--accent-d); margin-bottom: 5px; display: block; }
+  .pl-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .seg { display: inline-flex; padding: 2px; background: var(--paper-3); border: 1px solid var(--rule); border-radius: 7px; gap: 2px; }
+  .seg button { font-family: var(--measure); font-size: 0.71rem; font-weight: 500; letter-spacing: 0.01em; color: var(--muted); background: transparent; border: 0; padding: 5px 11px; border-radius: 5px; cursor: pointer; transition: color .18s, background .18s; }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 2px oklch(0.5 0.02 258 / 0.12); }
+
+  .gd { flex: 1 1 260px; min-width: 220px; }
+  .gd-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .gd-label { font-family: var(--measure); font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+  .gd-now { font-family: var(--measure); font-size: 0.7rem; font-weight: 500; color: var(--accent-d); font-variant-numeric: tabular-nums; }
   input[type=range].slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--rule); border-radius: 99px; outline: none; cursor: pointer; margin: 0; }
-  input[type=range].slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--accent); transition: transform .15s; }
-  input[type=range].slider::-webkit-slider-thumb:hover { transform: scale(1.18); }
-  input[type=range].slider::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); cursor: pointer; }
-  .traj-axis { display: flex; justify-content: space-between; font-family: var(--measure); font-size: 0.64rem; color: var(--faint); margin-top: 5px; letter-spacing: 0.03em; }
+  input[type=range].slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--accent); transition: transform .15s; }
+  input[type=range].slider::-webkit-slider-thumb:hover { transform: scale(1.16); }
+  input[type=range].slider::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); cursor: pointer; }
+  .gd-axis { display: flex; justify-content: space-between; font-family: var(--measure); font-size: 0.62rem; color: var(--faint); margin-top: 5px; letter-spacing: 0.02em; }
+  .skip { font-family: var(--measure); font-size: 0.7rem; color: var(--muted); letter-spacing: 0.01em; }
 
-  pre.bib { background: var(--paper-2); color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; overflow-x: auto; font-family: var(--measure); font-size: 0.79rem; line-height: 1.6; margin: 0; }
-  footer { padding: 40px 0 60px; color: var(--faint); font-family: var(--measure); font-size: 0.72rem; letter-spacing: 0.03em; }
+  pre.bib { background: var(--paper-2); color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; overflow-x: auto; font-family: var(--measure); font-size: 0.79rem; line-height: 1.6; margin: 0; }
+  footer { padding: 42px 0 64px; color: var(--faint); font-family: var(--measure); font-size: 0.72rem; letter-spacing: 0.03em; }
   .loading { color: var(--muted); padding: 22px 0; font-size: 0.95rem; }
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto; } .eq i { animation: none; height: 55%; } }
   @media (max-width: 600px) {
-    header { padding: 52px 0 20px; }
-    nav.toc .wrap { gap: 18px; }
-    .def { padding: 16px 16px; }
-    .turn-head { grid-template-columns: 1fr; gap: 4px; }
-    .lane { padding-left: 0; }
-    .layer, .result { grid-template-columns: 1fr; gap: 3px; }
+    header { padding: 50px 0 18px; }
+    .turn { padding-left: 32px; }
+    .turn::before { left: 10px; } .turn-node { width: 21px; height: 21px; }
+    .pl-row { grid-template-columns: 34px 1fr; grid-template-areas: "btn wave" "time time"; row-gap: 8px; }
+    .pbtn { grid-area: btn; } .wf-wrap { grid-area: wave; } .ptime { grid-area: time; text-align: right; }
+    .dry { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -165,7 +192,10 @@
 
   <!-- HERO -->
   <header><div class="wrap">
-    <p class="kick">DAFx26 · Demo Track</p>
+    <div class="eyebrow">
+      <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <p class="kick">DAFx26 · Demo Track</p>
+    </div>
     <h1>InstructFX2FX</h1>
     <p class="subtitle">A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement</p>
     <p class="byline">
@@ -241,11 +271,11 @@
   <section id="listen">
     <div class="sec-head"><span class="idx">03</span><h2>Listen</h2></div>
     <p class="ex-intro">
-      Real outputs on the differentiable, gradient-descent path (EQ and reverb). Each turn names
-      what <strong>Layer 1</strong> decided and lets you scrub the <strong>Layer 3a</strong>
-      gradient descent. Press play to hear that checkpoint.
+      Real sessions on the gradient-descent path (EQ and reverb). Each turn shows what
+      <strong>Layer 1</strong> planned, then plays the result. <span class="hint">Click a waveform to seek,
+      toggle Dry / Result to A&#8203;/B, or drag the gradient-descent track to hear the optimization converge.</span>
     </p>
-    <div id="examples"><div class="loading">Loading examples…</div></div>
+    <div id="examples"><div class="loading">Loading sessions…</div></div>
   </section>
 
   <hr class="rule" />
@@ -262,7 +292,7 @@
       <figure>
         <p class="fignum">Exp.03 · Trajectory</p>
         <img src="assets/fig_trajectory.png" alt="CLAP similarity rising and MMD falling across optimization iterations" />
-        <figcaption>CLAP similarity rises and MMD falls across iterations, the measurement behind the trajectories above.</figcaption>
+        <figcaption>CLAP similarity rises and MMD falls across iterations, the measurement behind the gradient-descent tracks above.</figcaption>
       </figure>
     </div>
   </section>
@@ -289,89 +319,264 @@
   const elExamples = document.getElementById("examples");
   const PLAY  = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
   const PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+  const RES = 480;            // peak buckets stored per clip (decoupled from canvas width)
+  const PEAK_CACHE = new Map();
+  let actx = null;
+  const decodeCtx = () => (actx ||= new (window.AudioContext || window.webkitAudioContext)());
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const cpLabel = cp => cp.label === "start" ? "start" : cp.label === "final" || cp.label === "end" ? "final" : (/iter_?(\d+)/.exec(cp.label)?.[1] != null ? "iter " + /iter_?(\d+)/.exec(cp.label)[1] : cp.label);
-  const realTraj = t => Array.isArray(t) && t.some(c => /iter_?\d+/.test(c.label || ""));
-  const fxChip = (f, isNew) => `<span class="fx${isNew ? " new" : ""}">${esc(f)}</span>`;
+  const FX_NAME = { rev:"reverb", reverb:"reverb", eq:"EQ", comp:"comp", dist:"dist", delay:"delay", pitchshift:"pitch", bitcrush:"crush" };
+  const fxName = f => FX_NAME[f] || f;
+  const ROUTE = {
+    "Initialize-only":            { label:"Initialize",        cls:"init"   },
+    "Reuse-and-optimize":         { label:"Reuse + optimize",  cls:"reuse"  },
+    "Mixed reuse-and-initialize": { label:"Extend",            cls:"extend" },
+  };
+  const hasGD = t => Array.isArray(t.trajectory) && t.trajectory.some(c => /iter_?\d+/.test(c.label || ""));
+  const cpLabel = c => { const l = c.label || ""; if (l === "start") return "init"; if (l === "end" || l === "final") return "converged";
+    const m = /iter_?(\d+)/.exec(l); return m ? "iter " + m[1] : l; };
+  const fmt = s => { if (!isFinite(s) || s < 0) s = 0; const m = Math.floor(s / 60), x = Math.floor(s % 60); return m + ":" + String(x).padStart(2, "0"); };
 
-  function planBody(t) {
-    const newSet = new Set(t.fx_new || []);
-    const chain = (t.fx_chain || []).map(f => fxChip(f, newSet.has(f))).join('<span class="arrow">→</span>');
-    let verb;
-    if (t.routing === "Initialize-only") verb = "initializes";
-    else if (t.routing === "Reuse-and-optimize") verb = "reuses";
-    else verb = "extends";
-    return `<span class="mode">${esc(t.routing)}</span> · ${verb} ${chain}`;
+  async function loadPeaks(url) {
+    if (PEAK_CACHE.has(url)) return PEAK_CACHE.get(url);
+    const p = (async () => {
+      const ab = await (await fetch(url)).arrayBuffer();
+      const buf = await decodeCtx().decodeAudioData(ab);
+      const ch0 = buf.getChannelData(0);
+      const ch1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : null;
+      const peaks = new Float32Array(RES);
+      const block = Math.max(1, Math.floor(ch0.length / RES));
+      let mx = 0;
+      for (let i = 0; i < RES; i++) {
+        let m = 0; const s = i * block, e = Math.min(ch0.length, s + block);
+        for (let j = s; j < e; j++) { let v = Math.abs(ch0[j]); if (ch1) { const w = Math.abs(ch1[j]); if (w > v) v = w; } if (v > m) m = v; }
+        peaks[i] = m; if (m > mx) mx = m;
+      }
+      if (mx > 0) for (let i = 0; i < RES; i++) peaks[i] /= mx;
+      return { peaks, duration: buf.duration };
+    })();
+    PEAK_CACHE.set(url, p);
+    return p;
   }
 
-  function trajHtml(id, n) {
-    return `
-      <div class="traj" data-traj="${id}">
-        <div class="traj-bar">
-          <button class="traj-btn" data-play type="button" aria-pressed="false" aria-label="Play trajectory">${PLAY}</button>
-          <div class="traj-track">
-            <span class="traj-now" data-now>start</span>
-            <input class="slider" type="range" min="0" max="${n - 1}" value="0" step="1" data-slider aria-label="Gradient descent checkpoint" />
-            <div class="traj-axis"><span>start</span><span>gradient descent</span><span>final</span></div>
+  class Wave {
+    constructor(root) {
+      this.canvas = root.querySelector("canvas.wf");
+      this.btn    = root.querySelector("[data-play]");
+      this.time   = root.querySelector("[data-time]");
+      this.load   = root.querySelector("[data-load]");
+      this.ctx    = this.canvas.getContext("2d");
+      this.audio  = new Audio(); this.audio.preload = "none";
+      this.peaks  = null; this.dur = 0; this.url = null; this.progress = 0; this.raf = 0; this.token = 0;
+
+      this.btn.addEventListener("click", () => this.toggle());
+      this.audio.addEventListener("play",  () => { this.setIcon(true);  this.tick(); claim(this); });
+      this.audio.addEventListener("pause", () => { this.setIcon(false); cancelAnimationFrame(this.raf); });
+      this.audio.addEventListener("ended", () => { this.setIcon(false); this.progress = 1; this.draw(); });
+      this.audio.addEventListener("loadedmetadata", () => { if (this._seek != null) { try { this.audio.currentTime = this._seek * this.audio.duration; } catch (e) {} this._seek = null; } this.updTime(); });
+      const seek = e => {
+        const r = this.canvas.getBoundingClientRect();
+        const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width;
+        const f = Math.max(0, Math.min(1, x));
+        this.progress = f; this.draw();
+        if (this.audio.readyState >= 1 && isFinite(this.audio.duration)) { this.audio.currentTime = f * this.audio.duration; this.updTime(); }
+        else { this._seek = f; if (!this.audio.src) this.audio.src = this.url; }
+      };
+      this.canvas.addEventListener("pointerdown", e => { this.canvas.setPointerCapture(e.pointerId); this._drag = true; seek(e); });
+      this.canvas.addEventListener("pointermove", e => { if (this._drag) seek(e); });
+      this.canvas.addEventListener("pointerup",   () => { this._drag = false; });
+      new ResizeObserver(() => this.draw()).observe(this.canvas);
+    }
+    setIcon(on) { this.btn.innerHTML = on ? PAUSE : PLAY; this.btn.setAttribute("aria-pressed", on ? "true" : "false"); }
+    toggle() { if (!this.url) return; if (this.audio.paused) { if (!this.audio.src) this.audio.src = this.url; this.audio.play().catch(() => {}); } else this.audio.pause(); }
+    tick() { cancelAnimationFrame(this.raf); const step = () => { if (isFinite(this.audio.duration) && this.audio.duration > 0) { this.progress = this.audio.currentTime / this.audio.duration; this.draw(); this.updTime(); } if (!this.audio.paused) this.raf = requestAnimationFrame(step); }; this.raf = requestAnimationFrame(step); }
+    updTime() { const d = isFinite(this.audio.duration) ? this.audio.duration : this.dur; this.time.textContent = fmt(this.audio.currentTime || this.progress * d) + " / " + fmt(d); }
+    async set(url, { keep = false } = {}) {
+      const tok = ++this.token;
+      const wasPlaying = !this.audio.paused;
+      const frac = keep ? this.progress : 0;
+      this.url = url;
+      this.audio.pause();
+      this.audio.src = url;
+      this._seek = frac;
+      if (wasPlaying) this.audio.play().catch(() => {});
+      else { this.progress = frac; }
+      this.load.classList.add("on");
+      try {
+        const { peaks, duration } = await loadPeaks(url);
+        if (tok !== this.token) return;
+        this.peaks = peaks; this.dur = duration;
+      } catch (e) { if (tok === this.token) this.peaks = null; }
+      this.load.classList.remove("on");
+      this.draw(); this.updTime();
+    }
+    draw() {
+      const c = this.canvas, ctx = this.ctx, dpr = window.devicePixelRatio || 1;
+      const W = c.clientWidth, H = c.clientHeight;
+      if (!W || !H) return;
+      if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      const cs = getComputedStyle(document.documentElement);
+      const cWave = cs.getPropertyValue("--wave").trim() || "#bbb";
+      const cPlay = cs.getPropertyValue("--accent").trim() || "#36c";
+      const mid = H / 2, bw = 2, gap = 1, n = Math.max(16, Math.floor(W / (bw + gap)));
+      const px = this.progress * W;
+      for (let i = 0; i < n; i++) {
+        const t0 = Math.floor(i / n * RES), t1 = Math.max(t0 + 1, Math.floor((i + 1) / n * RES));
+        let v = 0; if (this.peaks) for (let j = t0; j < t1 && j < RES; j++) if (this.peaks[j] > v) v = this.peaks[j];
+        if (!this.peaks) v = 0.06;
+        const h = Math.max(1.5, v * (H - 4)), x = i * (bw + gap);
+        ctx.fillStyle = (x + bw) <= px ? cPlay : cWave;
+        ctx.fillRect(x, mid - h / 2, bw, h);
+      }
+      if (this.progress > 0 && this.progress < 1) { ctx.fillStyle = cPlay; ctx.fillRect(px - 0.75, 2, 1.5, H - 4); }
+    }
+  }
+
+  // only one player audible at a time
+  let CURRENT = null;
+  function claim(w) { if (CURRENT && CURRENT !== w) CURRENT.audio.pause(); CURRENT = w; }
+
+  function chainHtml(t) {
+    const nw = new Set(t.fx_new || []);
+    return (t.fx_chain || []).map(f =>
+      `<span class="fx${nw.has(f) ? " new" : ""}">${esc(fxName(f))}${nw.has(f) ? '<span class="tag">+new</span>' : ""}</span>`
+    ).join('<span class="arrow">→</span>');
+  }
+
+  function turnHtml(t, source) {
+    const r = ROUTE[t.routing] || { label: t.routing, cls: "" };
+    const gd = hasGD(t);
+    const traj = gd ? t.trajectory : null;
+    const player = `
+      <div class="player">
+        <div class="pl-row">
+          <button class="pbtn" data-play type="button" aria-pressed="false" aria-label="Play">${PLAY}</button>
+          <div class="wf-wrap"><canvas class="wf"></canvas><span class="wf-load" data-load>decoding…</span></div>
+          <span class="ptime" data-time>0:00 / 0:00</span>
+        </div>
+        <div class="pl-controls">
+          <div class="seg" role="group" aria-label="Compare">
+            <button type="button" data-ab="dry">Dry input</button>
+            <button type="button" data-ab="result" aria-pressed="true">Result</button>
           </div>
+          ${gd ? `
+          <div class="gd" data-gd>
+            <div class="gd-head"><span class="gd-label">Gradient descent</span><span class="gd-now" data-now>converged</span></div>
+            <input class="slider" type="range" min="0" max="${traj.length - 1}" value="${traj.length - 1}" step="1" data-slider aria-label="Optimization checkpoint" />
+            <div class="gd-axis"><span>init</span><span>iterations →</span><span>converged</span></div>
+          </div>` : ``}
         </div>
       </div>`;
-  }
-
-  function turnHtml(t, tid) {
-    const traj = realTraj(t.trajectory) ? t.trajectory : null;
     return `
-      <div class="turn">
-        <div class="turn-head"><span class="turn-n">${String(t.n).padStart(2,"0")}</span><div class="instruction">“${esc(t.instruction)}”</div></div>
-        <div class="lane">
-          <div class="layer"><span class="ltag">Layer 1 · LLM</span><span class="lbody">${planBody(t)}</span></div>
-          ${traj ? `<div class="layer"><span class="ltag">Layer 3a · CLAP GD</span><span class="lbody">${trajHtml(tid, traj.length)}</span></div>`
-                 : (t.routing === "Initialize-only"
-                     ? `<div class="layer"><span class="ltag">Layer 3 · skipped</span><span class="lbody">LLM-initialized parameters used directly, no optimization this turn.</span></div>`
-                     : `<div class="layer"><span class="ltag">Layer 3 · ${esc(t.backend)}</span><span class="lbody">optimized in place, no intermediate checkpoints saved.</span></div>`)}
-          <div class="result"><span class="rtag">Result</span><audio controls preload="none" src="${esc(t.result)}"></audio></div>
+      <div class="turn" data-source="${esc(source)}" data-result="${esc(t.result)}">
+        <span class="turn-node">${String(t.n).padStart(2, "0")}</span>
+        <p class="instruction">${esc(t.instruction)}</p>
+        <div class="turn-meta">
+          <span class="route ${r.cls}">${esc(r.label)}</span>
+          <span class="chain">${chainHtml(t)}</span>
         </div>
+        ${player}
       </div>`;
   }
 
-  function wireTraj(node, traj) {
-    const slider = node.querySelector("[data-slider]");
-    const now    = node.querySelector("[data-now]");
-    const btn    = node.querySelector("[data-play]");
-    const audio  = new Audio();
-    audio.preload = "none";
-    let playing = false, idx = 0;
-    const setBtn = on => { btn.setAttribute("aria-pressed", on ? "true" : "false"); btn.innerHTML = on ? PAUSE : PLAY; };
-    const show = i => { idx = Math.max(0, Math.min(traj.length - 1, i)); slider.value = idx; now.textContent = cpLabel(traj[idx]); };
-    const go = (i, play) => { show(i); const w = traj[idx].audio; if (!audio.src.endsWith(w)) audio.src = w; if (play) audio.play().catch(() => {}); };
-    slider.addEventListener("input", () => { playing = false; setBtn(false); audio.pause(); show(+slider.value); audio.src = traj[idx].audio; });
-    btn.addEventListener("click", () => { if (playing) { playing = false; setBtn(false); audio.pause(); return; } playing = true; setBtn(true); go(+slider.value, true); });
-    audio.addEventListener("ended", () => { if (!playing) return; if (idx + 1 < traj.length) go(idx + 1, true); else { playing = false; setBtn(false); show(0); } });
-    show(0);
-  }
-
-  function exampleHtml(ex, ei) {
-    const turns = ex.turns.map((t, i) => turnHtml(t, `t-${ei}-${i}`)).join("");
+  function sessionHtml(ex) {
+    const turns = ex.turns.map(t => turnHtml(t, ex.source)).join("");
     return `
-      <div class="example">
-        <div class="ex-top"><h3>${esc(ex.title)}</h3><span class="ex-meta">${ex.n_turns} turns · ${esc(ex.llm)}</span></div>
-        <p class="ex-blurb">${esc(ex.blurb || "")}</p>
-        ${ex.source ? `<div class="source"><span class="slab">Source</span><audio controls preload="none" src="${esc(ex.source)}"></audio></div>` : ""}
-        ${turns}
+      <div class="session">
+        <div class="ses-top"><h3>${esc(ex.title)}</h3><span class="ses-meta">${ex.n_turns} turns · ${esc(ex.llm)}</span></div>
+        <p class="ses-blurb">${esc(ex.blurb || "")}</p>
+        ${ex.source ? `<div class="dry"><span class="dry-tag">Dry input</span>
+          <div class="player" data-dry>
+            <div class="pl-row">
+              <button class="pbtn" data-play type="button" aria-pressed="false" aria-label="Play dry input">${PLAY}</button>
+              <div class="wf-wrap"><canvas class="wf"></canvas><span class="wf-load" data-load>decoding…</span></div>
+              <span class="ptime" data-time>0:00 / 0:00</span>
+            </div>
+          </div></div>` : ""}
+        <div class="thread">${turns}</div>
       </div>`;
+  }
+
+  function wireTurn(turnEl) {
+    const traj = turnEl.__traj;
+    const source = turnEl.dataset.source, result = turnEl.dataset.result;
+    const w = new Wave(turnEl.querySelector(".player"));
+    const segBtns = [...turnEl.querySelectorAll("[data-ab]")];
+    const slider  = turnEl.querySelector("[data-slider]");
+    const now     = turnEl.querySelector("[data-now]");
+    const setSeg = key => segBtns.forEach(b => b.setAttribute("aria-pressed", b.dataset.ab === key ? "true" : "false"));
+    const clearSeg = () => segBtns.forEach(b => b.setAttribute("aria-pressed", "false"));
+
+    segBtns.forEach(b => b.addEventListener("click", () => {
+      setSeg(b.dataset.ab);
+      if (b.dataset.ab === "dry") { w.set(source, { keep: true }); }
+      else { w.set(result, { keep: true }); if (slider) { slider.value = slider.max; if (now) now.textContent = "converged"; } }
+    }));
+
+    if (slider && traj) {
+      const onScrub = () => { const i = +slider.value; clearSeg(); if (now) now.textContent = cpLabel(traj[i]); w.set(traj[i].audio, { keep: true });
+        if (i === traj.length - 1) setSeg("result"); };
+      slider.addEventListener("input", onScrub);
+    }
+
+    // lazy first decode when scrolled near
+    const io = new IntersectionObserver((es, obs) => { es.forEach(e => { if (e.isIntersecting) { w.set(result); obs.disconnect(); } }); }, { rootMargin: "240px" });
+    io.observe(turnEl);
+  }
+
+  function wireDry(dryEl, url) {
+    const w = new Wave(dryEl);
+    const io = new IntersectionObserver((es, obs) => { es.forEach(e => { if (e.isIntersecting) { w.set(url); obs.disconnect(); } }); }, { rootMargin: "240px" });
+    io.observe(dryEl);
   }
 
   (async () => {
     try {
       const data = await (await fetch("data.json")).json();
-      elExamples.innerHTML = data.examples.map((e, i) => exampleHtml(e, "x" + i)).join("");
-      const flat = [];
-      data.examples.forEach(ex => ex.turns.forEach(t => { if (realTraj(t.trajectory)) flat.push(t); }));
-      elExamples.querySelectorAll(".traj").forEach((node, i) => wireTraj(node, flat[i].trajectory));
+      // Web Audio support probe
+      if (!(window.AudioContext || window.webkitAudioContext)) throw new Error("no-webaudio");
+      elExamples.innerHTML = data.examples.map(sessionHtml).join("");
+      // attach trajectory data, then wire
+      const sessions = [...elExamples.querySelectorAll(".session")];
+      data.examples.forEach((ex, si) => {
+        const ses = sessions[si];
+        const dryEl = ses.querySelector("[data-dry]");
+        if (dryEl) wireDry(dryEl, ex.source);
+        const turnEls = [...ses.querySelectorAll(".turn")];
+        ex.turns.forEach((t, ti) => { turnEls[ti].__traj = hasGD(t) ? t.trajectory : null; wireTurn(turnEls[ti]); });
+      });
     } catch (e) {
-      elExamples.innerHTML = `<div class="loading">Could not load <code>data.json</code>. Serve this folder over HTTP (for example <code>python&nbsp;-m&nbsp;http.server</code>).</div>`;
+      // graceful fallback: native players
+      try {
+        const data = await (await fetch("data.json")).json();
+        elExamples.innerHTML = data.examples.map(ex => `
+          <div class="session">
+            <div class="ses-top"><h3>${esc(ex.title)}</h3><span class="ses-meta">${ex.n_turns} turns · ${esc(ex.llm)}</span></div>
+            <p class="ses-blurb">${esc(ex.blurb || "")}</p>
+            ${ex.source ? `<div class="dry"><span class="dry-tag">Dry input</span><audio controls preload="none" src="${esc(ex.source)}" style="width:100%"></audio></div>` : ""}
+            <div class="thread">${ex.turns.map(t => `
+              <div class="turn"><span class="turn-node">${String(t.n).padStart(2,"0")}</span>
+                <p class="instruction">${esc(t.instruction)}</p>
+                <div class="turn-meta"><span class="route ${(ROUTE[t.routing]||{}).cls||""}">${esc((ROUTE[t.routing]||{label:t.routing}).label)}</span><span class="chain">${chainHtml(t)}</span></div>
+                <audio controls preload="none" src="${esc(t.result)}" style="width:100%"></audio>
+              </div>`).join("")}</div>
+          </div>`).join("");
+      } catch (e2) {
+        elExamples.innerHTML = `<div class="loading">Could not load <code>data.json</code>. Serve this folder over HTTP (for example <code>python&nbsp;-m&nbsp;http.server</code>).</div>`;
+      }
     }
+  })();
+
+  // scrollspy for the anchor nav
+  (() => {
+    const links = [...document.querySelectorAll("nav.toc a")];
+    const map = new Map(links.map(a => [a.getAttribute("href").slice(1), a]));
+    const io = new IntersectionObserver(es => {
+      es.forEach(e => { if (e.isIntersecting) { links.forEach(l => l.classList.remove("on")); const a = map.get(e.target.id); if (a) a.classList.add("on"); } });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    document.querySelectorAll("section[id]").forEach(s => io.observe(s));
   })();
 </script>
 </body>
