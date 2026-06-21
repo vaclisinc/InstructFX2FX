@@ -12,7 +12,7 @@ FX_DESCRIPTIONS = {
     # "panner":    "Panner — controls stereo placement and width",
 }
 
-_MODEL = "google/gemini-3.1-pro-preview"
+_MODEL = "openai/gpt-5.5"
 
 # Used on the FIRST turn of a session (no history yet). The agent's only job is
 # to map a fresh descriptor to an FX chain — no notion of "refinement" or

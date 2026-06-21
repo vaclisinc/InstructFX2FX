@@ -57,3 +57,4 @@ results/fxsearcher/.DS_Store
 #*.ogg
 prompts.json
 node_modules/
+.gstack/
