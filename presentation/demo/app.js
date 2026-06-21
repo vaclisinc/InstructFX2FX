@@ -107,7 +107,7 @@
       ctx.clearRect(0, 0, W, H);
       const cs = getComputedStyle(document.documentElement);
       const cWave = cs.getPropertyValue("--wave").trim() || "#bbb";
-      const cPlay = cs.getPropertyValue("--accent").trim() || "#e0402a";
+      const cPlay = cs.getPropertyValue("--accent").trim() || "#2f4b86";
       const mid = H / 2, bw = 2, gap = 1, n = Math.max(16, Math.floor(W / (bw + gap)));
       const px = this.progress * W;
       for (let i = 0; i < n; i++) {
