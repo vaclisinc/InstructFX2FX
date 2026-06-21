@@ -298,9 +298,14 @@ class Parser:
             fx_chain_obj   = FXChainFactory.create_fx_chain_from_effects(registry_keys)
             dasp_init_dict = {_DASP_DICT_KEY[fx]: init_params[fx] for fx in dasp_fxs}
             init_tensor    = fx_initial_params_to_tensor(dasp_init_dict, device=self.device)
+            # init_tensor is already normalized to [0,1]; the FX chain expects
+            # [0,1] (move_in_CLAP feeds it sigmoid(logits) == [0,1]). Applying an
+            # extra sigmoid here double-squashed every param toward mid-range,
+            # which made initialize_all renders weak and made each turn's
+            # optimization start diverge from the previous turn's result.
             with torch.no_grad():
                 current_audio = fx_chain_obj(
-                    current_audio.to(self.device), torch.sigmoid(init_tensor)
+                    current_audio.to(self.device), init_tensor
                 ).cpu()
 
         if pb_fxs:

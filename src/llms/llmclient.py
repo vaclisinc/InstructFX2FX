@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 @dataclass
 class LLMClient:
-    model="gpt-4o"
+    model="openai/gpt-5.5"
     parameter_max_tokens=(1024, 2048, 4096)
 
     """LLM client for interacting with OpenRouter or Anthropic."""

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>InstructFX2FX: A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement</title>
+<meta name="description" content="InstructFX2FX: a multi-turn text-to-preset demo for iterative audio effect refinement. An LLM plans the FX chain; CLAP-guided optimization refines the parameters in place." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:    oklch(0.986 0.002 255);
+    --paper-2:  oklch(0.968 0.003 255);
+    --ink:      oklch(0.265 0.011 258);
+    --ink-soft: oklch(0.415 0.011 258);
+    --muted:    oklch(0.555 0.011 260);
+    --faint:    oklch(0.695 0.009 262);
+    --rule:     oklch(0.895 0.005 258);
+    --rule-2:   oklch(0.935 0.004 258);
+    --accent:   oklch(0.515 0.085 248);
+    --accent-d: oklch(0.455 0.085 248);
+    --accent-w: oklch(0.935 0.028 248);
+    --measure: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --maxw: 720px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 17px; line-height: 1.6; letter-spacing: -0.004em;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
+  ::selection { background: var(--accent-w); }
+  code { font-family: var(--measure); font-size: 0.86em; color: var(--ink); }
+  a { color: var(--accent-d); }
+
+  /* hero */
+  header { padding: 84px 0 28px; }
+  .kick { font-family: var(--measure); font-size: 0.73rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-d); margin: 0 0 22px; }
+  h1 { font-size: clamp(2.4rem, 7vw, 3.5rem); font-weight: 600; letter-spacing: -0.04em; line-height: 1.0; margin: 0 0 14px; }
+  .subtitle { font-size: clamp(1.1rem, 2.6vw, 1.32rem); font-weight: 450; line-height: 1.32; color: var(--ink-soft); margin: 0 0 26px; max-width: 30ch; }
+  .byline { font-size: 0.95rem; color: var(--muted); margin: 0 0 24px; line-height: 1.55; }
+  .byline strong { color: var(--ink); font-weight: 500; }
+  .byline .dot { color: var(--faint); margin: 0 6px; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 5px; text-decoration: none; font-size: 0.91rem; font-weight: 500; color: var(--ink); border: 1px solid var(--rule); transition: border-color .2s, background .2s, color .2s; }
+  .btn:hover { border-color: var(--ink); }
+  .btn.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn.solid:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+  .btn svg { width: 16px; height: 16px; }
+
+  /* anchor nav */
+  nav.toc {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--paper);
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  }
+  nav.toc .wrap { display: flex; gap: 22px; padding-top: 11px; padding-bottom: 11px; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; }
+  nav.toc .wrap::-webkit-scrollbar { display: none; }
+  nav.toc a { font-family: var(--measure); font-size: 0.74rem; letter-spacing: 0.02em; color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s; }
+  nav.toc a span { color: var(--faint); margin-right: 5px; }
+  nav.toc a:hover { color: var(--ink); }
+  nav.toc a:hover span { color: var(--accent-d); }
+
+  /* sections */
+  section { padding: 40px 0; }
+  section[id] { scroll-margin-top: 60px; }
+  hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 13px; margin: 0 0 22px; }
+  .sec-head h2 { font-size: 1.04rem; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .idx { font-family: var(--measure); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em; color: var(--accent-d); }
+  p.body { font-size: 1.04rem; color: var(--ink-soft); margin: 0 0 16px; max-width: 64ch; }
+  p.body em { color: var(--ink); font-style: normal; font-weight: 600; }
+  p.body strong { color: var(--ink); font-weight: 600; }
+
+  /* problem definition block */
+  .def { margin: 6px 0 22px; padding: 18px 20px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: 6px; }
+  .def-tag { display: block; font-family: var(--measure); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-d); margin: 0 0 8px; }
+  .def p { margin: 0; font-size: 0.99rem; color: var(--ink-soft); line-height: 1.55; max-width: 62ch; }
+  .def code { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; color: var(--accent-d); font-weight: 500; }
+
+  /* mode list */
+  ol.modes { list-style: none; counter-reset: m; margin: 4px 0 0; padding: 0; }
+  ol.modes li { counter-increment: m; display: grid; grid-template-columns: 1.7rem 1fr; gap: 12px; padding: 11px 0; border-top: 1px solid var(--rule-2); align-items: baseline; }
+  ol.modes li:first-child { border-top: 0; }
+  ol.modes li::before { content: counter(m, decimal-leading-zero); font-family: var(--measure); font-size: 0.74rem; color: var(--accent-d); }
+  ol.modes p { margin: 0; font-size: 0.97rem; color: var(--ink-soft); line-height: 1.5; }
+  ol.modes b { color: var(--ink); font-weight: 600; }
+
+  /* figures */
+  figure { margin: 0; }
+  .fignum { font-family: var(--measure); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin: 0 0 9px; }
+  figure img { width: 100%; border: 1px solid var(--rule); border-radius: 4px; display: block; background: var(--paper); }
+  figcaption { font-size: 0.86rem; color: var(--muted); margin-top: 11px; max-width: 62ch; line-height: 1.5; }
+  figcaption b { color: var(--ink-soft); font-weight: 600; }
+  .fig-stack { display: grid; gap: 30px; }
+
+  /* examples */
+  .ex-intro { color: var(--muted); font-size: 0.97rem; margin: 0 0 26px; max-width: 60ch; }
+  .ex-intro strong { color: var(--ink-soft); font-weight: 600; }
+  .example { padding: 6px 0 2px; }
+  .example + .example { border-top: 1px solid var(--rule); margin-top: 28px; padding-top: 30px; }
+  .ex-top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .ex-top h3 { font-size: 1.26rem; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .ex-meta { font-family: var(--measure); font-size: 0.72rem; color: var(--faint); white-space: nowrap; }
+  .ex-blurb { color: var(--muted); font-size: 0.96rem; margin: 6px 0 16px; max-width: 60ch; }
+  .source { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 4px 0 6px; }
+  .source .slab { font-family: var(--measure); font-size: 0.69rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+
+  .turn { padding: 18px 0 6px; border-top: 1px dashed var(--rule); margin-top: 12px; }
+  .turn:first-of-type { border-top: 0; margin-top: 4px; }
+  .turn-head { display: grid; grid-template-columns: 2rem 1fr; gap: 12px; align-items: baseline; margin-bottom: 14px; }
+  .turn-n { font-family: var(--measure); font-size: 0.77rem; color: var(--accent-d); }
+  .instruction { font-size: 1.07rem; font-weight: 450; line-height: 1.4; }
+
+  /* layer annotation: the core "which layer did what" cue */
+  .lane { padding-left: calc(2rem + 12px); }
+  .layer { display: grid; grid-template-columns: 9.5rem 1fr; gap: 12px; align-items: baseline; padding: 7px 0; }
+  .ltag { font-family: var(--measure); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; color: var(--accent-d); }
+  .lbody { font-size: 0.92rem; color: var(--ink-soft); }
+  .mode { font-weight: 600; color: var(--ink); }
+  .fx { font-family: var(--measure); font-size: 0.82rem; padding: 1px 6px; border-radius: 4px; background: var(--paper-2); border: 1px solid var(--rule); }
+  .fx.new { color: var(--accent-d); border-color: var(--accent-w); background: var(--accent-w); }
+  .arrow { color: var(--faint); margin: 0 3px; }
+
+  audio { width: 100%; height: 38px; border-radius: 6px; }
+  audio::-webkit-media-controls-panel { background: var(--paper-2); }
+  .result { display: grid; grid-template-columns: 9.5rem 1fr; gap: 12px; align-items: center; padding: 8px 0 2px; }
+  .result .rtag { font-family: var(--measure); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; color: var(--accent-d); }
+
+  /* trajectory */
+  .traj { margin: 4px 0 6px; }
+  .traj-bar { display: flex; align-items: center; gap: 12px; }
+  .traj-btn { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--rule); background: var(--paper); display: grid; place-items: center; cursor: pointer; color: var(--ink); transition: border-color .2s, background .2s, color .2s; }
+  .traj-btn:hover { border-color: var(--accent); }
+  .traj-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  .traj-btn svg { width: 14px; height: 14px; }
+  .traj-track { flex: 1; }
+  .traj-now { font-family: var(--measure); font-size: 0.7rem; font-weight: 500; color: var(--accent-d); margin-bottom: 5px; display: block; }
+  input[type=range].slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--rule); border-radius: 99px; outline: none; cursor: pointer; margin: 0; }
+  input[type=range].slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--accent); transition: transform .15s; }
+  input[type=range].slider::-webkit-slider-thumb:hover { transform: scale(1.18); }
+  input[type=range].slider::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: 2px solid var(--paper); cursor: pointer; }
+  .traj-axis { display: flex; justify-content: space-between; font-family: var(--measure); font-size: 0.64rem; color: var(--faint); margin-top: 5px; letter-spacing: 0.03em; }
+
+  pre.bib { background: var(--paper-2); color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; overflow-x: auto; font-family: var(--measure); font-size: 0.79rem; line-height: 1.6; margin: 0; }
+  footer { padding: 40px 0 60px; color: var(--faint); font-family: var(--measure); font-size: 0.72rem; letter-spacing: 0.03em; }
+  .loading { color: var(--muted); padding: 22px 0; font-size: 0.95rem; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto; } }
+  @media (max-width: 600px) {
+    header { padding: 52px 0 20px; }
+    nav.toc .wrap { gap: 18px; }
+    .def { padding: 16px 16px; }
+    .turn-head { grid-template-columns: 1fr; gap: 4px; }
+    .lane { padding-left: 0; }
+    .layer, .result { grid-template-columns: 1fr; gap: 3px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <header><div class="wrap">
+    <p class="kick">DAFx26 · Demo Track</p>
+    <h1>InstructFX2FX</h1>
+    <p class="subtitle">A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement</p>
+    <p class="byline">
+      <strong>Song-Ze Yu</strong><span class="dot">·</span><strong>Milan Liessens Dujardin</strong><span class="dot">·</span><strong>Yuxuan Cai</strong><span class="dot">·</span><strong>Wantong Zhang</strong><br />
+      UC Berkeley, CNMAT
+    </p>
+    <div class="btns">
+      <a class="btn solid" href="assets/paper.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Read the paper</a>
+      <a class="btn" href="https://github.com/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.6.5.5 5.6.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7 0-.7 0-.7 1.2 0 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.7.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.6 18.4.5 12 .5z"/></svg>Code</a>
+    </div>
+  </div></header>
+
+  <!-- NAV -->
+  <nav class="toc"><div class="wrap">
+    <a href="#overview"><span>01</span>overview</a>
+    <a href="#architecture"><span>02</span>architecture</a>
+    <a href="#listen"><span>03</span>listen</a>
+    <a href="#results"><span>04</span>results</a>
+    <a href="#cite"><span>05</span>cite</a>
+  </div></nav>
+
+  <div class="wrap">
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="sec-head"><span class="idx">01</span><h2>Overview</h2></div>
+    <p class="body">
+      Text-to-preset systems are single-shot: one descriptor, one preset. Real mixing is iterative,
+      a sequence of small corrections. We study that multi-turn case, which we call
+      <em>sequential FX refinement</em>.
+    </p>
+    <div class="def">
+      <span class="def-tag">Problem · Sequential FX refinement</span>
+      <p>Given a parameter state <code>P</code> and a sequence of natural-language instructions
+      <code>I₁, I₂, …</code>, each instruction updates the effect parameters so the rendered audio
+      tracks the user's evolving intent while preserving relevant structure from the previous state.</p>
+    </div>
+    <p class="body">
+      <strong>InstructFX2FX</strong> is a hybrid: an LLM plans, an optimizer refines. The LLM selects
+      and orders the FX chain and proposes initial parameters; CLAP-guided optimization then tunes them
+      perceptually, gradient descent for differentiable effects (EQ, reverb) and Bayesian optimization
+      for the rest, without discarding what earlier turns achieved.
+    </p>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <div class="sec-head"><span class="idx">02</span><h2>Architecture</h2></div>
+    <div class="fig-stack">
+      <figure>
+        <p class="fignum">Fig.01 · Harness</p>
+        <img src="assets/fig_harness.jpg" alt="InstructFX2FX harness: Layer 1 FX selector, Layer 2 parser, Layer 3a gradient descent and 3b Bayesian optimization, with persistent session state" />
+        <figcaption><b>Layer 1</b> selects and orders the FX chain. <b>Layer 2</b> routes the update. <b>Layer 3</b> refines parameters in CLAP space: gradient descent for EQ and reverb, Bayesian optimization for the rest. Persistent session state makes it iterative.</figcaption>
+      </figure>
+      <figure>
+        <p class="fignum">Fig.02 · Routing</p>
+        <img src="assets/fig_routing.jpg" alt="Three routing modes: initialize-only, mixed reuse-and-initialize, reuse-and-optimize" />
+        <figcaption>Layer 2 routes every instruction to one of three update modes.</figcaption>
+      </figure>
+    </div>
+    <ol class="modes">
+      <li><p><b>Initialize.</b> Build a fresh FX chain when the instruction starts a new direction.</p></li>
+      <li><p><b>Extend.</b> Reuse the current chain and add new effects on top of it.</p></li>
+      <li><p><b>Reuse &amp; optimize.</b> Keep the existing effects and re-tune their parameters in place.</p></li>
+    </ol>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- LISTEN -->
+  <section id="listen">
+    <div class="sec-head"><span class="idx">03</span><h2>Listen</h2></div>
+    <p class="ex-intro">
+      Real outputs on the differentiable, gradient-descent path (EQ and reverb). Each turn names
+      what <strong>Layer 1</strong> decided and lets you scrub the <strong>Layer 3a</strong>
+      gradient descent. Press play to hear that checkpoint.
+    </p>
+    <div id="examples"><div class="loading">Loading examples…</div></div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- RESULTS -->
+  <section id="results">
+    <div class="sec-head"><span class="idx">04</span><h2>Results</h2></div>
+    <div class="fig-stack">
+      <figure>
+        <p class="fignum">Exp.01 · Directed MMD</p>
+        <img src="assets/fig_mmd.png" alt="Sequential MMD across directed prompt pairs: InstructFX2FX beats the LLM-only baseline on 9 of 10" />
+        <figcaption>Lower target-directed MMD on 9 of 10 directed descriptor pairs versus an LLM-only baseline. CLAP-guided refinement cuts MMD from <b>0.45 to 0.34</b>, a 24% reduction.</figcaption>
+      </figure>
+      <figure>
+        <p class="fignum">Exp.03 · Trajectory</p>
+        <img src="assets/fig_trajectory.png" alt="CLAP similarity rising and MMD falling across optimization iterations" />
+        <figcaption>CLAP similarity rises and MMD falls across iterations, the measurement behind the trajectories above.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <hr class="rule" />
+
+  <!-- CITE -->
+  <section id="cite">
+    <div class="sec-head"><span class="idx">05</span><h2>Cite</h2></div>
+    <pre class="bib">@inproceedings{instructfx2fx2026,
+  title  = {InstructFX2FX: A Multi-turn Text-to-Preset Demo for
+            Iterative Audio Effect Refinement},
+  author = {Yu, Song-Ze and Liessens Dujardin, Milan and
+            Cai, Yuxuan and Zhang, Wantong},
+  booktitle = {Proc. 29th Int. Conf. Digital Audio Effects (DAFx)},
+  year   = {2026}
+}</pre>
+  </section>
+
+  <footer>InstructFX2FX · DAFx26 Demo Track · UC Berkeley CNMAT</footer>
+  </div>
+
+<script>
+  const elExamples = document.getElementById("examples");
+  const PLAY  = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const cpLabel = cp => cp.label === "start" ? "start" : cp.label === "final" || cp.label === "end" ? "final" : (/iter_?(\d+)/.exec(cp.label)?.[1] != null ? "iter " + /iter_?(\d+)/.exec(cp.label)[1] : cp.label);
+  const realTraj = t => Array.isArray(t) && t.some(c => /iter_?\d+/.test(c.label || ""));
+  const fxChip = (f, isNew) => `<span class="fx${isNew ? " new" : ""}">${esc(f)}</span>`;
+
+  function planBody(t) {
+    const newSet = new Set(t.fx_new || []);
+    const chain = (t.fx_chain || []).map(f => fxChip(f, newSet.has(f))).join('<span class="arrow">→</span>');
+    let verb;
+    if (t.routing === "Initialize-only") verb = "initializes";
+    else if (t.routing === "Reuse-and-optimize") verb = "reuses";
+    else verb = "extends";
+    return `<span class="mode">${esc(t.routing)}</span> · ${verb} ${chain}`;
+  }
+
+  function trajHtml(id, n) {
+    return `
+      <div class="traj" data-traj="${id}">
+        <div class="traj-bar">
+          <button class="traj-btn" data-play type="button" aria-pressed="false" aria-label="Play trajectory">${PLAY}</button>
+          <div class="traj-track">
+            <span class="traj-now" data-now>start</span>
+            <input class="slider" type="range" min="0" max="${n - 1}" value="0" step="1" data-slider aria-label="Gradient descent checkpoint" />
+            <div class="traj-axis"><span>start</span><span>gradient descent</span><span>final</span></div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function turnHtml(t, tid) {
+    const traj = realTraj(t.trajectory) ? t.trajectory : null;
+    return `
+      <div class="turn">
+        <div class="turn-head"><span class="turn-n">${String(t.n).padStart(2,"0")}</span><div class="instruction">“${esc(t.instruction)}”</div></div>
+        <div class="lane">
+          <div class="layer"><span class="ltag">Layer 1 · LLM</span><span class="lbody">${planBody(t)}</span></div>
+          ${traj ? `<div class="layer"><span class="ltag">Layer 3a · CLAP GD</span><span class="lbody">${trajHtml(tid, traj.length)}</span></div>`
+                 : (t.routing === "Initialize-only"
+                     ? `<div class="layer"><span class="ltag">Layer 3 · skipped</span><span class="lbody">LLM-initialized parameters used directly, no optimization this turn.</span></div>`
+                     : `<div class="layer"><span class="ltag">Layer 3 · ${esc(t.backend)}</span><span class="lbody">optimized in place, no intermediate checkpoints saved.</span></div>`)}
+          <div class="result"><span class="rtag">Result</span><audio controls preload="none" src="${esc(t.result)}"></audio></div>
+        </div>
+      </div>`;
+  }
+
+  function wireTraj(node, traj) {
+    const slider = node.querySelector("[data-slider]");
+    const now    = node.querySelector("[data-now]");
+    const btn    = node.querySelector("[data-play]");
+    const audio  = new Audio();
+    audio.preload = "none";
+    let playing = false, idx = 0;
+    const setBtn = on => { btn.setAttribute("aria-pressed", on ? "true" : "false"); btn.innerHTML = on ? PAUSE : PLAY; };
+    const show = i => { idx = Math.max(0, Math.min(traj.length - 1, i)); slider.value = idx; now.textContent = cpLabel(traj[idx]); };
+    const go = (i, play) => { show(i); const w = traj[idx].audio; if (!audio.src.endsWith(w)) audio.src = w; if (play) audio.play().catch(() => {}); };
+    slider.addEventListener("input", () => { playing = false; setBtn(false); audio.pause(); show(+slider.value); audio.src = traj[idx].audio; });
+    btn.addEventListener("click", () => { if (playing) { playing = false; setBtn(false); audio.pause(); return; } playing = true; setBtn(true); go(+slider.value, true); });
+    audio.addEventListener("ended", () => { if (!playing) return; if (idx + 1 < traj.length) go(idx + 1, true); else { playing = false; setBtn(false); show(0); } });
+    show(0);
+  }
+
+  function exampleHtml(ex, ei) {
+    const turns = ex.turns.map((t, i) => turnHtml(t, `t-${ei}-${i}`)).join("");
+    return `
+      <div class="example">
+        <div class="ex-top"><h3>${esc(ex.title)}</h3><span class="ex-meta">${ex.n_turns} turns · ${esc(ex.llm)}</span></div>
+        <p class="ex-blurb">${esc(ex.blurb || "")}</p>
+        ${ex.source ? `<div class="source"><span class="slab">Source</span><audio controls preload="none" src="${esc(ex.source)}"></audio></div>` : ""}
+        ${turns}
+      </div>`;
+  }
+
+  (async () => {
+    try {
+      const data = await (await fetch("data.json")).json();
+      elExamples.innerHTML = data.examples.map((e, i) => exampleHtml(e, "x" + i)).join("");
+      const flat = [];
+      data.examples.forEach(ex => ex.turns.forEach(t => { if (realTraj(t.trajectory)) flat.push(t); }));
+      elExamples.querySelectorAll(".traj").forEach((node, i) => wireTraj(node, flat[i].trajectory));
+    } catch (e) {
+      elExamples.innerHTML = `<div class="loading">Could not load <code>data.json</code>. Serve this folder over HTTP (for example <code>python&nbsp;-m&nbsp;http.server</code>).</div>`;
+    }
+  })();
+</script>
+</body>
+</html>
