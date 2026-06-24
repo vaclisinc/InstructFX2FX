@@ -1,12 +1,49 @@
+<div align="center">
+
 # InstructFX2FX
 
-[![InstructFX2FX demo preview](https://raw.githubusercontent.com/vaclisinc/InstructFX2FX/32e0b65052e5f163f245eeca8f989803416f3ce0/presentation/demo/assets/cover.jpg)](https://instructfx2fx.vaclis.net/)
+### A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement
 
-**A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement** — DAFx26, Demo Track.
+<span style="white-space:nowrap;">Song-Ze Yu</span>&nbsp;·
+<span style="white-space:nowrap;">Milan Liessens Dujardin</span>&nbsp;·
+<span style="white-space:nowrap;">Yuxuan Cai</span>&nbsp;·
+<span style="white-space:nowrap;">Wantong Zhang</span>
 
-[Live demo](https://instructfx2fx.vaclis.net/) · [Paper](presentation/demo/assets/paper.pdf) · UC Berkeley, CNMAT
+<sub>Center for New Music and Audio Technologies (CNMAT) · University of California, Berkeley</sub>
 
-Real audio mixing is iterative: a sequence of small corrections, not one descriptor. We study that multi-turn setting, which we call **sequential FX refinement**:
+<br/>
+
+[![arXiv](https://img.shields.io/badge/arXiv-2606.22005-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.22005)
+[![Live demo](https://img.shields.io/badge/Live_demo-instructfx2fx.vaclis.net-0071e3.svg)](https://instructfx2fx.vaclis.net/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+
+</div>
+
+<p align="center">
+  <a href="https://instructfx2fx.vaclis.net/">
+    <img src="https://raw.githubusercontent.com/vaclisinc/InstructFX2FX/32e0b65052e5f163f245eeca8f989803416f3ce0/presentation/demo/assets/cover.jpg" alt="InstructFX2FX demo preview" width="100%">
+  </a>
+</p>
+
+---
+
+> **TL;DR.** Real audio mixing is iterative — a sequence of small corrections, not one descriptor. **InstructFX2FX** treats this as *sequential FX refinement*: an LLM plans and orders the FX chain and proposes the initial parameter state, then CLAP-guided optimization refines it perceptually, turn after turn — gradient descent for differentiable effects (EQ, reverb) and Bayesian optimization for the rest. On SocialFX descriptor transitions it lowers target-directed MMD on **9 of 10** directed pairs versus an LLM-only re-prompting baseline.
+
+## Highlights
+
+| | |
+|---|---|
+| **Problem** | Sequential, multi-turn FX refinement — update an existing chain and parameter state, not regenerate a preset from scratch |
+| **Method** | LLM planner (select + order + initialize) → CLAP-guided optimization (perceptual refinement) over a persistent session state |
+| **Backends** | Gradient descent (differentiable: EQ, reverb) · Bayesian optimization (Pedalboard: comp, dist, delay, pitch, crush) |
+| **Result** | Target-directed MMD ↓ on **9 / 10** directed pairs vs. LLM-only re-prompting (0.45 → 0.34, a 24% reduction) |
+| **Interaction** | Human-in-the-loop: audition the saved optimization checkpoints each turn, then prompt the next correction |
+
+---
+
+## Sequential FX Refinement
+
+We study the multi-turn setting we call **sequential FX refinement**:
 
 > Given an existing FX parameter set **P** and a sequence of natural-language instructions **{I₁, I₂, …}**, update the effect parameters so the rendered audio tracks the user's evolving intent while preserving relevant structure from the previous state.
 
@@ -82,8 +119,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Environment Variables
-
 Create a `.env` file in the project root:
 
 ```
@@ -92,26 +127,25 @@ OPENROUTER_API_KEY=your_api_key
 
 ## Quick Start
 
+Run the multi-turn pipeline end-to-end on the bundled audio (`dry_audio/piano/piano.wav`). Set `OPENROUTER_API_KEY` in `.env` first; CLAP weights auto-download on first run:
+
+```bash
+python tests/test_pipeline.py
+```
+
+It drives a few multi-turn instruction sequences through the orchestrator and writes the rendered audio and parameters for each turn to `tests/outputs/`.
+
+The core API is one call per instruction, with `Session` carrying state across turns:
+
 ```python
-import sys
-sys.path.insert(0, "src")
-
-from llms.llmclient import LLMClient
-from embeddings.clap import CLAPWrapper
-from session.session import Session
-from pipeline.orchestrator import Orchestrator
-
-llm = LLMClient()
-clap = CLAPWrapper()
+orch = Orchestrator(llm, clap, device="cpu")
 session = Session(available_fx=["eq", "comp", "rev", "dist"])
 
-orch = Orchestrator(llm, clap, device="cpu")
-
-# First instruction
-out = orch.run("bright", session, dry_audio_tensor)
-# Second instruction — session remembers previous FX
-out = orch.run("add warmth", session, dry_audio_tensor)
+orch.run("bright", session, audio)        # turn 1
+orch.run("add warmth", session, audio)    # turn 2 — Session remembers turn 1
 ```
+
+See [`tests/test_pipeline.py`](tests/test_pipeline.py) for the full runnable example (audio loading and model setup).
 
 ## Project Structure
 
@@ -151,13 +185,6 @@ src/
 dry_audio/                   # Test audio files (piano, violin, oboe)
 ```
 
-## Running Tests
-
-```bash
-python tests/test_pipeline.py --quick   # fast, skip optimization
-python tests/test_pipeline.py           # full suite with optimization
-```
-
 ## Demo
 
 **Live site** ([instructfx2fx.vaclis.net](https://instructfx2fx.vaclis.net/)) — a static page with the waveform players, dry/result A/B, and gradient-descent trajectory scrubbing. Source lives in `presentation/demo/` (plain HTML/CSS/JS, no build step):
@@ -178,15 +205,20 @@ source .venv/bin/activate
 uvicorn apps.web_api.app.main:app --reload
 ```
 
-## Cite
+## Citation
 
 ```bibtex
-@inproceedings{instructfx2fx2026,
-  title     = {InstructFX2FX: A Multi-turn Text-to-Preset Demo for
-               Iterative Audio Effect Refinement},
-  author    = {Yu, Song-Ze and Liessens Dujardin, Milan and
-               Cai, Yuxuan and Zhang, Wantong},
-  booktitle = {Proc. 29th Int. Conf. Digital Audio Effects (DAFx)},
-  year      = {2026}
+@misc{instructfx2fx2026,
+  title         = {InstructFX2FX: A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement},
+  author        = {Yu, Song-Ze and Liessens Dujardin, Milan and Cai, Yuxuan and Zhang, Wantong},
+  year          = {2026},
+  eprint        = {2606.22005},
+  archivePrefix = {arXiv},
+  primaryClass  = {eess.AS},
+  url           = {https://arxiv.org/abs/2606.22005}
 }
 ```
+
+## Acknowledgements
+
+InstructFX2FX builds on [LAION-CLAP](https://github.com/LAION-AI/CLAP) for audio–text embeddings, [`dasp`](https://github.com/csteinmetz1/dasp-pytorch) for differentiable audio effects, and [Pedalboard](https://github.com/spotify/pedalboard) for non-differentiable plugins. Our CLAP-guided objectives follow prior text-guided FX work — [Text2FX](https://arxiv.org/abs/2409.18847) and [FxSearcher](https://arxiv.org/abs/2511.14138) — and the LLM-initialization idea follows [LLM2Fx](https://arxiv.org/abs/2505.20770). Descriptor data is drawn from [SocialFX](https://dl.acm.org/doi/10.1145/2964284.2967207).
