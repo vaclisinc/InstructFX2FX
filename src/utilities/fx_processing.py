@@ -141,4 +141,7 @@ def fx_initial_params_to_tensor(config, device="cuda" if torch.cuda.is_available
             spec = param_ranges[dict_key][param_name]
             params.append(normalize_effect_parameters(effect_params[param_name], spec))
 
-    return torch.tensor(params, device=device, dtype=dtype).unsqueeze(0)
+    # Clamp to [0,1]: the DASP processors require normalized params in range and
+    # raise otherwise. An LLM-emitted value past a param's declared range would
+    # normalize outside [0,1]; clamp so it's pinned to the boundary instead.
+    return torch.tensor(params, device=device, dtype=dtype).unsqueeze(0).clamp(0.0, 1.0)

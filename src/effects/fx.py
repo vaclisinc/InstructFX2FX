@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from functools import partial
@@ -249,14 +250,19 @@ class Compressor(DASPEffectAdapter):
 
 
 class Reverb(DASPEffectAdapter):
-    def __init__(self, sample_rate=44100, num_samples=8192):
+    def __init__(self, sample_rate=44100, num_samples=None):
         super().__init__(
             effect_name="Reverb",
             dict_key="Reverb",
             effect_cls=dasp_pytorch.NoiseShapedReverb,
             sample_rate=sample_rate,
         )
-        # Default 65536 (~1.5s IR) causes OOM on CPU; 8192 (~0.19s) is ~8x cheaper
+        # IR length, in samples, of the noise-shaped reverb. 8192 (~0.19s) is
+        # CPU-safe but far too short to be audible as a room/hall, so decay_time
+        # has almost no effect. On a GPU / large-RAM box, set REVERB_NUM_SAMPLES
+        # to 65536 (~1.5s) or 131072 (~3s) for an audible space. 65536+ OOMs on CPU.
+        if num_samples is None:
+            num_samples = int(os.getenv("REVERB_NUM_SAMPLES", "8192"))
         self.effect.process_fn = partial(
             dasp_pytorch.noise_shaped_reverberation, num_samples=num_samples
         )
