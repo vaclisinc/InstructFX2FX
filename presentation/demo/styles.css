@@ -124,6 +124,10 @@ figure { margin: 0; }
 figure img { width: 100%; border: 1.5px solid var(--line); display: block; background: var(--paper); }
 figcaption { font-size: 0.78rem; color: var(--muted); margin-top: 10px; max-width: 64ch; line-height: 1.55; }
 figcaption b { color: var(--ink-2); font-weight: 600; }
+.traj-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 14px; }
+.traj-cell { margin: 0; }
+.traj-cell img { width: 100%; border: 1.5px solid var(--line); display: block; background: var(--paper); }
+.traj-cell span { display: block; font-family: var(--mono); font-size: 0.7rem; color: var(--faint); letter-spacing: 0.04em; margin-top: 6px; }
 
 /* ---- stats ---- */
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); border: 1.5px solid var(--line); margin: 0 0 30px; }
