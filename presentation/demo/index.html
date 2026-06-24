@@ -134,12 +134,28 @@
       </div>
       <div class="fig-stack">
         <figure>
-          <p class="fignum"><b>EXP.01</b> · DIRECTED MMD</p>
+          <p class="fignum"><b>EXP.01</b> · SEQUENTIAL MMD</p>
           <img src="assets/fig_mmd.png" alt="Sequential MMD across directed prompt pairs: InstructFX2FX beats the LLM-only baseline on 9 of 10" />
           <figcaption>Lower target-directed MMD on <b>9 of 10</b> directed descriptor pairs versus an LLM-only baseline. CLAP-guided refinement cuts MMD from <b>0.45 to 0.34</b>.</figcaption>
         </figure>
         <figure>
-          <p class="fignum"><b>EXP.03</b> · TRAJECTORY</p>
+          <p class="fignum"><b>EXP.02</b> · MMD CONVERGENCE TRAJECTORY</p>
+          <div class="traj-grid">
+            <div class="traj-cell"><img src="assets/exp2/warm_to_bright.png" alt="warm to bright MMD trajectory" /><span>warm → bright</span></div>
+            <div class="traj-cell"><img src="assets/exp2/bright_to_warm.png" alt="bright to warm MMD trajectory" /><span>bright → warm</span></div>
+            <div class="traj-cell"><img src="assets/exp2/heavy_to_calm.png" alt="heavy to calm MMD trajectory" /><span>heavy → calm</span></div>
+            <div class="traj-cell"><img src="assets/exp2/heavy_to_harsh.png" alt="heavy to harsh MMD trajectory" /><span>heavy → harsh</span></div>
+            <div class="traj-cell"><img src="assets/exp2/harsh_to_soft.png" alt="harsh to soft MMD trajectory" /><span>harsh → soft</span></div>
+            <div class="traj-cell"><img src="assets/exp2/harsh_to_calm.png" alt="harsh to calm MMD trajectory" /><span>harsh → calm</span></div>
+            <div class="traj-cell"><img src="assets/exp2/warm_to_heavy.png" alt="warm to heavy MMD trajectory" /><span>warm → heavy</span></div>
+            <div class="traj-cell"><img src="assets/exp2/soft_to_loud.png" alt="soft to loud MMD trajectory" /><span>soft → loud</span></div>
+            <div class="traj-cell"><img src="assets/exp2/calm_to_loud.png" alt="calm to loud MMD trajectory" /><span>calm → loud</span></div>
+            <div class="traj-cell"><img src="assets/exp2/loud_to_heavy.png" alt="loud to heavy MMD trajectory" /><span>loud → heavy</span></div>
+          </div>
+          <figcaption>All <b>10</b> directed descriptor pairs (the paper has room for only two). MMD vs. gradient-descent iteration for piano and violin, each against its LLM-only baseline — some pairs drop and stay below the baseline, others overshoot or drift, which is why the demo exposes intermediate checkpoints.</figcaption>
+        </figure>
+        <figure>
+          <p class="fignum"><b>EXP.03</b> · LLM INITIALIZATION ABLATION</p>
           <img src="assets/fig_trajectory.png" alt="CLAP similarity rising and MMD falling across optimization iterations" />
           <figcaption>CLAP similarity rises and MMD falls across iterations, the measurement behind the gradient-descent tracks above.</figcaption>
         </figure>
@@ -153,13 +169,16 @@
   <section id="cite">
     <div class="shead"><span class="snum">[05]</span><span class="stitle">Cite</span></div>
     <div class="sbody">
-<pre class="bib">@inproceedings{instructfx2fx2026,
-  title  = {InstructFX2FX: A Multi-turn Text-to-Preset Demo for
-            Iterative Audio Effect Refinement},
-  author = {Yu, Song-Ze and Liessens Dujardin, Milan and
-            Cai, Yuxuan and Zhang, Wantong},
-  booktitle = {Proc. 29th Int. Conf. Digital Audio Effects (DAFx)},
-  year   = {2026}
+<pre class="bib">@misc{instructfx2fx2026,
+  title         = {InstructFX2FX: A Multi-turn Text-to-Preset Demo for
+                   Iterative Audio Effect Refinement},
+  author        = {Yu, Song-Ze and Liessens Dujardin, Milan and
+                   Cai, Yuxuan and Zhang, Wantong},
+  year          = {2026},
+  eprint        = {2606.22005},
+  archivePrefix = {arXiv},
+  primaryClass  = {eess.AS},
+  url           = {https://arxiv.org/abs/2606.22005}
 }</pre>
     </div>
   </section>
