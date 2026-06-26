@@ -14,6 +14,7 @@
 <br/>
 
 [![arXiv](https://img.shields.io/badge/arXiv-2606.22005-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.22005)
+[![DAFx 2026](https://img.shields.io/badge/DAFx_2026-Demo_Track-success.svg)](https://dafx26.mit.edu/)
 [![Live demo](https://img.shields.io/badge/Live_demo-instructfx2fx.vaclis.net-0071e3.svg)](https://instructfx2fx.vaclis.net/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
