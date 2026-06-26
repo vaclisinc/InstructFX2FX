@@ -13,7 +13,8 @@
 
 <br/>
 
-[![arXiv](https://img.shields.io/badge/arXiv-2606.22005-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.22005)
+[![arXiv](https://img.shields.io/badge/arXiv-2606.22005-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.22005v2)
+[![DAFx 2026](https://img.shields.io/badge/DAFx_2026-Demo_Track-success.svg)](https://dafx26.mit.edu/)
 [![Live demo](https://img.shields.io/badge/Live_demo-instructfx2fx.vaclis.net-0071e3.svg)](https://instructfx2fx.vaclis.net/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
@@ -208,14 +209,14 @@ uvicorn apps.web_api.app.main:app --reload
 ## Citation
 
 ```bibtex
-@misc{instructfx2fx2026,
-  title         = {InstructFX2FX: A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement},
-  author        = {Yu, Song-Ze and Liessens Dujardin, Milan and Cai, Yuxuan and Zhang, Wantong},
-  year          = {2026},
-  eprint        = {2606.22005},
-  archivePrefix = {arXiv},
-  primaryClass  = {eess.AS},
-  url           = {https://arxiv.org/abs/2606.22005}
+@misc{yu2026instructfx2fxmultiturntexttopresetdemo,
+      title={InstructFX2FX: A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement},
+      author={Song-Ze Yu and Milan Liessens Dujardin and Yuxuan Cai and Wantong Zhang},
+      year={2026},
+      eprint={2606.22005},
+      archivePrefix={arXiv},
+      primaryClass={cs.SD},
+      url={https://arxiv.org/abs/2606.22005},
 }
 ```
 
