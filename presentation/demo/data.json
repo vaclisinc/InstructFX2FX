@@ -1,6 +1,180 @@
 {
   "examples": [
     {
+      "id": "dream",
+      "kind": "reverb",
+      "title": "A fading dream",
+      "blurb": "An ethereal, shimmering atmosphere that brightens, then drifts into the distance.",
+      "llm": "gpt-5.5",
+      "n_turns": 3,
+      "source": "audio/dream/source.mp3",
+      "turns": [
+        {
+          "n": 1,
+          "instruction": "give it a dreamy, ethereal, floating atmosphere",
+          "fx_chain": [
+            "rev"
+          ],
+          "fx_new": [
+            "rev"
+          ],
+          "fx_reused": [],
+          "routing": "Initialize-only",
+          "backend": "Gradient descent",
+          "result": "audio/dream/t1_result.mp3",
+          "trajectory": [
+            {
+              "label": "start",
+              "iteration": 0,
+              "audio": "audio/dream/t1_start.mp3"
+            },
+            {
+              "label": "end",
+              "iteration": null,
+              "audio": "audio/dream/t1_end.mp3"
+            }
+          ]
+        },
+        {
+          "n": 2,
+          "instruction": "make it shimmer, brighter and airier",
+          "fx_chain": [
+            "rev",
+            "eq"
+          ],
+          "fx_new": [
+            "eq"
+          ],
+          "fx_reused": [
+            "rev"
+          ],
+          "routing": "Mixed reuse-and-initialize",
+          "backend": "Gradient descent",
+          "result": "audio/dream/t2_result.mp3",
+          "trajectory": [
+            {
+              "label": "start",
+              "iteration": 0,
+              "audio": "audio/dream/t2_start.mp3"
+            },
+            {
+              "label": "iter_15",
+              "iteration": 15,
+              "audio": "audio/dream/t2_iter_15.mp3"
+            },
+            {
+              "label": "iter_30",
+              "iteration": 30,
+              "audio": "audio/dream/t2_iter_30.mp3"
+            },
+            {
+              "label": "iter_45",
+              "iteration": 45,
+              "audio": "audio/dream/t2_iter_45.mp3"
+            },
+            {
+              "label": "iter_60",
+              "iteration": 60,
+              "audio": "audio/dream/t2_iter_60.mp3"
+            },
+            {
+              "label": "iter_75",
+              "iteration": 75,
+              "audio": "audio/dream/t2_iter_75.mp3"
+            },
+            {
+              "label": "iter_90",
+              "iteration": 90,
+              "audio": "audio/dream/t2_iter_90.mp3"
+            },
+            {
+              "label": "iter_105",
+              "iteration": 105,
+              "audio": "audio/dream/t2_iter_105.mp3"
+            },
+            {
+              "label": "iter_120",
+              "iteration": 120,
+              "audio": "audio/dream/t2_iter_120.mp3"
+            },
+            {
+              "label": "end",
+              "iteration": null,
+              "audio": "audio/dream/t2_end.mp3"
+            }
+          ]
+        },
+        {
+          "n": 3,
+          "instruction": "pull it far into the distance, like a fading memory",
+          "fx_chain": [
+            "rev",
+            "eq"
+          ],
+          "fx_new": [],
+          "fx_reused": [
+            "rev",
+            "eq"
+          ],
+          "routing": "Reuse-and-optimize",
+          "backend": "Gradient descent",
+          "result": "audio/dream/t3_result.mp3",
+          "trajectory": [
+            {
+              "label": "start",
+              "iteration": 0,
+              "audio": "audio/dream/t3_start.mp3"
+            },
+            {
+              "label": "iter_15",
+              "iteration": 15,
+              "audio": "audio/dream/t3_iter_15.mp3"
+            },
+            {
+              "label": "iter_30",
+              "iteration": 30,
+              "audio": "audio/dream/t3_iter_30.mp3"
+            },
+            {
+              "label": "iter_45",
+              "iteration": 45,
+              "audio": "audio/dream/t3_iter_45.mp3"
+            },
+            {
+              "label": "iter_60",
+              "iteration": 60,
+              "audio": "audio/dream/t3_iter_60.mp3"
+            },
+            {
+              "label": "iter_75",
+              "iteration": 75,
+              "audio": "audio/dream/t3_iter_75.mp3"
+            },
+            {
+              "label": "iter_90",
+              "iteration": 90,
+              "audio": "audio/dream/t3_iter_90.mp3"
+            },
+            {
+              "label": "iter_105",
+              "iteration": 105,
+              "audio": "audio/dream/t3_iter_105.mp3"
+            },
+            {
+              "label": "iter_120",
+              "iteration": 120,
+              "audio": "audio/dream/t3_iter_120.mp3"
+            },
+            {
+              "label": "end",
+              "iteration": null,
+              "audio": "audio/dream/t3_end.mp3"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "cathedral",
       "kind": "reverb",
       "title": "From the chapel to the cosmos",
@@ -339,180 +513,6 @@
               "label": "end",
               "iteration": null,
               "audio": "audio/underwater/t3_end.mp3"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "dream",
-      "kind": "reverb",
-      "title": "A fading dream",
-      "blurb": "An ethereal, shimmering atmosphere that brightens, then drifts into the distance.",
-      "llm": "gpt-5.5",
-      "n_turns": 3,
-      "source": "audio/dream/source.mp3",
-      "turns": [
-        {
-          "n": 1,
-          "instruction": "give it a dreamy, ethereal, floating atmosphere",
-          "fx_chain": [
-            "rev"
-          ],
-          "fx_new": [
-            "rev"
-          ],
-          "fx_reused": [],
-          "routing": "Initialize-only",
-          "backend": "Gradient descent",
-          "result": "audio/dream/t1_result.mp3",
-          "trajectory": [
-            {
-              "label": "start",
-              "iteration": 0,
-              "audio": "audio/dream/t1_start.mp3"
-            },
-            {
-              "label": "end",
-              "iteration": null,
-              "audio": "audio/dream/t1_end.mp3"
-            }
-          ]
-        },
-        {
-          "n": 2,
-          "instruction": "make it shimmer, brighter and airier",
-          "fx_chain": [
-            "rev",
-            "eq"
-          ],
-          "fx_new": [
-            "eq"
-          ],
-          "fx_reused": [
-            "rev"
-          ],
-          "routing": "Mixed reuse-and-initialize",
-          "backend": "Gradient descent",
-          "result": "audio/dream/t2_result.mp3",
-          "trajectory": [
-            {
-              "label": "start",
-              "iteration": 0,
-              "audio": "audio/dream/t2_start.mp3"
-            },
-            {
-              "label": "iter_15",
-              "iteration": 15,
-              "audio": "audio/dream/t2_iter_15.mp3"
-            },
-            {
-              "label": "iter_30",
-              "iteration": 30,
-              "audio": "audio/dream/t2_iter_30.mp3"
-            },
-            {
-              "label": "iter_45",
-              "iteration": 45,
-              "audio": "audio/dream/t2_iter_45.mp3"
-            },
-            {
-              "label": "iter_60",
-              "iteration": 60,
-              "audio": "audio/dream/t2_iter_60.mp3"
-            },
-            {
-              "label": "iter_75",
-              "iteration": 75,
-              "audio": "audio/dream/t2_iter_75.mp3"
-            },
-            {
-              "label": "iter_90",
-              "iteration": 90,
-              "audio": "audio/dream/t2_iter_90.mp3"
-            },
-            {
-              "label": "iter_105",
-              "iteration": 105,
-              "audio": "audio/dream/t2_iter_105.mp3"
-            },
-            {
-              "label": "iter_120",
-              "iteration": 120,
-              "audio": "audio/dream/t2_iter_120.mp3"
-            },
-            {
-              "label": "end",
-              "iteration": null,
-              "audio": "audio/dream/t2_end.mp3"
-            }
-          ]
-        },
-        {
-          "n": 3,
-          "instruction": "pull it far into the distance, like a fading memory",
-          "fx_chain": [
-            "rev",
-            "eq"
-          ],
-          "fx_new": [],
-          "fx_reused": [
-            "rev",
-            "eq"
-          ],
-          "routing": "Reuse-and-optimize",
-          "backend": "Gradient descent",
-          "result": "audio/dream/t3_result.mp3",
-          "trajectory": [
-            {
-              "label": "start",
-              "iteration": 0,
-              "audio": "audio/dream/t3_start.mp3"
-            },
-            {
-              "label": "iter_15",
-              "iteration": 15,
-              "audio": "audio/dream/t3_iter_15.mp3"
-            },
-            {
-              "label": "iter_30",
-              "iteration": 30,
-              "audio": "audio/dream/t3_iter_30.mp3"
-            },
-            {
-              "label": "iter_45",
-              "iteration": 45,
-              "audio": "audio/dream/t3_iter_45.mp3"
-            },
-            {
-              "label": "iter_60",
-              "iteration": 60,
-              "audio": "audio/dream/t3_iter_60.mp3"
-            },
-            {
-              "label": "iter_75",
-              "iteration": 75,
-              "audio": "audio/dream/t3_iter_75.mp3"
-            },
-            {
-              "label": "iter_90",
-              "iteration": 90,
-              "audio": "audio/dream/t3_iter_90.mp3"
-            },
-            {
-              "label": "iter_105",
-              "iteration": 105,
-              "audio": "audio/dream/t3_iter_105.mp3"
-            },
-            {
-              "label": "iter_120",
-              "iteration": 120,
-              "audio": "audio/dream/t3_iter_120.mp3"
-            },
-            {
-              "label": "end",
-              "iteration": null,
-              "audio": "audio/dream/t3_end.mp3"
             }
           ]
         }
