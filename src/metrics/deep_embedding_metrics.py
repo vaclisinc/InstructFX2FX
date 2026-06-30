@@ -1,9 +1,19 @@
 from .metric import Metric
 import torch, librosa
 from fxencoder_plusplus import load_model
+from frechet_audio_distance import FrechetAudioDistance
+
+# Using https://github.com/gudgud96/frechet-audio-distance/blob/main/frechet_audio_distance/fad.py for VGGish embeddings.
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 fxencoderplusplus = load_model('default', device=device)
+vggish_embedder = FrechetAudioDistance(
+    model_name='vggish',
+    sample_rate=16000,
+    use_pca=False,
+    use_activation=False,
+    verbose=False,
+)
 
 def get_fx_embedding(audio_path):
     """Get the FX embedding for a given audio file."""
@@ -22,6 +32,21 @@ def get_fx_embedding(audio_path):
     wav = wav.unsqueeze(0).to(device)  # [1, 2, seq_len]
 
     return fxencoderplusplus.get_fx_embedding(wav)
+
+
+def get_afx_rep_embedding(audio_path):
+    """Get AFx-Rep style embedding for a given audio file.
+
+    In this codebase, AFx-Rep is represented by FXEncoder++ embeddings.
+    """
+    return get_fx_embedding(audio_path)
+
+
+def get_vggish_embedding(audio_path):
+    """Get a VGGish embedding for a given audio file."""
+    wav, sr = librosa.load(audio_path, sr=16000, mono=True)
+    emb = vggish_embedder.get_embeddings([wav], sr)
+    return emb[0]
 
 
 def cosine_similarity_from_audio(audio_path_a, audio_path_b):

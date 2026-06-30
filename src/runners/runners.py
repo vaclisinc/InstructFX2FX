@@ -112,14 +112,22 @@ def run_LLM(
     llm_params_tensor, llm_params_dict, _, _, _ = parameter_engine.get_params(
         audio, config_initialization
     )
-    init_details = {"sys_prompt": config_initialization.prompt.sys_prompt, "model": llm_client.model}
-
+    init_details = {
+        "method": "LLM",
+        "model": llm_client.model,
+        "api_base": str(llm_client.llm.base_url),
+        "sys_prompt": config_initialization.prompt.sys_prompt,
+        "user_prompt": config_initialization.prompt.instruction,
+        "effects": effects or [],
+        "timestamp": datetime.now().isoformat(),
+    }
 
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, llm_params_tensor, llm_params_dict, fx_chain,
         sample_rate, stages_dir, "01_llm", init_details
     )
     stage_info["llm"] = {"audio": audio_path, "params": params_path}
+    stage_info["llm_details"] = init_details
     print(f"✓ Saved llm stage to: {audio_path}")
 
     return llm_params_tensor, llm_params_dict, stage_info
@@ -199,25 +207,46 @@ def run_CLAP(
         initial_params_tensor=initial_params_tensor
     )
 
-    stage_info["config"] = {
-        "instruction": instructionset.instruction,
-        "loss_function": config.loss_function.value,
+    llm_init_details = {
+        "method": "LLM_init",
+        "source": "pre-initialized LLM params",
+        "init_method": config.initialization_method.value,
     }
-
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, initial_params_tensor, initial_params_dict, fx_chain,
-        sample_rate, stages_dir, "01_llm"
+        sample_rate, stages_dir, "01_llm", llm_init_details
     )
+    stage_info["initialization"] = {"audio": audio_path, "params": params_path}
 
+    clap_details = {
+        "method": "CLAP",
+        "clap_model": type(embedding).__name__,
+        "optimization_method": config.optimization_method.value,
+        "loss_function": config.loss_function.value,
+        "num_iterations": iterations,
+        "learning_rate": learning_rate,
+        "snapshot_interval": snapshot_interval,
+        "text_anchor": instructionset.text_anchor,
+        "text_target": instructionset.text_target,
+        "instruction": instructionset.instruction,
+        "effects": effects or [],
+        "init_from": "LLM" if initial_params_tensor is not None else "RANDOM",
+        "timestamp": datetime.now().isoformat(),
+    }
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, refined_params_tensor, refined_params_dict, fx_chain,
-        sample_rate, stages_dir, "02_clap"
+        sample_rate, stages_dir, "02_clap", clap_details
     )
 
     if audio_param_history:
         _process_and_save_audio_param_history(audio_param_history=audio_param_history, stages_dir=stages_dir, audio=audio, fx_chain=fx_chain, sample_rate=sample_rate)
 
+    stage_info["config"] = {
+        "instruction": instructionset.instruction,
+        "loss_function": config.loss_function.value,
+    }
     stage_info["refinement"] = {"audio": audio_path, "params": params_path}
+    stage_info["clap_details"] = clap_details
     print(f"✓ Saved CLAP refinement stage to: {audio_path}")
 
     return refined_params_tensor, refined_params_dict, stage_info
@@ -280,16 +309,29 @@ def run_LLM_CLAP(
         config,
     )
 
-    stage_info["config"] = {
+    clap_refined_details = {
+        "method": "LLM+CLAP",
+        "llm_model": llm_client.model,
+        "api_base": str(llm_client.llm.base_url),
+        "clap_model": type(embedding).__name__,
         "sys_prompt": config.prompt.sys_prompt,
-        "instruction": instructionset.instruction,
-        "model": llm_client.model,
+        "user_prompt": instructionset.instruction,
+        "optimization_method": config.optimization_method.value,
         "loss_function": config.loss_function.value,
+        "num_iterations": iterations,
+        "learning_rate": learning_rate,
+        "snapshot_interval": snapshot_interval,
+        "text_anchor": instructionset.text_anchor,
+        "text_target": instructionset.text_target,
+        "instruction": instructionset.instruction,
+        "effects": effects or [],
+        "timestamp": datetime.now().isoformat(),
     }
+    stage_info["config"] = clap_refined_details
 
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, refined_params_tensor, refined_params_dict, fx_chain,
-        sample_rate, stages_dir, "02_clap_refined"
+        sample_rate, stages_dir, "02_clap_refined", clap_refined_details
     )
     stage_info["refinement"] = {"audio": audio_path, "params": params_path}
     print(f"✓ Saved CLAP refinement stage to: {audio_path}")
@@ -362,9 +404,23 @@ def run_LLM_LLM(
         initial_params_tensor, initial_params_dict, _, _, _ = parameter_engine.get_params(
             audio, config_initialization
         )
-        init_details = {"sys_prompt": config_initialization.prompt.sys_prompt}
+        init_details = {
+            "method": "LLM",
+            "model": llm_client.model,
+            "api_base": str(llm_client.llm.base_url),
+            "sys_prompt": config_initialization.prompt.sys_prompt,
+            "user_prompt": config_initialization.prompt.instruction,
+            "effects": effects or [],
+            "timestamp": datetime.now().isoformat(),
+        }
     else:
-        init_details = {"source": "pre-generated fixed init"}
+        init_details = {
+            "method": "LLM",
+            "source": "pre-generated fixed init",
+            "model": llm_client.model,
+            "effects": effects or [],
+            "timestamp": datetime.now().isoformat(),
+        }
 
     # Store initial params so they can be reused by InstructFX2FX
     stage_info["initial_params_tensor"] = initial_params_tensor
@@ -398,9 +454,19 @@ def run_LLM_LLM(
         audio, config_refinement
     )
 
+    refinement_details = {
+        "method": "LLM",
+        "model": llm_client.model,
+        "api_base": str(llm_client.llm.base_url),
+        "sys_prompt": config_refinement.prompt.sys_prompt,
+        "user_prompt": config_refinement.prompt.instruction,
+        "effects": effects or [],
+        "stage": "refinement",
+        "timestamp": datetime.now().isoformat(),
+    }
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, refined_params_tensor, refined_params_dict, fx_chain,
-        sample_rate, stages_dir, "02_refined", {"sys_prompt": config_refinement.prompt.sys_prompt}
+        sample_rate, stages_dir, "02_refined", refinement_details
     )
     stage_info["refinement"] = {"audio": audio_path, "params": params_path}
     print(f"✓ Saved refinement stage to: {audio_path}")
@@ -479,11 +545,27 @@ def run_InstructFX2FX(
         initial_params_tensor, initial_params_dict, _, _, _ = parameter_engine.get_params(
             audio, config_init
         )
+        init_details = {
+            "method": "LLM",
+            "model": llm_client.model,
+            "api_base": str(llm_client.llm.base_url),
+            "sys_prompt": config_init.prompt.sys_prompt,
+            "user_prompt": config_init.prompt.instruction,
+            "effects": effects or [],
+            "timestamp": datetime.now().isoformat(),
+        }
+    else:
+        init_details = {
+            "method": "LLM",
+            "source": "reused from LLM_LLM",
+            "model": llm_client.model,
+            "effects": effects or [],
+            "timestamp": datetime.now().isoformat(),
+        }
 
-    source = "reused from LLM_LLM" if stage_info.get("initialization") is None else "LLM init"
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, initial_params_tensor, initial_params_dict or {}, fx_chain,
-        sample_rate, stages_dir, "01_initialized", {"source": source}
+        sample_rate, stages_dir, "01_initialized", init_details
     )
     stage_info["initialization"] = {"audio": audio_path, "params": params_path}
     print(f"✓ Saved initialization stage to: {audio_path}")
@@ -517,11 +599,25 @@ def run_InstructFX2FX(
     )
     refined_params_dict = fx_tensor_to_params_dict(refined_params_tensor) # FIXME is this still in the right order when we don't have all effects in the tensor?
 
-    # Save refinement stage
-
+    refinement_details = {
+        "method": "InstructFX2FX",
+        "clap_model": type(embedding).__name__,
+        "optimization_method": config_refinement.optimization_method.value,
+        "loss_function": config_refinement.loss_function.value,
+        "num_iterations": iterations,
+        "learning_rate": learning_rate,
+        "snapshot_interval": _snapshot_interval,
+        "text_anchor": instructionset_refinement.text_anchor,
+        "text_target": instructionset_refinement.text_target,
+        "instruction": instructionset_refinement.instruction,
+        "effects": effects or [],
+        "init_from": "LLM" if initial_params_tensor is not None else "RANDOM",
+        "llm_model": llm_client.model,
+        "timestamp": datetime.now().isoformat(),
+    }
     audio_path, params_path = _process_and_save_audio_and_params(
         audio, refined_params_tensor, None, fx_chain,
-        sample_rate, stages_dir, "02_refined"
+        sample_rate, stages_dir, "02_refined", refinement_details
     )
     stage_info["refinement"] = {"audio": audio_path, "params": params_path}
     print(f"✓ Saved refinement stage to: {audio_path}")
@@ -617,6 +713,7 @@ def run_LLMLLM_vs_InstructFX2FX(
         # fixed_init=False: each run generates its own init on the fly.
         fixed_init_params_tensor: Optional[torch.Tensor] = None
         fixed_init_params_dict: Optional[Dict[str, Any]] = None
+        fixed_init_details: Dict[str, Any] = {}
         if fixed_init:
             print("[fixed_init] Generating single LLM init shared across all runs …")
             _pe = ParameterEngine()
@@ -633,6 +730,16 @@ def run_LLMLLM_vs_InstructFX2FX(
                 device=device,
             )
             fixed_init_params_tensor, fixed_init_params_dict, _, _, _ = _pe.get_params(audio_tensor, _cfg_init)
+            fixed_init_details = {
+                "method": "LLM",
+                "model": llm_client.model,
+                "api_base": str(llm_client.llm.base_url),
+                "sys_prompt": _cfg_init.prompt.sys_prompt,
+                "user_prompt": _cfg_init.prompt.instruction,
+                "effects": effects or [],
+                "fixed_init": True,
+                "timestamp": datetime.now().isoformat(),
+            }
             print("[fixed_init] Init generated — reusing for all runs.")
 
         for run in range(1, nr_of_experiments_per_file + 1):
@@ -745,8 +852,13 @@ def run_LLMLLM_vs_InstructFX2FX(
                         {
                             "method": method.value,
                             "timestamp": timestamp,
-                            "runs": nr_of_experiments_per_file,
                             "sample_rate": sample_rate,
+                            "llm_model": llm_client.model,
+                            "llm_api_base": str(llm_client.llm.base_url),
+                            "clap_model": type(embedding).__name__,
+                            "effects": effects or [],
+                            "fixed_init": fixed_init,
+                            "fixed_init_details": fixed_init_details,
                             "instruction_init": instructionset_initialization.to_dict(),
                             "instruction_refine": instructionset_refinement.to_dict(),
                             "original_audio_path": os.path.relpath(audio_path, project_root),
@@ -771,6 +883,15 @@ def run_LLMLLM_vs_InstructFX2FX(
                 "methods": [method.value for method in methods],
                 "timestamp": timestamp,
                 "num_audio_files": len(raw_audio_paths),
+                "sample_rate": sample_rate,
+                "iterations": iterations,
+                "effects": effects or [],
+                "fixed_init": fixed_init,
+                "llm_model": llm_client.model,
+                "llm_api_base": str(llm_client.llm.base_url),
+                "clap_model": embedding.__class__.__name__,
+                "instruction_init": instructionset_initialization.to_dict(),
+                "instruction_refine": instructionset_refinement.to_dict(),
                 "audio_files": [
                     {
                         "file_name": str(Path(p).stem),
@@ -778,7 +899,6 @@ def run_LLMLLM_vs_InstructFX2FX(
                     }
                     for p in raw_audio_paths
                 ],
-                "embedding_model": embedding.__class__.__name__,
                 "user": os.getenv("USER") or os.getenv("USERNAME") or "unknown",
             },
             f,

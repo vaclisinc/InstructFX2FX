@@ -33,7 +33,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.spatial.distance import cosine as cosine_dist
 
 from metrics.dsp_feature_metrics import (
     extract_dsp_features,
@@ -41,9 +40,9 @@ from metrics.dsp_feature_metrics import (
     extract_features_batch,
 )
 from metrics.mmd_metric import compute_mmd
-from metrics.clap_metrics import compute_clap_score
+from metrics.clap_metrics import compute_clap_score, _get_clap, _load_audio_tensor
 from metrics.audio_quality_metrics import FxSearcherFAD, FxSearcherIntegratedLUFS
-from metrics.deep_embedding_metrics import get_fx_embedding
+from metrics.deep_embedding_metrics import get_afx_rep_embedding, get_vggish_embedding
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -60,6 +59,33 @@ def _save_timestamped_reports(prefix: str, payload: Dict[str, Any], summary_text
     with open(txt_path, "w") as f:
         f.write(summary_text)
     return json_path, txt_path
+
+
+_VERSIONED_INSTRUMENT_RE = re.compile(r"^(?P<base>.+)_v\d+$")
+
+
+def _normalize_instrument_name(name: str) -> str:
+    match = _VERSIONED_INSTRUMENT_RE.match(name)
+    return match.group("base") if match else name
+
+
+def _matching_instrument_dirs(folder: str, word: str, instrument: str) -> List[str]:
+    word_dir = os.path.join(folder, word)
+    if not os.path.isdir(word_dir):
+        return []
+
+    dirs: List[str] = []
+    exact_dir = os.path.join(word_dir, instrument)
+    if os.path.isdir(exact_dir):
+        dirs.append(exact_dir)
+
+    prefix = f"{instrument}_v"
+    for entry in sorted(os.listdir(word_dir)):
+        candidate = os.path.join(word_dir, entry)
+        if os.path.isdir(candidate) and entry.startswith(prefix) and _VERSIONED_INSTRUMENT_RE.match(entry):
+            dirs.append(candidate)
+
+    return dirs
 
 def _discover_words_instruments(folder: str, word_position_in_test_folder_name: Optional[int] = None) -> List[Tuple[str, str]]:
     """Return (word, instrument) pairs found under folder/{word}/{instrument}/...
@@ -90,7 +116,7 @@ def _discover_words_instruments(folder: str, word_position_in_test_folder_name: 
             # Check flat WAVs first, then deep experiment structure
             if (any(f.endswith(".wav") for f in os.listdir(inst_dir))
                     or glob.glob(os.path.join(inst_dir, "**", "final_audio.wav"), recursive=True)):
-                pairs.append((word, instrument, part))
+                pairs.append((word, _normalize_instrument_name(instrument), part))
     return pairs
 
 
@@ -106,19 +132,27 @@ def _wav_paths(
     final_audio.wav (experiment layout).
     """
     if search_pattern is not None:
-        pattern_path = os.path.join(folder, word, instrument, search_pattern)
-        if any(ch in search_pattern for ch in "*?[]"):
-            return sorted(glob.glob(pattern_path, recursive=True))
-        return [pattern_path] if os.path.isfile(pattern_path) else []
+        matched_paths: List[str] = []
+        for inst_dir in _matching_instrument_dirs(folder, word, instrument):
+            pattern_path = os.path.join(inst_dir, search_pattern)
+            if any(ch in search_pattern for ch in "*?[]"):
+                matched_paths.extend(glob.glob(pattern_path, recursive=True))
+            elif os.path.isfile(pattern_path):
+                matched_paths.append(pattern_path)
+        return sorted(set(matched_paths))
 
-    else:
-        d = os.path.join(folder, word, instrument)
-    if not os.path.isdir(d):
+    matched_dirs = _matching_instrument_dirs(folder, word, instrument)
+    if not matched_dirs:
         return []
-    flat = sorted(glob.glob(os.path.join(d, "*.wav")))
-    if flat:
-        return flat
-    return sorted(glob.glob(os.path.join(d, "**", "final_audio.wav"), recursive=True))
+
+    wavs: List[str] = []
+    for d in matched_dirs:
+        flat = sorted(glob.glob(os.path.join(d, "*.wav")))
+        if flat:
+            wavs.extend(flat)
+        else:
+            wavs.extend(glob.glob(os.path.join(d, "**", "final_audio.wav"), recursive=True))
+    return sorted(set(wavs))
 
 
 _ITER_FILE_RE = re.compile(r"iter_(\d+)\.wav$")
@@ -127,6 +161,13 @@ _ITER_FILE_RE = re.compile(r"iter_(\d+)\.wav$")
 def _extract_iteration_from_path(path: str) -> Optional[int]:
     m = _ITER_FILE_RE.search(Path(path).name)
     return int(m.group(1)) if m else None
+
+
+def _get_clap_audio_embedding(audio_path: str) -> np.ndarray:
+    clap = _get_clap()
+    audio_t = _load_audio_tensor(audio_path, target_sr=clap.sample_rate)
+    emb = clap.get_audio_embedding(audio_t).detach().cpu().numpy().flatten()
+    return emb
 
 
 def run_iteration_improvement_metrics(
@@ -207,19 +248,120 @@ def run_iteration_improvement_metrics(
 
         baseline_gt_dsp_per_word: Dict[str, float] = {}
         baseline_gt_mmd_overall: Optional[float] = None
-        baseline_gt_fxenc_overall: Optional[float] = None
+        baseline_gt_mmd_clap_emb_overall: Optional[float] = None
+        baseline_gt_mmd_vggish_overall: Optional[float] = None
+        baseline_gt_mmd_afx_rep_overall: Optional[float] = None
+        baseline_gt_mmd_fxenc_emb_overall: Optional[float] = None
+        baseline_gt_mmd_dsp_per_inst: Dict[str, float] = {}
+        baseline_gt_mmd_dsp_per_inst_mean: Optional[float] = None
+        baseline_gt_mmd_clap_emb_per_inst: Dict[str, float] = {}
+        baseline_gt_mmd_clap_emb_per_inst_mean: Optional[float] = None
+        baseline_gt_mmd_vggish_per_inst: Dict[str, float] = {}
+        baseline_gt_mmd_vggish_per_inst_mean: Optional[float] = None
+        baseline_gt_mmd_afx_rep_per_inst: Dict[str, float] = {}
+        baseline_gt_mmd_afx_rep_per_inst_mean: Optional[float] = None
+        baseline_gt_mmd_fxenc_emb_per_inst: Dict[str, float] = {}
+        baseline_gt_mmd_fxenc_emb_per_inst_mean: Optional[float] = None
         if gt_folder:
-            baseline_gt_dsp_per_word = baseline_gt.get(name, {}).get("dsp_distance_per_word", {})
+            # Not applicable after moving to embedding-space MMD metrics.
+            # baseline_gt_dsp_per_word = baseline_gt.get(name, {}).get("dsp_distance_per_word", {})
             baseline_gt_mmd_overall = baseline_gt.get(name, {}).get("mmd_dsp_overall")
-            baseline_gt_fxenc_overall = baseline_gt.get(name, {}).get("fxenc_distance_overall")
+            baseline_gt_mmd_clap_emb_overall = baseline_gt.get(name, {}).get("mmd_clap_emb_overall")
+            baseline_gt_mmd_vggish_overall = baseline_gt.get(name, {}).get("mmd_vggish_overall")
+            baseline_gt_mmd_afx_rep_overall = baseline_gt.get(name, {}).get("mmd_afx_rep_overall")
+            baseline_gt_mmd_fxenc_emb_overall = baseline_gt.get(name, {}).get("mmd_fxenc_emb_overall")
+            baseline_gt_mmd_dsp_per_inst = baseline_gt.get(name, {}).get("mmd_dsp_per_inst", {})
+            baseline_gt_mmd_dsp_per_inst_mean = baseline_gt.get(name, {}).get("mmd_dsp_per_inst_mean")
+            baseline_gt_mmd_clap_emb_per_inst = baseline_gt.get(name, {}).get("mmd_clap_emb_per_inst", {})
+            baseline_gt_mmd_clap_emb_per_inst_mean = baseline_gt.get(name, {}).get("mmd_clap_emb_per_inst_mean")
+            baseline_gt_mmd_vggish_per_inst = baseline_gt.get(name, {}).get("mmd_vggish_per_inst", {})
+            baseline_gt_mmd_vggish_per_inst_mean = baseline_gt.get(name, {}).get("mmd_vggish_per_inst_mean")
+            baseline_gt_mmd_afx_rep_per_inst = baseline_gt.get(name, {}).get("mmd_afx_rep_per_inst", {})
+            baseline_gt_mmd_afx_rep_per_inst_mean = baseline_gt.get(name, {}).get("mmd_afx_rep_per_inst_mean")
+            baseline_gt_mmd_fxenc_emb_per_inst = baseline_gt.get(name, {}).get("mmd_fxenc_emb_per_inst", {})
+            baseline_gt_mmd_fxenc_emb_per_inst_mean = baseline_gt.get(name, {}).get("mmd_fxenc_emb_per_inst_mean")
 
         first_iter_by_word: Dict[str, Optional[int]] = {w: None for w in baseline_clap_per_word}
         first_iter_gt_by_word: Dict[str, Optional[int]] = {w: None for w in baseline_clap_per_word}
         first_iter_improved_mmd: Optional[int] = None
-        first_iter_improved_fxenc: Optional[int] = None
-        best_iter = iteration_ids[0]
-        best_clap = float("-inf")
-        trajectory: List[Dict[str, Any]] = []
+        first_iter_improved_mmd_clap_emb: Optional[int] = None
+        first_iter_improved_mmd_vggish: Optional[int] = None
+        first_iter_improved_mmd_afx_rep: Optional[int] = None
+        first_iter_improved_mmd_fxenc_emb: Optional[int] = None
+        baseline_clap_overall = baseline_solo.get(name, {}).get("clap_overall")
+        best_iter = 0
+        best_clap = (
+            float(baseline_clap_overall)
+            if baseline_clap_overall is not None and not np.isnan(baseline_clap_overall)
+            else float("-inf")
+        )
+        trajectory: List[Dict[str, Any]] = [
+            {
+                "iteration": 0,
+                "clap_overall": (
+                    float(baseline_clap_overall)
+                    if baseline_clap_overall is not None and not np.isnan(baseline_clap_overall)
+                    else None
+                ),
+                "mmd_dsp_overall": (
+                    float(baseline_gt_mmd_overall)
+                    if baseline_gt_mmd_overall is not None and not np.isnan(baseline_gt_mmd_overall)
+                    else None
+                ),
+                "dsp_distance_overall": None,
+                "fxenc_distance_overall": None,
+                "mmd_clap_emb_overall": (
+                    float(baseline_gt_mmd_clap_emb_overall)
+                    if baseline_gt_mmd_clap_emb_overall is not None and not np.isnan(baseline_gt_mmd_clap_emb_overall)
+                    else None
+                ),
+                "mmd_vggish_overall": (
+                    float(baseline_gt_mmd_vggish_overall)
+                    if baseline_gt_mmd_vggish_overall is not None and not np.isnan(baseline_gt_mmd_vggish_overall)
+                    else None
+                ),
+                "mmd_afx_rep_overall": (
+                    float(baseline_gt_mmd_afx_rep_overall)
+                    if baseline_gt_mmd_afx_rep_overall is not None and not np.isnan(baseline_gt_mmd_afx_rep_overall)
+                    else None
+                ),
+                "mmd_fxenc_emb_overall": (
+                    float(baseline_gt_mmd_fxenc_emb_overall)
+                    if baseline_gt_mmd_fxenc_emb_overall is not None and not np.isnan(baseline_gt_mmd_fxenc_emb_overall)
+                    else None
+                ),
+                "mmd_dsp_per_inst": baseline_gt_mmd_dsp_per_inst,
+                "mmd_dsp_per_inst_mean": (
+                    float(baseline_gt_mmd_dsp_per_inst_mean)
+                    if baseline_gt_mmd_dsp_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_dsp_per_inst_mean)
+                    else None
+                ),
+                "mmd_clap_emb_per_inst": baseline_gt_mmd_clap_emb_per_inst,
+                "mmd_clap_emb_per_inst_mean": (
+                    float(baseline_gt_mmd_clap_emb_per_inst_mean)
+                    if baseline_gt_mmd_clap_emb_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_clap_emb_per_inst_mean)
+                    else None
+                ),
+                "mmd_vggish_per_inst": baseline_gt_mmd_vggish_per_inst,
+                "mmd_vggish_per_inst_mean": (
+                    float(baseline_gt_mmd_vggish_per_inst_mean)
+                    if baseline_gt_mmd_vggish_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_vggish_per_inst_mean)
+                    else None
+                ),
+                "mmd_afx_rep_per_inst": baseline_gt_mmd_afx_rep_per_inst,
+                "mmd_afx_rep_per_inst_mean": (
+                    float(baseline_gt_mmd_afx_rep_per_inst_mean)
+                    if baseline_gt_mmd_afx_rep_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_afx_rep_per_inst_mean)
+                    else None
+                ),
+                "mmd_fxenc_emb_per_inst": baseline_gt_mmd_fxenc_emb_per_inst,
+                "mmd_fxenc_emb_per_inst_mean": (
+                    float(baseline_gt_mmd_fxenc_emb_per_inst_mean)
+                    if baseline_gt_mmd_fxenc_emb_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_fxenc_emb_per_inst_mean)
+                    else None
+                ),
+            }
+        ]
 
         for it in iteration_ids:
             iter_pattern = pattern.replace("*", str(it))
@@ -234,8 +376,21 @@ def run_iteration_improvement_metrics(
             iter_clap_per_word = iter_solo.get(name, {}).get("clap_per_word", {})
             iter_gt_dsp = None
             iter_gt_mmd = None
-            iter_gt_fxenc = None
+            iter_gt_mmd_clap_emb = None
+            iter_gt_mmd_vggish = None
+            iter_gt_mmd_afx_rep = None
+            iter_gt_mmd_fxenc_emb = None
             iter_gt_dsp_per_word: Dict[str, float] = {}
+            iter_gt_mmd_dsp_per_inst: Dict[str, float] = {}
+            iter_gt_mmd_dsp_per_inst_mean: Optional[float] = None
+            iter_gt_mmd_clap_emb_per_inst: Dict[str, float] = {}
+            iter_gt_mmd_clap_emb_per_inst_mean: Optional[float] = None
+            iter_gt_mmd_vggish_per_inst: Dict[str, float] = {}
+            iter_gt_mmd_vggish_per_inst_mean: Optional[float] = None
+            iter_gt_mmd_afx_rep_per_inst: Dict[str, float] = {}
+            iter_gt_mmd_afx_rep_per_inst_mean: Optional[float] = None
+            iter_gt_mmd_fxenc_emb_per_inst: Dict[str, float] = {}
+            iter_gt_mmd_fxenc_emb_per_inst_mean: Optional[float] = None
 
             if gt_folder:
                 iter_gt = run_metrics_against_gt(
@@ -246,10 +401,24 @@ def run_iteration_improvement_metrics(
                     save_report=False,
                     verbose=False,
                 )
+                # Deprecated after switching to embedding-space MMD metrics.
                 iter_gt_dsp = iter_gt.get(name, {}).get("dsp_distance_overall")
                 iter_gt_mmd = iter_gt.get(name, {}).get("mmd_dsp_overall")
-                iter_gt_fxenc = iter_gt.get(name, {}).get("fxenc_distance_overall")
+                iter_gt_mmd_clap_emb = iter_gt.get(name, {}).get("mmd_clap_emb_overall")
+                iter_gt_mmd_vggish = iter_gt.get(name, {}).get("mmd_vggish_overall")
+                iter_gt_mmd_afx_rep = iter_gt.get(name, {}).get("mmd_afx_rep_overall")
+                iter_gt_mmd_fxenc_emb = iter_gt.get(name, {}).get("mmd_fxenc_emb_overall")
                 iter_gt_dsp_per_word = iter_gt.get(name, {}).get("dsp_distance_per_word", {})
+                iter_gt_mmd_dsp_per_inst = iter_gt.get(name, {}).get("mmd_dsp_per_inst", {})
+                iter_gt_mmd_dsp_per_inst_mean = iter_gt.get(name, {}).get("mmd_dsp_per_inst_mean")
+                iter_gt_mmd_clap_emb_per_inst = iter_gt.get(name, {}).get("mmd_clap_emb_per_inst", {})
+                iter_gt_mmd_clap_emb_per_inst_mean = iter_gt.get(name, {}).get("mmd_clap_emb_per_inst_mean")
+                iter_gt_mmd_vggish_per_inst = iter_gt.get(name, {}).get("mmd_vggish_per_inst", {})
+                iter_gt_mmd_vggish_per_inst_mean = iter_gt.get(name, {}).get("mmd_vggish_per_inst_mean")
+                iter_gt_mmd_afx_rep_per_inst = iter_gt.get(name, {}).get("mmd_afx_rep_per_inst", {})
+                iter_gt_mmd_afx_rep_per_inst_mean = iter_gt.get(name, {}).get("mmd_afx_rep_per_inst_mean")
+                iter_gt_mmd_fxenc_emb_per_inst = iter_gt.get(name, {}).get("mmd_fxenc_emb_per_inst", {})
+                iter_gt_mmd_fxenc_emb_per_inst_mean = iter_gt.get(name, {}).get("mmd_fxenc_emb_per_inst_mean")
 
             if iter_clap is None or np.isnan(iter_clap):
                 continue
@@ -268,15 +437,16 @@ def run_iteration_improvement_metrics(
                     first_iter_by_word[word] = it
 
             if gt_folder:
-                for word, baseline_word_dsp in baseline_gt_dsp_per_word.items():
-                    word_iter_dsp = iter_gt_dsp_per_word.get(word)
-                    if (
-                        word in first_iter_gt_by_word
-                        and first_iter_gt_by_word[word] is None
-                        and word_iter_dsp is not None
-                        and word_iter_dsp < baseline_word_dsp - improvement_epsilon
-                    ):
-                        first_iter_gt_by_word[word] = it
+                # Deprecated per-word DSP-distance improvement tracking.
+                # for word, baseline_word_dsp in baseline_gt_dsp_per_word.items():
+                #     word_iter_dsp = iter_gt_dsp_per_word.get(word)
+                #     if (
+                #         word in first_iter_gt_by_word
+                #         and first_iter_gt_by_word[word] is None
+                #         and word_iter_dsp is not None
+                #         and word_iter_dsp < baseline_word_dsp - improvement_epsilon
+                #     ):
+                #         first_iter_gt_by_word[word] = it
 
                 if (
                     first_iter_improved_mmd is None
@@ -289,22 +459,66 @@ def run_iteration_improvement_metrics(
                     first_iter_improved_mmd = it
 
                 if (
-                    first_iter_improved_fxenc is None
-                    and baseline_gt_fxenc_overall is not None
-                    and iter_gt_fxenc is not None
-                    and not np.isnan(baseline_gt_fxenc_overall)
-                    and not np.isnan(iter_gt_fxenc)
-                    and iter_gt_fxenc < baseline_gt_fxenc_overall - improvement_epsilon
+                    first_iter_improved_mmd_clap_emb is None
+                    and baseline_gt_mmd_clap_emb_overall is not None
+                    and iter_gt_mmd_clap_emb is not None
+                    and not np.isnan(baseline_gt_mmd_clap_emb_overall)
+                    and not np.isnan(iter_gt_mmd_clap_emb)
+                    and iter_gt_mmd_clap_emb < baseline_gt_mmd_clap_emb_overall - improvement_epsilon
                 ):
-                    first_iter_improved_fxenc = it
+                    first_iter_improved_mmd_clap_emb = it
+
+                if (
+                    first_iter_improved_mmd_vggish is None
+                    and baseline_gt_mmd_vggish_overall is not None
+                    and iter_gt_mmd_vggish is not None
+                    and not np.isnan(baseline_gt_mmd_vggish_overall)
+                    and not np.isnan(iter_gt_mmd_vggish)
+                    and iter_gt_mmd_vggish < baseline_gt_mmd_vggish_overall - improvement_epsilon
+                ):
+                    first_iter_improved_mmd_vggish = it
+
+                if (
+                    first_iter_improved_mmd_afx_rep is None
+                    and baseline_gt_mmd_afx_rep_overall is not None
+                    and iter_gt_mmd_afx_rep is not None
+                    and not np.isnan(baseline_gt_mmd_afx_rep_overall)
+                    and not np.isnan(iter_gt_mmd_afx_rep)
+                    and iter_gt_mmd_afx_rep < baseline_gt_mmd_afx_rep_overall - improvement_epsilon
+                ):
+                    first_iter_improved_mmd_afx_rep = it
+
+                if (
+                    first_iter_improved_mmd_fxenc_emb is None
+                    and baseline_gt_mmd_fxenc_emb_overall is not None
+                    and iter_gt_mmd_fxenc_emb is not None
+                    and not np.isnan(baseline_gt_mmd_fxenc_emb_overall)
+                    and not np.isnan(iter_gt_mmd_fxenc_emb)
+                    and iter_gt_mmd_fxenc_emb < baseline_gt_mmd_fxenc_emb_overall - improvement_epsilon
+                ):
+                    first_iter_improved_mmd_fxenc_emb = it
 
             trajectory.append(
                 {
                     "iteration": it,
                     "clap_overall": float(iter_clap),
                     "mmd_dsp_overall": float(iter_gt_mmd) if iter_gt_mmd is not None else None,
-                    "dsp_distance_overall": float(iter_gt_dsp) if iter_gt_dsp is not None else None,
-                    "fxenc_distance_overall": float(iter_gt_fxenc) if iter_gt_fxenc is not None else None,
+                    "dsp_distance_overall": None,
+                    "fxenc_distance_overall": None,
+                    "mmd_clap_emb_overall": float(iter_gt_mmd_clap_emb) if iter_gt_mmd_clap_emb is not None else None,
+                    "mmd_vggish_overall": float(iter_gt_mmd_vggish) if iter_gt_mmd_vggish is not None else None,
+                    "mmd_afx_rep_overall": float(iter_gt_mmd_afx_rep) if iter_gt_mmd_afx_rep is not None else None,
+                    "mmd_fxenc_emb_overall": float(iter_gt_mmd_fxenc_emb) if iter_gt_mmd_fxenc_emb is not None else None,
+                    "mmd_dsp_per_inst": iter_gt_mmd_dsp_per_inst,
+                    "mmd_dsp_per_inst_mean": float(iter_gt_mmd_dsp_per_inst_mean) if iter_gt_mmd_dsp_per_inst_mean is not None else None,
+                    "mmd_clap_emb_per_inst": iter_gt_mmd_clap_emb_per_inst,
+                    "mmd_clap_emb_per_inst_mean": float(iter_gt_mmd_clap_emb_per_inst_mean) if iter_gt_mmd_clap_emb_per_inst_mean is not None else None,
+                    "mmd_vggish_per_inst": iter_gt_mmd_vggish_per_inst,
+                    "mmd_vggish_per_inst_mean": float(iter_gt_mmd_vggish_per_inst_mean) if iter_gt_mmd_vggish_per_inst_mean is not None else None,
+                    "mmd_afx_rep_per_inst": iter_gt_mmd_afx_rep_per_inst,
+                    "mmd_afx_rep_per_inst_mean": float(iter_gt_mmd_afx_rep_per_inst_mean) if iter_gt_mmd_afx_rep_per_inst_mean is not None else None,
+                    "mmd_fxenc_emb_per_inst": iter_gt_mmd_fxenc_emb_per_inst,
+                    "mmd_fxenc_emb_per_inst_mean": float(iter_gt_mmd_fxenc_emb_per_inst_mean) if iter_gt_mmd_fxenc_emb_per_inst_mean is not None else None,
                 }
             )
 
@@ -319,23 +533,69 @@ def run_iteration_improvement_metrics(
                 if baseline_gt_mmd_overall is not None and not np.isnan(baseline_gt_mmd_overall)
                 else None
             ),
-            "baseline_dsp_distance_overall": (
-                float(baseline_gt.get(name, {}).get("dsp_distance_overall"))
-                if gt_folder and baseline_gt.get(name, {}).get("dsp_distance_overall") is not None
+            "baseline_dsp_distance_overall": None,
+            "baseline_fxenc_distance_overall": None,
+            "baseline_mmd_clap_emb_overall": (
+                float(baseline_gt_mmd_clap_emb_overall)
+                if baseline_gt_mmd_clap_emb_overall is not None and not np.isnan(baseline_gt_mmd_clap_emb_overall)
                 else None
             ),
-            "baseline_fxenc_distance_overall": (
-                float(baseline_gt_fxenc_overall)
-                if baseline_gt_fxenc_overall is not None and not np.isnan(baseline_gt_fxenc_overall)
+            "baseline_mmd_vggish_overall": (
+                float(baseline_gt_mmd_vggish_overall)
+                if baseline_gt_mmd_vggish_overall is not None and not np.isnan(baseline_gt_mmd_vggish_overall)
+                else None
+            ),
+            "baseline_mmd_afx_rep_overall": (
+                float(baseline_gt_mmd_afx_rep_overall)
+                if baseline_gt_mmd_afx_rep_overall is not None and not np.isnan(baseline_gt_mmd_afx_rep_overall)
+                else None
+            ),
+            "baseline_mmd_fxenc_emb_overall": (
+                float(baseline_gt_mmd_fxenc_emb_overall)
+                if baseline_gt_mmd_fxenc_emb_overall is not None and not np.isnan(baseline_gt_mmd_fxenc_emb_overall)
+                else None
+            ),
+            "baseline_mmd_dsp_per_inst": baseline_gt_mmd_dsp_per_inst,
+            "baseline_mmd_dsp_per_inst_mean": (
+                float(baseline_gt_mmd_dsp_per_inst_mean)
+                if baseline_gt_mmd_dsp_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_dsp_per_inst_mean)
+                else None
+            ),
+            "baseline_mmd_clap_emb_per_inst": baseline_gt_mmd_clap_emb_per_inst,
+            "baseline_mmd_clap_emb_per_inst_mean": (
+                float(baseline_gt_mmd_clap_emb_per_inst_mean)
+                if baseline_gt_mmd_clap_emb_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_clap_emb_per_inst_mean)
+                else None
+            ),
+            "baseline_mmd_vggish_per_inst": baseline_gt_mmd_vggish_per_inst,
+            "baseline_mmd_vggish_per_inst_mean": (
+                float(baseline_gt_mmd_vggish_per_inst_mean)
+                if baseline_gt_mmd_vggish_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_vggish_per_inst_mean)
+                else None
+            ),
+            "baseline_mmd_afx_rep_per_inst": baseline_gt_mmd_afx_rep_per_inst,
+            "baseline_mmd_afx_rep_per_inst_mean": (
+                float(baseline_gt_mmd_afx_rep_per_inst_mean)
+                if baseline_gt_mmd_afx_rep_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_afx_rep_per_inst_mean)
+                else None
+            ),
+            "baseline_mmd_fxenc_emb_per_inst": baseline_gt_mmd_fxenc_emb_per_inst,
+            "baseline_mmd_fxenc_emb_per_inst_mean": (
+                float(baseline_gt_mmd_fxenc_emb_per_inst_mean)
+                if baseline_gt_mmd_fxenc_emb_per_inst_mean is not None and not np.isnan(baseline_gt_mmd_fxenc_emb_per_inst_mean)
                 else None
             ),
             "average_iterations_to_improve": float(np.mean(improved_iters)) if improved_iters else None,
             "median_iterations_to_improve": float(np.median(improved_iters)) if improved_iters else None,
             "std_iterations_to_improve": float(np.std(improved_iters)) if improved_iters else None,
             "first_iter_improved_clap_per_word": first_iter_by_word,
-            "first_iter_improved_dsp_distance_per_word": first_iter_gt_by_word if gt_folder else None,
+            "first_iter_improved_dsp_distance_per_word": None,
             "first_iter_improved_mmd_dsp_overall": first_iter_improved_mmd if gt_folder else None,
-            "first_iter_improved_fxenc_distance_overall": first_iter_improved_fxenc if gt_folder else None,
+            "first_iter_improved_fxenc_distance_overall": None,
+            "first_iter_improved_mmd_clap_emb_overall": first_iter_improved_mmd_clap_emb if gt_folder else None,
+            "first_iter_improved_mmd_vggish_overall": first_iter_improved_mmd_vggish if gt_folder else None,
+            "first_iter_improved_mmd_afx_rep_overall": first_iter_improved_mmd_afx_rep if gt_folder else None,
+            "first_iter_improved_mmd_fxenc_emb_overall": first_iter_improved_mmd_fxenc_emb if gt_folder else None,
             "best_iter": int(best_iter),
             "best_clap": float(best_clap) if best_clap != float("-inf") else None,
             "improved_pairs": improved_words,
@@ -365,22 +625,69 @@ def build_summary_text_iterations(results: Dict[str, Dict[str, Any]]) -> str:
         )
         if metrics.get("baseline_mmd_dsp_overall") is not None:
             summary_lines.append(
-                f"    Baseline MMD (DSP): {metrics['baseline_mmd_dsp_overall']:.4f}"
+                f"    Baseline MMD (DSP, overall): {metrics['baseline_mmd_dsp_overall']:.4f}"
             )
             summary_lines.append(
-                f"    First iter improved MMD: {metrics.get('first_iter_improved_mmd_dsp_overall')}"
+                f"    First iter improved MMD (DSP): {metrics.get('first_iter_improved_mmd_dsp_overall')}"
             )
-        if metrics.get("baseline_dsp_distance_overall") is not None:
+        if metrics.get("baseline_mmd_dsp_per_inst_mean") is not None:
             summary_lines.append(
-                f"    Baseline DSP distance: {metrics['baseline_dsp_distance_overall']:.4f}"
+                f"    Baseline MMD (DSP, per-inst mean): {metrics['baseline_mmd_dsp_per_inst_mean']:.4f}"
             )
-        if metrics.get("baseline_fxenc_distance_overall") is not None:
+            for inst, v in metrics.get("baseline_mmd_dsp_per_inst", {}).items():
+                summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        if metrics.get("baseline_mmd_clap_emb_overall") is not None:
             summary_lines.append(
-                f"    Baseline FXEnc distance: {metrics['baseline_fxenc_distance_overall']:.4f}"
+                f"    Baseline MMD (CLAP emb, overall): {metrics['baseline_mmd_clap_emb_overall']:.4f}"
             )
             summary_lines.append(
-                f"    First iter improved FXEnc: {metrics.get('first_iter_improved_fxenc_distance_overall')}"
+                f"    First iter improved MMD (CLAP emb): {metrics.get('first_iter_improved_mmd_clap_emb_overall')}"
             )
+        if metrics.get("baseline_mmd_clap_emb_per_inst_mean") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (CLAP emb, per-inst mean): {metrics['baseline_mmd_clap_emb_per_inst_mean']:.4f}"
+            )
+            for inst, v in metrics.get("baseline_mmd_clap_emb_per_inst", {}).items():
+                summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        if metrics.get("baseline_mmd_vggish_overall") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (VGGish, overall): {metrics['baseline_mmd_vggish_overall']:.4f}"
+            )
+            summary_lines.append(
+                f"    First iter improved MMD (VGGish): {metrics.get('first_iter_improved_mmd_vggish_overall')}"
+            )
+        if metrics.get("baseline_mmd_vggish_per_inst_mean") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (VGGish, per-inst mean): {metrics['baseline_mmd_vggish_per_inst_mean']:.4f}"
+            )
+            for inst, v in metrics.get("baseline_mmd_vggish_per_inst", {}).items():
+                summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        if metrics.get("baseline_mmd_afx_rep_overall") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (AFx-Rep, overall): {metrics['baseline_mmd_afx_rep_overall']:.4f}"
+            )
+            summary_lines.append(
+                f"    First iter improved MMD (AFx-Rep): {metrics.get('first_iter_improved_mmd_afx_rep_overall')}"
+            )
+        if metrics.get("baseline_mmd_afx_rep_per_inst_mean") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (AFx-Rep, per-inst mean): {metrics['baseline_mmd_afx_rep_per_inst_mean']:.4f}"
+            )
+            for inst, v in metrics.get("baseline_mmd_afx_rep_per_inst", {}).items():
+                summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        if metrics.get("baseline_mmd_fxenc_emb_overall") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (FXEnc emb, overall): {metrics['baseline_mmd_fxenc_emb_overall']:.4f}"
+            )
+            summary_lines.append(
+                f"    First iter improved MMD (FXEnc emb): {metrics.get('first_iter_improved_mmd_fxenc_emb_overall')}"
+            )
+        if metrics.get("baseline_mmd_fxenc_emb_per_inst_mean") is not None:
+            summary_lines.append(
+                f"    Baseline MMD (FXEnc emb, per-inst mean): {metrics['baseline_mmd_fxenc_emb_per_inst_mean']:.4f}"
+            )
+            for inst, v in metrics.get("baseline_mmd_fxenc_emb_per_inst", {}).items():
+                summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
 
     valid_results = [(n, m) for n, m in results.items() if m and m.get("average_iterations_to_improve") is not None]
     if valid_results:
@@ -439,11 +746,21 @@ def run_metrics_against_gt(
         print(f"  GT folder:        {gt_folder}")
         print(f"  Test folders:      {test_folders}")
 
-    # Accumulators
+    # Accumulators (by word and by instrument)
     gt_feats_by_word: Dict[str, List[np.ndarray]] = {}
+    gt_clap_emb_by_word: Dict[str, List[np.ndarray]] = {}
+    gt_vggish_by_word: Dict[str, List[np.ndarray]] = {}
+    gt_afx_rep_by_word: Dict[str, List[np.ndarray]] = {}
     gt_fxenc_by_word: Dict[str, List[np.ndarray]] = {}
+    gt_feats_by_inst: Dict[str, List[np.ndarray]] = {}
+    gt_clap_emb_by_inst: Dict[str, List[np.ndarray]] = {}
+    gt_vggish_by_inst: Dict[str, List[np.ndarray]] = {}
+    gt_afx_rep_by_inst: Dict[str, List[np.ndarray]] = {}
+    gt_fxenc_by_inst: Dict[str, List[np.ndarray]] = {}
     gt_words = _discover_words_instruments(gt_folder)
     gt_wavs_covered = {}
+    gt_vggish_covered = {}
+    gt_afx_rep_covered = {}
     gt_fxenc_covered = {}
 
     results: Dict[str, Dict[str, Any]] = {}
@@ -471,7 +788,16 @@ def run_metrics_against_gt(
             return {}
 
         tech_feats_by_word: Dict[str, List[np.ndarray]] = {}
+        tech_clap_emb_by_word: Dict[str, List[np.ndarray]] = {}
+        tech_vggish_by_word: Dict[str, List[np.ndarray]] = {}
+        tech_afx_rep_by_word: Dict[str, List[np.ndarray]] = {}
         tech_fxenc_by_word: Dict[str, List[np.ndarray]] = {}
+        tech_feats_by_inst: Dict[str, List[np.ndarray]] = {}
+        tech_clap_emb_by_inst: Dict[str, List[np.ndarray]] = {}
+        tech_vggish_by_inst: Dict[str, List[np.ndarray]] = {}
+        tech_afx_rep_by_inst: Dict[str, List[np.ndarray]] = {}
+        tech_fxenc_by_inst: Dict[str, List[np.ndarray]] = {}
+        clap_scores_by_word: Dict[str, List[float]] = {}
 
         for word, instrument in tqdm.tqdm(common):
             # Find all matching (word, instrument, part) in GT and test
@@ -485,29 +811,61 @@ def run_metrics_against_gt(
             if not gt_wavs or not tech_wavs:
                 continue
 
-            # DSP features + FXEnc embeddings for GT
+            # DSP / CLAP / FXEnc embeddings for GT
             for p in gt_wavs:
                 if p in gt_wavs_covered:
                     f = gt_wavs_covered[p]
                 else:
                     f = extract_dsp_features(p, sr=sr)
                     gt_wavs_covered[p] = f
-                gt_feats_by_word.setdefault(word, []).append(f)
+                gt_feats_by_word.setdefault(word, []).append(f) # 35 features
+                gt_feats_by_inst.setdefault(instrument, []).append(f)
 
-                if p in gt_fxenc_covered:
-                    emb = gt_fxenc_covered[p]
+                clap_emb = _get_clap_audio_embedding(p)
+                gt_clap_emb_by_word.setdefault(word, []).append(clap_emb)
+                gt_clap_emb_by_inst.setdefault(instrument, []).append(clap_emb)
+
+                if p in gt_vggish_covered:
+                    vgg_emb = gt_vggish_covered[p]
                 else:
-                    emb = get_fx_embedding(p).detach().cpu().numpy().flatten()
-                    gt_fxenc_covered[p] = emb
-                gt_fxenc_by_word.setdefault(word, []).append(emb)
+                    vgg_emb = get_vggish_embedding(p)
+                    gt_vggish_covered[p] = vgg_emb
+                gt_vggish_by_word.setdefault(word, []).append(vgg_emb)
+                gt_vggish_by_inst.setdefault(instrument, []).append(vgg_emb)
 
-            # DSP features + FXEnc embeddings for test
+                if p in gt_afx_rep_covered:
+                    afx_emb = gt_afx_rep_covered[p]
+                else:
+                    afx_emb = get_afx_rep_embedding(p).detach().cpu().numpy().flatten()
+                    gt_afx_rep_covered[p] = afx_emb
+                gt_afx_rep_by_word.setdefault(word, []).append(afx_emb)
+                gt_afx_rep_by_inst.setdefault(instrument, []).append(afx_emb)
+
+                gt_fxenc_by_word.setdefault(word, []).append(afx_emb)
+                gt_fxenc_by_inst.setdefault(instrument, []).append(afx_emb)
+
+            # DSP / CLAP / FXEnc embeddings + CLAP similarity for test
             for p in tech_wavs:
                 f = extract_dsp_features(p, sr=sr)
                 tech_feats_by_word.setdefault(word, []).append(f)
+                tech_feats_by_inst.setdefault(instrument, []).append(f)
 
-                emb = get_fx_embedding(p).detach().cpu().numpy().flatten()
-                tech_fxenc_by_word.setdefault(word, []).append(emb)
+                clap_emb = _get_clap_audio_embedding(p)
+                tech_clap_emb_by_word.setdefault(word, []).append(clap_emb)
+                tech_clap_emb_by_inst.setdefault(instrument, []).append(clap_emb)
+
+                vgg_emb = get_vggish_embedding(p)
+                tech_vggish_by_word.setdefault(word, []).append(vgg_emb)
+                tech_vggish_by_inst.setdefault(instrument, []).append(vgg_emb)
+
+                afx_emb = get_afx_rep_embedding(p).detach().cpu().numpy().flatten()
+                tech_afx_rep_by_word.setdefault(word, []).append(afx_emb)
+                tech_afx_rep_by_inst.setdefault(instrument, []).append(afx_emb)
+
+                tech_fxenc_by_word.setdefault(word, []).append(afx_emb)
+                tech_fxenc_by_inst.setdefault(instrument, []).append(afx_emb)
+
+                clap_scores_by_word.setdefault(word, []).append(compute_clap_score(p, word))
 
         # ── Per-word MMD on DSP features ─────────────────────────────────────
         mmd_per_word: Dict[str, float] = {}
@@ -523,35 +881,146 @@ def run_metrics_against_gt(
         all_tech = np.concatenate([np.array(v) for v in tech_feats_by_word.values()]) if tech_feats_by_word else np.empty((0, 0))
         mmd_overall = compute_mmd(all_gt, all_tech) if all_gt.size and all_tech.size else float("nan")
 
-        # ── Per-word avg Euclidean distance to GT centroid ────────────────────
-        dsp_dist_per_word: Dict[str, float] = {}
-        for word in sorted(gt_feats_by_word):
-            if word not in tech_feats_by_word:
+        # Deprecated distance-to-centroid metrics after switching to embedding-space MMD.
+        # dsp_dist_per_word = {}
+        # dsp_dist_overall = float("nan")
+        # fxenc_dist_per_word = {}
+        # fxenc_dist_overall = float("nan")
+
+        # ── Per-word MMD on CLAP audio embeddings ────────────────────────────
+        mmd_clap_emb_per_word: Dict[str, float] = {}
+        for word in sorted(gt_clap_emb_by_word):
+            if word not in tech_clap_emb_by_word:
                 continue
-            gt_centroid = np.mean(gt_feats_by_word[word], axis=0)
-            dists = [float(np.linalg.norm(f - gt_centroid)) for f in tech_feats_by_word[word]]
-            dsp_dist_per_word[word] = float(np.mean(dists))
+            X = np.array(gt_clap_emb_by_word[word])
+            Y = np.array(tech_clap_emb_by_word[word])
+            mmd_clap_emb_per_word[word] = compute_mmd(X, Y)
 
-        dsp_dist_overall = float(np.mean(list(dsp_dist_per_word.values()))) if dsp_dist_per_word else float("nan")
+        all_gt_clap = np.concatenate([np.array(v) for v in gt_clap_emb_by_word.values()]) if gt_clap_emb_by_word else np.empty((0, 0))
+        all_tech_clap = np.concatenate([np.array(v) for v in tech_clap_emb_by_word.values()]) if tech_clap_emb_by_word else np.empty((0, 0))
+        mmd_clap_emb_overall = compute_mmd(all_gt_clap, all_tech_clap) if all_gt_clap.size and all_tech_clap.size else float("nan")
 
-        # ── Per-word cosine distance between avg FXEnc embeddings ─────────
-        fxenc_dist_per_word: Dict[str, float] = {}
+        # ── Per-word MMD on VGGish embeddings ───────────────────────────────
+        mmd_vggish_per_word: Dict[str, float] = {}
+        for word in sorted(gt_vggish_by_word):
+            if word not in tech_vggish_by_word:
+                continue
+            X = np.array(gt_vggish_by_word[word])
+            Y = np.array(tech_vggish_by_word[word])
+            mmd_vggish_per_word[word] = compute_mmd(X, Y)
+
+        all_gt_vggish = np.concatenate([np.array(v) for v in gt_vggish_by_word.values()]) if gt_vggish_by_word else np.empty((0, 0))
+        all_tech_vggish = np.concatenate([np.array(v) for v in tech_vggish_by_word.values()]) if tech_vggish_by_word else np.empty((0, 0))
+        mmd_vggish_overall = compute_mmd(all_gt_vggish, all_tech_vggish) if all_gt_vggish.size and all_tech_vggish.size else float("nan")
+
+        # ── Per-word MMD on AFx-Rep embeddings ──────────────────────────────
+        mmd_afx_rep_per_word: Dict[str, float] = {}
+        for word in sorted(gt_afx_rep_by_word):
+            if word not in tech_afx_rep_by_word:
+                continue
+            X = np.array(gt_afx_rep_by_word[word])
+            Y = np.array(tech_afx_rep_by_word[word])
+            mmd_afx_rep_per_word[word] = compute_mmd(X, Y)
+
+        all_gt_afx_rep = np.concatenate([np.array(v) for v in gt_afx_rep_by_word.values()]) if gt_afx_rep_by_word else np.empty((0, 0))
+        all_tech_afx_rep = np.concatenate([np.array(v) for v in tech_afx_rep_by_word.values()]) if tech_afx_rep_by_word else np.empty((0, 0))
+        mmd_afx_rep_overall = compute_mmd(all_gt_afx_rep, all_tech_afx_rep) if all_gt_afx_rep.size and all_tech_afx_rep.size else float("nan")
+
+        # ── Per-word MMD on FXEnc embeddings ─────────────────────────────────
+        mmd_fxenc_emb_per_word: Dict[str, float] = {}
         for word in sorted(gt_fxenc_by_word):
             if word not in tech_fxenc_by_word:
                 continue
-            gt_avg = np.mean(gt_fxenc_by_word[word], axis=0)
-            tech_avg = np.mean(tech_fxenc_by_word[word], axis=0)
-            fxenc_dist_per_word[word] = float(cosine_dist(gt_avg, tech_avg))
+            X = np.array(gt_fxenc_by_word[word])
+            Y = np.array(tech_fxenc_by_word[word])
+            mmd_fxenc_emb_per_word[word] = compute_mmd(X, Y)
 
-        fxenc_dist_overall = float(np.mean(list(fxenc_dist_per_word.values()))) if fxenc_dist_per_word else float("nan")
+        all_gt_fxenc = np.concatenate([np.array(v) for v in gt_fxenc_by_word.values()]) if gt_fxenc_by_word else np.empty((0, 0))
+        all_tech_fxenc = np.concatenate([np.array(v) for v in tech_fxenc_by_word.values()]) if tech_fxenc_by_word else np.empty((0, 0))
+        mmd_fxenc_emb_overall = compute_mmd(all_gt_fxenc, all_tech_fxenc) if all_gt_fxenc.size and all_tech_fxenc.size else float("nan")
+
+        # ── Per-instrument MMD on DSP features ───────────────────────────────
+        mmd_dsp_per_inst: Dict[str, float] = {}
+        for inst in sorted(gt_feats_by_inst):
+            if inst not in tech_feats_by_inst:
+                continue
+            X = np.array(gt_feats_by_inst[inst])
+            Y = np.array(tech_feats_by_inst[inst])
+            mmd_dsp_per_inst[inst] = compute_mmd(X, Y)
+        mmd_dsp_per_inst_mean = float(np.mean(list(mmd_dsp_per_inst.values()))) if mmd_dsp_per_inst else float("nan")
+
+        # ── Per-instrument MMD on CLAP audio embeddings ───────────────────────
+        mmd_clap_emb_per_inst: Dict[str, float] = {}
+        for inst in sorted(gt_clap_emb_by_inst):
+            if inst not in tech_clap_emb_by_inst:
+                continue
+            X = np.array(gt_clap_emb_by_inst[inst])
+            Y = np.array(tech_clap_emb_by_inst[inst])
+            mmd_clap_emb_per_inst[inst] = compute_mmd(X, Y)
+        mmd_clap_emb_per_inst_mean = float(np.mean(list(mmd_clap_emb_per_inst.values()))) if mmd_clap_emb_per_inst else float("nan")
+
+        # ── Per-instrument MMD on VGGish embeddings ───────────────────────────
+        mmd_vggish_per_inst: Dict[str, float] = {}
+        for inst in sorted(gt_vggish_by_inst):
+            if inst not in tech_vggish_by_inst:
+                continue
+            X = np.array(gt_vggish_by_inst[inst])
+            Y = np.array(tech_vggish_by_inst[inst])
+            mmd_vggish_per_inst[inst] = compute_mmd(X, Y)
+        mmd_vggish_per_inst_mean = float(np.mean(list(mmd_vggish_per_inst.values()))) if mmd_vggish_per_inst else float("nan")
+
+        # ── Per-instrument MMD on AFx-Rep embeddings ──────────────────────────
+        mmd_afx_rep_per_inst: Dict[str, float] = {}
+        for inst in sorted(gt_afx_rep_by_inst):
+            if inst not in tech_afx_rep_by_inst:
+                continue
+            X = np.array(gt_afx_rep_by_inst[inst])
+            Y = np.array(tech_afx_rep_by_inst[inst])
+            mmd_afx_rep_per_inst[inst] = compute_mmd(X, Y)
+        mmd_afx_rep_per_inst_mean = float(np.mean(list(mmd_afx_rep_per_inst.values()))) if mmd_afx_rep_per_inst else float("nan")
+
+        # ── Per-instrument MMD on FXEnc embeddings ────────────────────────────
+        mmd_fxenc_emb_per_inst: Dict[str, float] = {}
+        for inst in sorted(gt_fxenc_by_inst):
+            if inst not in tech_fxenc_by_inst:
+                continue
+            X = np.array(gt_fxenc_by_inst[inst])
+            Y = np.array(tech_fxenc_by_inst[inst])
+            mmd_fxenc_emb_per_inst[inst] = compute_mmd(X, Y)
+        mmd_fxenc_emb_per_inst_mean = float(np.mean(list(mmd_fxenc_emb_per_inst.values()))) if mmd_fxenc_emb_per_inst else float("nan")
+
+        # ── CLAP text-audio similarity (higher is better) ────────────────────
+        clap_similarity_per_word = {w: float(np.mean(v)) for w, v in clap_scores_by_word.items()}
+        clap_similarity_overall = float(np.mean(list(clap_similarity_per_word.values()))) if clap_similarity_per_word else float("nan")
 
         results[approach_name] = {
             "mmd_dsp_per_word": mmd_per_word,
             "mmd_dsp_overall": mmd_overall,
-            "dsp_distance_per_word": dsp_dist_per_word,
-            "dsp_distance_overall": dsp_dist_overall,
-            "fxenc_distance_per_word": fxenc_dist_per_word,
-            "fxenc_distance_overall": fxenc_dist_overall,
+            "mmd_dsp_per_inst": mmd_dsp_per_inst,
+            "mmd_dsp_per_inst_mean": mmd_dsp_per_inst_mean,
+            "mmd_clap_emb_per_word": mmd_clap_emb_per_word,
+            "mmd_clap_emb_overall": mmd_clap_emb_overall,
+            "mmd_clap_emb_per_inst": mmd_clap_emb_per_inst,
+            "mmd_clap_emb_per_inst_mean": mmd_clap_emb_per_inst_mean,
+            "mmd_vggish_per_word": mmd_vggish_per_word,
+            "mmd_vggish_overall": mmd_vggish_overall,
+            "mmd_vggish_per_inst": mmd_vggish_per_inst,
+            "mmd_vggish_per_inst_mean": mmd_vggish_per_inst_mean,
+            "mmd_afx_rep_per_word": mmd_afx_rep_per_word,
+            "mmd_afx_rep_overall": mmd_afx_rep_overall,
+            "mmd_afx_rep_per_inst": mmd_afx_rep_per_inst,
+            "mmd_afx_rep_per_inst_mean": mmd_afx_rep_per_inst_mean,
+            "mmd_fxenc_emb_per_word": mmd_fxenc_emb_per_word,
+            "mmd_fxenc_emb_overall": mmd_fxenc_emb_overall,
+            "mmd_fxenc_emb_per_inst": mmd_fxenc_emb_per_inst,
+            "mmd_fxenc_emb_per_inst_mean": mmd_fxenc_emb_per_inst_mean,
+            "clap_similarity_per_word": clap_similarity_per_word,
+            "clap_similarity_overall": clap_similarity_overall,
+            # Deprecated keys kept as None for compatibility.
+            # "dsp_distance_per_word": None,
+            # "dsp_distance_overall": None,
+            # "fxenc_distance_per_word": None,
+            # "fxenc_distance_overall": None,
         }
 
     if save_report:
@@ -567,12 +1036,36 @@ def build_summary_text_gt(results):
         summary_lines.append(f"\n  ── {approach_name} ──")
         summary_lines.append(f"    MMD (DSP, overall): {metrics['mmd_dsp_overall']:.4f}")
         for w, v in metrics['mmd_dsp_per_word'].items():
-            summary_lines.append(f"      {w:12s}: {v:.4f}")
-        summary_lines.append(f"    DSP distance to GT centroid (overall): {metrics['dsp_distance_overall']:.4f}")
-        for w, v in metrics['dsp_distance_per_word'].items():
-            summary_lines.append(f"      {w:12s}: {v:.4f}")
-        summary_lines.append(f"    FXEnc cosine distance (overall): {metrics['fxenc_distance_overall']:.4f}")
-        for w, v in metrics['fxenc_distance_per_word'].items():
+            summary_lines.append(f"      word {w:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (DSP, per-inst mean): {metrics.get('mmd_dsp_per_inst_mean', float('nan')):.4f}")
+        for inst, v in metrics.get('mmd_dsp_per_inst', {}).items():
+            summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (CLAP emb, overall): {metrics['mmd_clap_emb_overall']:.4f}")
+        for w, v in metrics['mmd_clap_emb_per_word'].items():
+            summary_lines.append(f"      word {w:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (CLAP emb, per-inst mean): {metrics.get('mmd_clap_emb_per_inst_mean', float('nan')):.4f}")
+        for inst, v in metrics.get('mmd_clap_emb_per_inst', {}).items():
+            summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (VGGish, overall): {metrics['mmd_vggish_overall']:.4f}")
+        for w, v in metrics['mmd_vggish_per_word'].items():
+            summary_lines.append(f"      word {w:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (VGGish, per-inst mean): {metrics.get('mmd_vggish_per_inst_mean', float('nan')):.4f}")
+        for inst, v in metrics.get('mmd_vggish_per_inst', {}).items():
+            summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (AFx-Rep, overall): {metrics['mmd_afx_rep_overall']:.4f}")
+        for w, v in metrics['mmd_afx_rep_per_word'].items():
+            summary_lines.append(f"      word {w:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (AFx-Rep, per-inst mean): {metrics.get('mmd_afx_rep_per_inst_mean', float('nan')):.4f}")
+        for inst, v in metrics.get('mmd_afx_rep_per_inst', {}).items():
+            summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (FXEnc emb, overall): {metrics['mmd_fxenc_emb_overall']:.4f}")
+        for w, v in metrics['mmd_fxenc_emb_per_word'].items():
+            summary_lines.append(f"      word {w:12s}: {v:.4f}")
+        summary_lines.append(f"    MMD (FXEnc emb, per-inst mean): {metrics.get('mmd_fxenc_emb_per_inst_mean', float('nan')):.4f}")
+        for inst, v in metrics.get('mmd_fxenc_emb_per_inst', {}).items():
+            summary_lines.append(f"      inst {inst:12s}: {v:.4f}")
+        summary_lines.append(f"    CLAP similarity (overall): {metrics['clap_similarity_overall']:.4f}")
+        for w, v in metrics['clap_similarity_per_word'].items():
             summary_lines.append(f"      {w:12s}: {v:.4f}")
 
     summary_lines.append("\n  Comparison ordering by metric (against GT):")
@@ -585,21 +1078,46 @@ def build_summary_text_gt(results):
     for i, (name, m) in enumerate(mmd_ranking, start=1):
         summary_lines.append(f"      {i}. {name:12s} | {m['mmd_dsp_overall']:.4f}")
 
-    dsp_ranking = sorted(
+    clap_mmd_ranking = sorted(
         results.items(),
-        key=lambda kv: kv[1].get("dsp_distance_overall", float("inf")),
+        key=lambda kv: kv[1].get("mmd_clap_emb_overall", float("inf")),
     )
-    summary_lines.append("    DSP distance (lower is better):")
-    for i, (name, m) in enumerate(dsp_ranking, start=1):
-        summary_lines.append(f"      {i}. {name:12s} | {m['dsp_distance_overall']:.4f}")
+    summary_lines.append("    MMD (CLAP emb, lower is better):")
+    for i, (name, m) in enumerate(clap_mmd_ranking, start=1):
+        summary_lines.append(f"      {i}. {name:12s} | {m['mmd_clap_emb_overall']:.4f}")
 
-    fxenc_ranking = sorted(
+    vggish_ranking = sorted(
         results.items(),
-        key=lambda kv: kv[1].get("fxenc_distance_overall", float("inf")),
+        key=lambda kv: kv[1].get("mmd_vggish_overall", float("inf")),
     )
-    summary_lines.append("    FXEnc cosine distance (lower is better):")
-    for i, (name, m) in enumerate(fxenc_ranking, start=1):
-        summary_lines.append(f"      {i}. {name:12s} | {m['fxenc_distance_overall']:.4f}")
+    summary_lines.append("    MMD (VGGish, lower is better):")
+    for i, (name, m) in enumerate(vggish_ranking, start=1):
+        summary_lines.append(f"      {i}. {name:12s} | {m['mmd_vggish_overall']:.4f}")
+
+    afx_rep_ranking = sorted(
+        results.items(),
+        key=lambda kv: kv[1].get("mmd_afx_rep_overall", float("inf")),
+    )
+    summary_lines.append("    MMD (AFx-Rep, lower is better):")
+    for i, (name, m) in enumerate(afx_rep_ranking, start=1):
+        summary_lines.append(f"      {i}. {name:12s} | {m['mmd_afx_rep_overall']:.4f}")
+
+    fxenc_mmd_ranking = sorted(
+        results.items(),
+        key=lambda kv: kv[1].get("mmd_fxenc_emb_overall", float("inf")),
+    )
+    summary_lines.append("    MMD (FXEnc emb, lower is better):")
+    for i, (name, m) in enumerate(fxenc_mmd_ranking, start=1):
+        summary_lines.append(f"      {i}. {name:12s} | {m['mmd_fxenc_emb_overall']:.4f}")
+
+    clap_sim_ranking = sorted(
+        results.items(),
+        key=lambda kv: kv[1].get("clap_similarity_overall", float("-inf")),
+        reverse=True,
+    )
+    summary_lines.append("    CLAP similarity (higher is better):")
+    for i, (name, m) in enumerate(clap_sim_ranking, start=1):
+        summary_lines.append(f"      {i}. {name:12s} | {m['clap_similarity_overall']:.4f}")
 
     summary_text = "\n".join(summary_lines)
     if summary_text:
@@ -762,16 +1280,16 @@ if __name__ == "__main__":
     #     sr=22050,
     # )
 
-    run_metrics_solo(
-        test_folders={
-            "llm": "eval/system_outputs/exp3/llm",
-            "clap_loss": "eval/system_outputs/exp3/clap_loss",
-        },
-        search_patterns={
-            "llm_clap": "intermediate/optimization_steps/iter_30.wav"
-        },
-        sr=22050,
-    )
+    # run_metrics_solo(
+    #     test_folders={
+    #         "llm": "eval/system_outputs/exp3/llm",
+    #         "clap_loss": "eval/system_outputs/exp3/clap_loss",
+    #     },
+    #     search_patterns={
+    #         "llm_clap": "intermediate/optimization_steps/iter_30.wav"
+    #     },
+    #     sr=22050,
+    # )
 
     run_iteration_improvement_metrics(
         test_folders={
@@ -781,4 +1299,5 @@ if __name__ == "__main__":
             "llm_clap": "intermediate/optimization_steps/iter_*.wav",
         },
         baseline_pattern="intermediate/optimization_steps/start.wav",
+        gt_folder="eval/gt_cache/one-shot"
     )
