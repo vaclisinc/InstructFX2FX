@@ -58,3 +58,8 @@ results/fxsearcher/.DS_Store
 prompts.json
 node_modules/
 .gstack/
+
+eval/results/
+eval/system_outputs/
+eval/gt_cache/
+eval/gt_cache/one-shot/bright/drums/0_0.wav
