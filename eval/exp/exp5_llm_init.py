@@ -61,7 +61,8 @@ def run_exp5(
     words: List[str],
     clap,
     device: str = cfg.DEVICE,
-    n_clap_calls: int = 100,
+    n_clap_calls: int = 300,
+    n_runs_per_instrument: int = 10,
     effects: List[str] = None,
 ) -> Dict:
 
@@ -78,53 +79,75 @@ def run_exp5(
             if not dry:
                 continue
 
-            name = instrument.replace(" ", "_")
-            llm_out_dir  = os.path.join(_EXP5_LLM_DIR,    word, instrument)
-            clap_out_dir = os.path.join(_EXP5_LLMCLAP_DIR, word, instrument)
+            for run_idx in range(n_runs_per_instrument):
+                instrument_variant = f"{instrument}_v{run_idx + 1}"
+                name = instrument_variant.replace(" ", "_")
+                llm_out_dir = os.path.join(_EXP5_LLM_DIR, word, instrument_variant)
+                clap_out_dir = os.path.join(_EXP5_LLMCLAP_DIR, word, instrument_variant)
 
-            llm_done  = os.path.isdir(llm_out_dir)  and any(f.endswith(".wav") for f in os.listdir(llm_out_dir))
-            clap_done = os.path.isdir(clap_out_dir) and any(f.endswith(".wav") for f in os.listdir(clap_out_dir))
+                llm_done = os.path.isdir(llm_out_dir) and any(f.endswith(".wav") for f in os.listdir(llm_out_dir))
+                clap_done = os.path.isdir(clap_out_dir) and any(f.endswith(".wav") for f in os.listdir(clap_out_dir))
 
-            if llm_done and clap_done:
-                print(f"[exp5] SKIP {word}/{instrument}: both methods exist")
-                continue
+                if llm_done and clap_done:
+                    print(f"[exp5] SKIP {word}/{instrument_variant}: both methods exist")
+                    continue
 
-            os.makedirs(llm_out_dir,  exist_ok=True)
-            os.makedirs(clap_out_dir, exist_ok=True)
-            print(f"[exp5] RUN  {word}/{instrument}")
+                os.makedirs(llm_out_dir, exist_ok=True)
+                os.makedirs(clap_out_dir, exist_ok=True)
+                if llm_done:
+                    print(f"[exp5] RUN  {word}/{instrument_variant} (LLM cached, running CLAP only)")
+                else:
+                    print(f"[exp5] RUN  {word}/{instrument_variant}")
 
-            for dry_idx, dry_path in enumerate(dry):
-                audio_np, sr = sf.read(dry_path)
-                if audio_np.ndim > 1:
-                    audio_np = audio_np.mean(axis=1)
-                if sr != cfg.SAMPLE_RATE:
-                    audio_np = librosa.resample(audio_np, orig_sr=sr, target_sr=cfg.SAMPLE_RATE)
-                audio_t = torch.from_numpy(audio_np).float().to(device)
-                audio_t = _ensure_bct(audio_t)
+                for dry_idx, dry_path in enumerate(dry):
+                    audio_np, sr = sf.read(dry_path)
+                    if audio_np.ndim > 1:
+                        audio_np = audio_np.mean(axis=1)
+                    if sr != cfg.SAMPLE_RATE:
+                        audio_np = librosa.resample(audio_np, orig_sr=sr, target_sr=cfg.SAMPLE_RATE)
+                    audio_t = torch.from_numpy(audio_np).float().to(device)
+                    audio_t = _ensure_bct(audio_t)
 
-                instructionset = InstructionSet1(
-                    target=word,
-                    context=f"This is a {instrument} playing."
-                )
-
-                # ── LLM ──────────────────────────────────────────────────────
-                if not llm_done or not clap_done:
-                    llm_params_tensor, llm_params_dict, _ = run_LLM(
-                        audio=audio_t,
-                        fx_chain=fx_chain,
-                        instructionset=instructionset,
-                        llm_client=llm_client,
-                        experiment_dir=os.path.join(llm_out_dir),
-                        # audio_t is already resampled to cfg.SAMPLE_RATE
-                        sample_rate=cfg.SAMPLE_RATE,
-                        device=device,
-                        effects=effects,
-                    )
-                    _process_and_save_audio_and_params(
-                        audio_tensor=audio_t, params_tensor=llm_params_tensor, params_dict=llm_params_dict, fx_chain=fx_chain, sample_rate=cfg.SAMPLE_RATE, output_dir=Path(llm_out_dir), name=f"{name}_{dry_idx}"
+                    instructionset = InstructionSet1(
+                        target=word,
+                        context=f"{instrument} music"
                     )
 
-                    clap_params_tensor, clap_params_dict, _ = run_CLAP(
+                    if llm_done:
+                        params_json_path = os.path.join(llm_out_dir, f"{name}_{dry_idx}_params.json")
+                        with open(params_json_path) as f:
+                            saved = json.load(f)
+                        llm_params_dict = saved["params_dict"]
+                        llm_params_tensor = torch.tensor(saved["params_tensor"], dtype=torch.float32, device=device)
+                        print(f"[exp5]   loaded LLM params from {params_json_path}")
+                    else:
+                        llm_params_tensor, llm_params_dict, llm_stage_info = run_LLM(
+                            audio=audio_t,
+                            fx_chain=fx_chain,
+                            instructionset=instructionset,
+                            llm_client=llm_client,
+                            experiment_dir=os.path.join(llm_out_dir),
+                            # audio_t is already resampled to cfg.SAMPLE_RATE
+                            sample_rate=cfg.SAMPLE_RATE,
+                            device=device,
+                            effects=effects,
+                        )
+                        _process_and_save_audio_and_params(
+                            audio_tensor=audio_t, params_tensor=llm_params_tensor,
+                            params_dict=llm_params_dict, fx_chain=fx_chain,
+                            sample_rate=cfg.SAMPLE_RATE, output_dir=Path(llm_out_dir),
+                            name=f"{name}_{dry_idx}",
+                            details={
+                                **llm_stage_info.get("llm_details", {}),
+                                "dry_path": str(dry_path),
+                                "instrument": instrument,
+                                "word": word,
+                                "run_idx": run_idx,
+                                "dry_idx": dry_idx,
+                            },
+                        )
+
+                    clap_params_tensor, clap_params_dict, clap_stage_info = run_CLAP(
                         audio=audio_t,
                         fx_chain=fx_chain,
                         instructionset=instructionset,
@@ -142,7 +165,18 @@ def run_exp5(
                         snapshot_interval=10,
                     )
                     _process_and_save_audio_and_params(
-                        audio_tensor=audio_t, params_tensor=clap_params_tensor, params_dict=clap_params_dict, fx_chain=fx_chain, sample_rate=cfg.SAMPLE_RATE, output_dir=Path(clap_out_dir), name=f"{name}_{dry_idx}"
+                        audio_tensor=audio_t, params_tensor=clap_params_tensor,
+                        params_dict=clap_params_dict, fx_chain=fx_chain,
+                        sample_rate=cfg.SAMPLE_RATE, output_dir=Path(clap_out_dir),
+                        name=f"{name}_{dry_idx}",
+                        details={
+                            **clap_stage_info.get("clap_details", {}),
+                            "dry_path": str(dry_path),
+                            "instrument": instrument,
+                            "word": word,
+                            "run_idx": run_idx,
+                            "dry_idx": dry_idx,
+                        },
                     )
 
-            print(f"[exp5] {word}/{instrument}: {len(dry)} files saved")
+                print(f"[exp5] {word}/{instrument_variant}: {len(dry)} files saved")

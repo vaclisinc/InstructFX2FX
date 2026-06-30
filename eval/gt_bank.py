@@ -26,6 +26,10 @@ from eval.helpers import _dry_paths
 import eval.config as cfg
 
 
+def _expand_one_shot_instruments(instruments: List[str]) -> List[str]:
+    return list(dict.fromkeys([*instruments, *cfg.GT_BANK_ONESHOT_INSTRUMENTS]))
+
+
 def build_word_gt_bank_per_instance(
     word: str,
     instrument: str,
@@ -135,7 +139,7 @@ def build_sequential_gt_bank_per_instance(
 def build_word_gt_bank_full(words, instruments):
     for word in words:
         params = load_all_params_for_word(word)
-        for instrument in instruments:
+        for instrument in _expand_one_shot_instruments(instruments):
             dry = _dry_paths(instrument)
             if not dry:
                 print(f"[exp2] SKIP word GT {word}/{instrument}: no dry paths")

@@ -37,8 +37,10 @@ _WORDS_PCA_SOCIAL_EQ: List[str] = [
 
 # ── Instruments & dry audio ─────────────────────────────────────────────────
 # Instrument names must match subdirectory names under DRY_AUDIO_DIR.
-# Only violin currently has WAV files in dry_audio/.
-INSTRUMENTS: List[str] = ["piano", "violin"]
+# Oboe is available now; drums/guitar are included in one-shot GT coverage
+# so the cache builder will pick them up automatically when dry audio is added.
+INSTRUMENTS: List[str] = ["piano", "violin", "oboe", "drums", "guitar"]
+GT_BANK_ONESHOT_INSTRUMENTS: List[str] = ["piano", "violin", "oboe", "drums", "guitar"]
 
 DRY_AUDIO_DIR: str = os.path.join(ROOT, "dry_audio")
 # Expected structure: DRY_AUDIO_DIR/{instrument}/*.wav

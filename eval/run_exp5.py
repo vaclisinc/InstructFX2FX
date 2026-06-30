@@ -47,7 +47,7 @@ if __name__ == "__main__":
         clap=clap,
         words=cfg._WORDS_PCA_SOCIAL_EQ,
         device = cfg.DEVICE,
-        n_clap_calls = 100,
+        n_clap_calls = 300,
         effects = ['eq']
     )
 
