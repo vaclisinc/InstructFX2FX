@@ -62,6 +62,11 @@ h1.title .cur { color: var(--gold); font-weight: 400; animation: blink 1.05s ste
 .meta dd { margin: 0; font-size: 0.82rem; color: var(--ink-2); }
 .meta dd .sep { color: var(--line-2); margin: 0 6px; }
 .meta dd b { color: var(--ink); font-weight: 600; }
+.meta dd b .ca-mark { font-weight: 700; }
+.ca-note { margin: 8px 0 0; font-size: 0.72rem; color: var(--faint); }
+.ca-note b { color: var(--faint); font-weight: 600; }
+.meta dd a { text-decoration: none; border-bottom: 1px dotted currentColor; transition: opacity .15s; }
+.meta dd a:hover { opacity: 0.65; }
 
 .btns { display: flex; gap: 12px; flex-wrap: wrap; }
 .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; padding: 10px 16px; border: 1.5px solid var(--line); color: var(--ink); background: var(--paper); transition: background .15s, color .15s; }
