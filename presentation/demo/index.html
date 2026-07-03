@@ -74,27 +74,157 @@
   <section id="architecture">
     <div class="shead"><span class="snum">[02]</span><span class="stitle">Architecture · Three-Layer Harness</span></div>
     <div class="sbody">
-      <div class="diagram">
-        <div class="dg-state">
-          <span class="k">SESSION STATE</span><span class="v">P · history</span><span class="p">persistent</span>
-        </div>
-        <div class="dg-io"><span>read ▾</span><span>▴ write</span></div>
-        <div class="dg-pipe">
-          <div class="node"><span class="n-k">INPUT</span><small>audio · text</small></div>
-          <span class="conn">→</span>
-          <div class="node"><span class="n-k">L1 · <em>SELECT</em></span><small>LLM picks &amp; orders FX</small></div>
-          <span class="conn">→</span>
-          <div class="node"><span class="n-k">L2 · <em>ROUTE</em></span><small>parse the update</small></div>
-          <span class="conn">→</span>
-          <div class="node"><span class="n-k">L3 · <em>REFINE</em></span><small>optimize in CLAP space</small></div>
-          <span class="conn">→</span>
-          <div class="node"><span class="n-k">OUTPUT</span><small>rendered audio</small></div>
-        </div>
-        <div class="dg-down">▾ L3 splits by effect type ▾</div>
-        <div class="dg-sub">
-          <div class="sub"><b>3a</b><span class="s-k">GRADIENT DESCENT</span><div class="s-v">differentiable · EQ, reverb</div></div>
-          <div class="sub"><b>3b</b><span class="s-k">BAYESIAN OPT</span><div class="s-v">comp · dist · delay · pitch · crush</div></div>
-        </div>
+      <div class="fig-stack">
+        <figure>
+          <p class="fignum"><b>FIG. 01(a)</b> · HARNESS OVERVIEW</p>
+          <svg xmlns="http://www.w3.org/2000/svg" width="1060" height="196" viewBox="0 0 1060 196">
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.2" markerHeight="6.2"
+                      orient="auto-start-reverse">
+                <path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--ink)" stroke-width="1.5"
+                      stroke-linejoin="round" stroke-linecap="round"/>
+              </marker>
+            </defs>
+            <rect width="1060" height="196" fill="var(--paper)"/>
+            <text x="12" y="26" font-size="19" font-weight="700" fill="var(--ink)">(a)</text>
+
+            <rect x="94" y="40" width="852" height="30" rx="1.5" fill="none" stroke="var(--line-2)"
+                  stroke-width="1" stroke-dasharray="4 3"/>
+            <text x="520" y="60" text-anchor="middle" font-size="13.5"><tspan font-weight="700" font-style="italic" fill="var(--blue)">Session state</tspan><tspan fill="var(--muted)">&#8195;history (prompt, FX chain, params) | current params</tspan></text>
+            <line x1="193" y1="71" x2="193" y2="90" stroke="var(--ink)" stroke-width="1.2" marker-end="url(#ah)"/>
+            <text x="203" y="85" font-size="11" font-style="italic" fill="var(--faint)">read history</text>
+            <line x1="374" y1="71" x2="374" y2="90" stroke="var(--ink)" stroke-width="1.2" marker-end="url(#ah)"/>
+            <text x="384" y="85" font-size="11" font-style="italic" fill="var(--faint)">read params</text>
+            <line x1="928" y1="121" x2="928" y2="71" stroke="var(--ink)" stroke-width="1.2" marker-end="url(#ah)"/>
+            <text x="918" y="85" text-anchor="end" font-size="11" font-style="italic" fill="var(--faint)">update state</text>
+
+            <g>
+              <line x1="94"  y1="121" x2="116" y2="121" stroke="var(--ink)" stroke-width="1.1" marker-end="url(#ah)"/>
+              <line x1="268" y1="121" x2="300" y2="121" stroke="var(--ink)" stroke-width="1.1" marker-end="url(#ah)"/>
+              <line x1="452" y1="121" x2="484" y2="121" stroke="var(--ink)" stroke-width="1.1" marker-end="url(#ah)"/>
+              <line x1="664" y1="121" x2="696" y2="121" stroke="var(--ink)" stroke-width="1.1" marker-end="url(#ah)"/>
+              <line x1="910" y1="121" x2="946" y2="121" stroke="var(--ink)" stroke-width="1.1" marker-end="url(#ah)"/>
+            </g>
+
+            <text x="56" y="117" text-anchor="middle" font-size="14.5" font-weight="700" fill="var(--ink)">Input</text>
+            <text x="56" y="134" text-anchor="middle" font-size="12" font-style="italic" fill="var(--muted)">audio, text</text>
+
+            <rect x="118" y="93" width="150" height="56" rx="1.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.3"/>
+            <text x="193" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">LLM Planner</text>
+            <text x="193" y="135" text-anchor="middle" font-size="9" font-style="italic" letter-spacing="-0.03em" fill="var(--muted)">FX selection via tool calls</text>
+
+            <rect x="300" y="93" width="152" height="56" rx="1.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.3"/>
+            <text x="376" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">Routing Module</text>
+            <text x="376" y="135" text-anchor="middle" font-size="9.5" font-style="italic" fill="var(--muted)">init | reuse | mixed</text>
+
+            <rect x="484" y="93" width="180" height="56" rx="1.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.3"/>
+            <text x="574" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">Gradient Descent</text>
+            <text x="574" y="135" text-anchor="middle" font-size="9.5" font-style="italic" fill="var(--muted)">differentiable FX</text>
+
+            <rect x="696" y="93" width="214" height="56" rx="1.5" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.3"/>
+            <text x="803" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">Bayesian Optimization</text>
+            <text x="803" y="135" text-anchor="middle" font-size="9.5" font-style="italic" fill="var(--muted)">non-differentiable FX</text>
+
+            <text x="992" y="117" text-anchor="middle" font-size="14.5" font-weight="700" fill="var(--ink)">Output</text>
+            <text x="992" y="134" text-anchor="middle" font-size="12" font-style="italic" fill="var(--muted)">params, audio</text>
+
+            <path d="M484,157 L484,163 L910,163 L910,157" fill="none" stroke="var(--line-2)" stroke-width="1"/>
+            <text x="697" y="179" text-anchor="middle" font-size="12.5" font-style="italic" fill="var(--muted)">CLAP-guided optimization</text>
+          </svg>
+          <figcaption><b>Figure 1:</b> The InstructFX2FX harness. An LLM planner and routing module drive a CLAP-guided optimization backend over a persistent session state, which makes the system iterative.</figcaption>
+        </figure>
+        <figure>
+          <p class="fignum"><b>FIG. 02</b> · ROUTING MODULE EXPLAIN</p>
+          <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="244" viewBox="0 0 1080 244">
+            <defs>
+              <marker id="ahM" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.2" markerHeight="6.2"
+                      orient="auto-start-reverse">
+                <path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--blue)" stroke-width="1.5"
+                      stroke-linejoin="round" stroke-linecap="round"/>
+              </marker>
+              <marker id="ahA" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5.4" markerHeight="5.4"
+                      orient="auto-start-reverse">
+                <path d="M1,1 L9,5 L1,9" fill="none" stroke="var(--muted)" stroke-width="1.4"
+                      stroke-linejoin="round" stroke-linecap="round"/>
+              </marker>
+            </defs>
+            <rect width="1080" height="244" fill="var(--paper)"/>
+            <text x="12" y="25" font-size="16" font-weight="800" fill="var(--blue)" letter-spacing="0.02em">[B]</text>
+
+            <text x="125" y="26"  text-anchor="end" font-size="10.5" fill="var(--faint)">turns</text>
+            <text x="125" y="56"  text-anchor="end" font-size="10.5" fill="var(--muted)">instruction</text>
+            <text x="125" y="103" text-anchor="end" font-size="10.5" fill="var(--muted)">llm planner</text>
+            <text x="125" y="167" text-anchor="end" font-size="10.5" fill="var(--muted)">routing module</text>
+            <text x="125" y="214" text-anchor="end" font-size="10.5" fill="var(--muted)">session chain</text>
+
+            <line x1="145" y1="22" x2="870" y2="22" stroke="var(--line-2)" stroke-width="1.3" marker-end="url(#ahA)"/>
+            <circle cx="252" cy="22" r="3.2" fill="var(--blue)"/>
+            <circle cx="500" cy="22" r="3.2" fill="var(--blue)"/>
+            <circle cx="748" cy="22" r="3.2" fill="var(--blue)"/>
+
+            <text x="252" y="52" text-anchor="middle" font-size="12"><tspan fill="var(--blue)" font-weight="700">&#8250; </tspan><tspan fill="var(--ink-2)">&#8220;make it brighter&#8221;</tspan></text>
+            <rect x="135" y="68" width="234" height="62" fill="none" stroke="var(--blue)" stroke-width="1.3" stroke-dasharray="5 4"/>
+            <text x="173.25" y="92" text-anchor="middle" font-size="11" font-weight="700" fill="var(--blue)">eq</text>
+            <text x="225.75" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">comp</text>
+            <text x="278.25" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">rev</text>
+            <text x="330.75" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">dist</text>
+            <text x="182" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">delay</text>
+            <text x="252" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">pitchshift</text>
+            <text x="322" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">bitcrush</text>
+            <line x1="252" y1="132" x2="252" y2="144" stroke="var(--blue)" stroke-width="1.3" marker-end="url(#ahM)"/>
+            <rect x="177" y="146" width="150" height="36" fill="var(--paper)" stroke="var(--line)" stroke-width="1.5"/>
+            <rect x="188" y="161" width="6" height="6" fill="var(--blue)"/>
+            <text x="252" y="169" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)" letter-spacing="0.01em">I &#183; INIT-ONLY</text>
+            <line x1="252" y1="184" x2="252" y2="196" stroke="var(--blue)" stroke-width="1.3" marker-end="url(#ahM)"/>
+            <rect x="225" y="198" width="54" height="26" fill="#ffffff" stroke="var(--blue)" stroke-width="1.4"/>
+            <text x="252" y="215" text-anchor="middle" font-size="12.5" fill="var(--ink)">eq</text>
+
+            <text x="500" y="52" text-anchor="middle" font-size="12"><tspan fill="var(--blue)" font-weight="700">&#8250; </tspan><tspan fill="var(--ink-2)">&#8220;make it sound like a church&#8221;</tspan></text>
+            <rect x="383" y="68" width="234" height="62" fill="none" stroke="var(--blue)" stroke-width="1.3" stroke-dasharray="5 4"/>
+            <text x="430" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">comp</text>
+            <text x="500" y="92" text-anchor="middle" font-size="11" font-weight="700" fill="var(--blue)">rev</text>
+            <text x="570" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">dist</text>
+            <text x="430" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">delay</text>
+            <text x="500" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">pitchshift</text>
+            <text x="570" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">bitcrush</text>
+            <line x1="500" y1="132" x2="500" y2="144" stroke="var(--blue)" stroke-width="1.3" marker-end="url(#ahM)"/>
+            <rect x="425" y="146" width="150" height="36" fill="var(--paper)" stroke="var(--line)" stroke-width="1.5"/>
+            <rect x="436" y="161" width="6" height="6" fill="var(--ink)"/>
+            <text x="500" y="169" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)" letter-spacing="0.01em">III &#183; MIXED</text>
+            <line x1="500" y1="184" x2="500" y2="196" stroke="var(--blue)" stroke-width="1.3" marker-end="url(#ahM)"/>
+            <rect x="435" y="198" width="54" height="26" fill="#ffffff" stroke="var(--line-2)" stroke-width="1.3"/>
+            <text x="462" y="215" text-anchor="middle" font-size="12.5" fill="var(--ink-2)">eq</text>
+            <line x1="491" y1="211" x2="499" y2="211" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#ahA)"/>
+            <rect x="501" y="198" width="54" height="26" fill="#ffffff" stroke="var(--blue)" stroke-width="1.4"/>
+            <text x="528" y="215" text-anchor="middle" font-size="12.5" fill="var(--ink)">rev</text>
+
+            <text x="748" y="52" text-anchor="middle" font-size="12"><tspan fill="var(--blue)" font-weight="700">&#8250; </tspan><tspan fill="var(--ink-2)">&#8220;too harsh, soften it&#8221;</tspan></text>
+            <rect x="631" y="68" width="234" height="62" fill="none" stroke="var(--blue)" stroke-width="1.3" stroke-dasharray="5 4"/>
+            <text x="678" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">comp</text>
+            <text x="748" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">dist</text>
+            <text x="818" y="92" text-anchor="middle" font-size="10" fill="var(--faint)">delay</text>
+            <text x="695.5" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">pitchshift</text>
+            <text x="800.5" y="116" text-anchor="middle" font-size="10" fill="var(--faint)">bitcrush</text>
+            <line x1="748" y1="132" x2="748" y2="144" stroke="var(--blue)" stroke-width="1.3" marker-end="url(#ahM)"/>
+            <rect x="673" y="146" width="150" height="36" fill="var(--paper)" stroke="var(--line)" stroke-width="1.5"/>
+            <rect x="684" y="161" width="6" height="6" fill="var(--paper)" stroke="var(--blue)" stroke-width="1.2"/>
+            <text x="748" y="169" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)" letter-spacing="0.01em">II &#183; REUSE-ONLY</text>
+            <line x1="748" y1="184" x2="748" y2="196" stroke="var(--blue)" stroke-width="1.3" marker-end="url(#ahM)"/>
+            <rect x="683" y="198" width="54" height="26" fill="#ffffff" stroke="var(--line-2)" stroke-width="1.3"/>
+            <text x="710" y="215" text-anchor="middle" font-size="12.5" fill="var(--ink-2)">eq</text>
+            <line x1="739" y1="211" x2="747" y2="211" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#ahA)"/>
+            <rect x="749" y="198" width="54" height="26" fill="#ffffff" stroke="var(--line-2)" stroke-width="1.3"/>
+            <text x="776" y="215" text-anchor="middle" font-size="12.5" fill="var(--ink-2)">rev</text>
+
+            <rect x="905" y="124" width="14" height="11" fill="none" stroke="var(--blue)" stroke-width="1.1" stroke-dasharray="3 2"/>
+            <text x="924" y="133" font-size="10" fill="var(--muted)">available fx tools pool</text>
+            <rect x="905" y="141" width="14" height="11" fill="none" stroke="var(--blue)" stroke-width="1.1"/>
+            <text x="924" y="150" font-size="10" fill="var(--muted)">newly init</text>
+            <rect x="905" y="158" width="14" height="11" fill="none" stroke="var(--line-2)" stroke-width="1.1"/>
+            <text x="924" y="167" font-size="10" fill="var(--muted)">reused from prior state</text>
+          </svg>
+          <figcaption><b>Figure 2:</b> The three routing modes over one example three-turn session.</figcaption>
+        </figure>
       </div>
       <p class="lead">$ routing — every instruction takes one of three modes</p>
       <ol class="modes">
@@ -126,17 +256,11 @@
   <section id="results">
     <div class="shead"><span class="snum">[04]</span><span class="stitle">Evaluation · By the Numbers</span></div>
     <div class="sbody">
-      <div class="stats">
-        <div class="stat"><span class="sk">// TARGET MMD</span><span class="sv">0.45<span class="arr">→</span>0.34</span></div>
-        <div class="stat"><span class="sk">// REDUCTION</span><span class="sv">24<span class="u">%</span></span></div>
-        <div class="stat"><span class="sk">// PAIRS WON</span><span class="sv">9<span class="u">/10</span></span></div>
-        <div class="stat"><span class="sk">// GD ITERS</span><span class="sv">120</span></div>
-      </div>
       <div class="fig-stack">
         <figure>
           <p class="fignum"><b>EXP.01</b> · SEQUENTIAL MMD</p>
           <img src="assets/fig_mmd.png" alt="Sequential MMD across directed prompt pairs: InstructFX2FX beats the LLM-only baseline on 9 of 10" />
-          <figcaption>Lower target-directed MMD on <b>9 of 10</b> directed descriptor pairs versus an LLM-only baseline. CLAP-guided refinement cuts MMD from <b>0.45 to 0.34</b>.</figcaption>
+          <figcaption>Lower target-directed MMD on <b>9 of 10</b> directed descriptor pairs versus an LLM-only baseline (directional objective, <i>L</i><sub>dir</sub>).</figcaption>
         </figure>
         <figure>
           <p class="fignum"><b>EXP.02</b> · MMD CONVERGENCE TRAJECTORY</p>
@@ -157,7 +281,7 @@
         <figure>
           <p class="fignum"><b>EXP.03</b> · LLM INITIALIZATION ABLATION</p>
           <img src="assets/fig_trajectory.png" alt="CLAP similarity rising and MMD falling across optimization iterations" />
-          <figcaption>CLAP similarity rises and MMD falls across iterations, the measurement behind the gradient-descent tracks above.</figcaption>
+          <figcaption>From the LLM initialization, CLAP refinement (guided objective, <i>L</i><sub>guided</sub>) lowers MMD in a DSP-feature space and an Fx-Encoder++ embedding across iterations; curves show piano, violin, and their mean.</figcaption>
         </figure>
       </div>
     </div>

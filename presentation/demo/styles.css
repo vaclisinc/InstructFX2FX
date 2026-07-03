@@ -118,10 +118,12 @@ ol.modes b { color: var(--ink); font-weight: 700; }
 
 /* ---- figures ---- */
 .fig-stack { display: grid; gap: 26px; }
+.fig-stack + .lead { margin-top: 26px; }
 figure { margin: 0; }
 .fignum { color: var(--faint); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 9px; }
 .fignum b { color: var(--blue); font-weight: 600; }
 figure img { width: 100%; border: 1.5px solid var(--line); display: block; background: var(--paper); }
+figure svg { width: 100%; height: auto; border: 1.5px solid var(--line); display: block; background: var(--paper); font-family: var(--mono); }
 figcaption { font-size: 0.78rem; color: var(--muted); margin-top: 10px; max-width: 100%; line-height: 1.55; }
 figcaption::before { content: "▴ "; color: var(--blue); font-weight: 600; }
 figcaption b { color: var(--ink-2); font-weight: 600; }

@@ -34,6 +34,7 @@ class LLMClient:
         for attempt, max_tokens in enumerate(self.parameter_max_tokens, start=1):
             response = self.llm.chat.completions.create(
                 model=model or self.model,
+                temperature=1.0,  # stochastic init; pinned for reproducibility (was API default)
                 max_tokens=max_tokens,
                 messages=[
                     {"role": "system", "content": prompt.sys_prompt},
