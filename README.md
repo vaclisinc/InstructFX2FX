@@ -2,12 +2,18 @@
 
 # InstructFX2FX
 
-### A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement
+### A Multi-Turn Text-to-Effect System for Sequential Audio Effect Refinement 
 
 <span style="white-space:nowrap;">Song-Ze Yu</span>&nbsp;·
 <span style="white-space:nowrap;">Milan Liessens Dujardin</span>&nbsp;·
 <span style="white-space:nowrap;">Yuxuan Cai</span>&nbsp;·
-<span style="white-space:nowrap;">Wantong Zhang</span>
+<span style="white-space:nowrap;">Wantong Zhang</span>&
+nbsp;·
+<span style="white-space:nowrap;">Brian Cruz</span>&
+nbsp;·
+<span style="white-space:nowrap;">Jeremy Wagner</span>&
+nbsp;·
+<span style="white-space:nowrap;">Carmine-Emanuele Cella</span>
 
 <sub>Center for New Music and Audio Technologies (CNMAT) · University of California, Berkeley</sub>
 
@@ -28,17 +34,7 @@
 
 ---
 
-> **TL;DR.** Real audio mixing is iterative — a sequence of small corrections, not one descriptor. **InstructFX2FX** treats this as *sequential FX refinement*: an LLM plans and orders the FX chain and proposes the initial parameter state, then CLAP-guided optimization refines it perceptually, turn after turn — gradient descent for differentiable effects (EQ, reverb) and Bayesian optimization for the rest. On SocialFX descriptor transitions it lowers target-directed MMD on **9 of 10** directed pairs versus an LLM-only re-prompting baseline.
-
-## Highlights
-
-| | |
-|---|---|
-| **Problem** | Sequential, multi-turn FX refinement — update an existing chain and parameter state, not regenerate a preset from scratch |
-| **Method** | LLM planner (select + order + initialize) → CLAP-guided optimization (perceptual refinement) over a persistent session state |
-| **Backends** | Gradient descent (differentiable: EQ, reverb) · Bayesian optimization (Pedalboard: comp, dist, delay, pitch, crush) |
-| **Result** | Target-directed MMD ↓ on **9 / 10** directed pairs vs. LLM-only re-prompting (0.45 → 0.34, a 24% reduction) |
-| **Interaction** | Human-in-the-loop: audition the saved optimization checkpoints each turn, then prompt the next correction |
+> **TL;DR.** Real audio mixing is iterative — a sequence of small corrections, not one descriptor. **InstructFX2FX** treats this as *sequential FX refinement*: an LLM plans and decides the FX chain and proposes the initial parameter state, then CLAP-guided optimization refines it perceptually, turn after turn — gradient descent for differentiable effects (EQ, reverb) and Bayesian optimization for the rest. On SocialFX-derived descriptor pairs, CLAP-guided refinement achieves lower DSP-feature MMD than an LLM+LLM initialize-then-reprompt baseline on 9 of 10 pairs.
 
 ---
 
@@ -210,7 +206,7 @@ uvicorn apps.web_api.app.main:app --reload
 
 ```bibtex
 @misc{yu2026instructfx2fxmultiturntexttopresetdemo,
-      title={InstructFX2FX: A Multi-turn Text-to-Preset Demo for Iterative Audio Effect Refinement},
+      title={InstructFX2FX: A Multi-Turn Text-to-Effect System for Sequential Audio Effect Refinement},
       author={Song-Ze Yu and Milan Liessens Dujardin and Yuxuan Cai and Wantong Zhang},
       year={2026},
       eprint={2606.22005},
