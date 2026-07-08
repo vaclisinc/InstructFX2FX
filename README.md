@@ -16,7 +16,6 @@
 
 <br/>
 
-[![Paper PDF](https://img.shields.io/badge/Paper-camera--ready-red.svg)](presentation/demo/assets/camera-ready.pdf)
 [![arXiv](https://img.shields.io/badge/arXiv-2606.22005-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.22005)
 [![DAFx 2026](https://img.shields.io/badge/DAFx_2026-Demo_Track-success.svg)](https://dafx26.mit.edu/)
 [![Live demo](https://img.shields.io/badge/Live_demo-instructfx2fx.vaclis.net-0071e3.svg)](https://instructfx2fx.vaclis.net/)
@@ -259,14 +258,14 @@ Imports use bare module names such as `from pipeline.orchestrator import Orchest
 ## Citation
 
 ```bibtex
-@misc{yu2026instructfx2fxmultiturntexttopresetdemo,
-  title = {InstructFX2FX: A Multi-Turn Text-to-Effect System for Sequential Audio Effect Refinement},
-  author = {Yu, Song-Ze and Liessens Dujardin, Milan and Cai, Yuxuan and Zhang, Wantong and Cruz, Brian and Wagner, Jeremy and Cella, Carmine-Emanuele},
-  year = {2026},
-  eprint={2606.22005},
-  archivePrefix={arXiv},
-  primaryClass={cs.SD},
-  url={https://arxiv.org/abs/2606.22005},
+@misc{yu2026instructfx2fxmultiturntexttoeffectsequential,
+      title={InstructFX2FX: A Multi-Turn Text-to-Effect System for Sequential Audio Effect Refinement}, 
+      author={Song-Ze Yu and Milan Liessens Dujardin and Yuxuan Cai and Wantong Zhang and Brian Cruz and Jeremy Wagner and Carmine-Emanuele Cella},
+      year={2026},
+      eprint={2606.22005},
+      archivePrefix={arXiv},
+      primaryClass={cs.SD},
+      url={https://arxiv.org/abs/2606.22005}, 
 }
 ```
 
