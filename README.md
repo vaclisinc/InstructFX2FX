@@ -17,7 +17,7 @@
 <br/>
 
 [![arXiv](https://img.shields.io/badge/arXiv-2606.22005-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.22005)
-[![DAFx 2026](https://img.shields.io/badge/DAFx_2026-Demo_Track-success.svg)](https://dafx26.mit.edu/)
+[![DAFx 2026](https://img.shields.io/badge/DAFx_2026-success.svg)](https://dafx26.mit.edu/)
 [![Live demo](https://img.shields.io/badge/Live_demo-instructfx2fx.vaclis.net-0071e3.svg)](https://instructfx2fx.vaclis.net/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
@@ -66,26 +66,34 @@ The 3-layer pipeline is orchestrated by [`src/pipeline/orchestrator.py`](src/pip
 
 ```text
 Instruction + dry audio + session state
-        |
-        v
-+-------------------------------+
-| Layer 1: FX Selector Agent    |  OpenRouter tool-calling LLM
-| src/agents/fx_selector.py     |  -> ordered FX chain
-+---------------+---------------+
-                |
-                v
-+-------------------------------+
-| Layer 2: Parser / Router      |  initialize, reuse, or mixed routing
-| src/agents/parser.py          |  -> assembled params
-+---------------+---------------+
-                |
-      +---------+---------+
-      v                   v
-+------------+      +----------------+
-| Layer 3A   |      | Layer 3B       |
-| DASP GD    | ---> | Pedalboard BO  |
-| eq, rev    |audio | comp/dist/etc. |
-+------------+      +----------------+
+                   |
+                   v
+   +-------------------------------+
+   | LLM Planner                   |  OpenRouter tool-calling LLM
+   | src/agents/fx_selector.py     |  -> selected FX tools
+   +---------------+---------------+
+                   |
+                   v
+   +-------------------------------+
+   | Routing Module                |  init, reuse, or mixed routing
+   | src/agents/parser.py          |  -> assembled FX chain + params
+   +---------------+---------------+
+                   |
+                   v
++------------------------------------------------+
+| CLAP-guided Optimization Backend               |
+|                                                |
+|  +------------------+    +------------------+  |
+|  | Gradient Descent | -> |   Bayesian Opt.  |  |
+|  |    (diff. FX)    |    |  (non-diff. FX)  |  |
+|  +------------------+    +------------------+  |
++----------------+-------------------------------+
+                    |
+                    v
+     Updated params + output audio
+                    |
+                    v
+          Session state update
 ```
 
 **Layer 1 - FX Selector Agent:** each supported effect is exposed as a callable tool. The LLM selects new effects in signal-chain order and avoids reselecting effects already present in the session.
